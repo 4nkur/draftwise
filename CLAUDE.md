@@ -198,9 +198,11 @@ A structured JSON-ish object that any command can consume:
 
 ### Languages and frameworks
 
-**v1 supports:** JS/TS Node projects (Express, Next.js), common ORM patterns.
+**Currently supported:**
+- **JS/TS:** Next.js (pages + app router), Express, Fastify, Hapi, Koa, NestJS, Vue, Svelte, SvelteKit, Nuxt, Remix, React Router. ORMs: Prisma, Mongoose, Sequelize, Drizzle, TypeORM, Knex.
+- **Python:** FastAPI, Starlette, Flask, Django, Tornado. ORMs: SQLAlchemy, Django ORM, Peewee, Tortoise ORM. Reads `requirements.txt` and `pyproject.toml` (PEP 621 + Poetry tables).
 
-**v2+ ambitions:** Python (FastAPI, Django), Rust, Go, mobile codebases (React Native, Swift, Kotlin).
+**Planned expansions:** Go (net/http, Gin, Echo, Chi + GORM, Ent), Rust (Axum, Actix, Rocket + Diesel, sqlx), mobile codebases (React Native, Swift, Kotlin).
 
 Don't try to make v1 universal. A great experience for JS/TS is better than a mediocre experience for everything.
 
@@ -273,4 +275,4 @@ When a contributor proposes one of these, gently redirect — they're worth doin
 4. **Large flow tracing.** `explain` sends the full scanner output to the model regardless of flow size. May need flow-aware filtering (only include relevant files) for very large flows.
 5. ~~**Unsupported frameworks.**~~ ✅ Resolved. `init` and `scan` now log an explicit "no framework detected" hint when the scanner returns an empty `frameworks` array, listing what's supported.
 6. **OpenAI / Gemini adapters.** Stubbed with a clear error in `src/ai/provider.js`. Wire up when a user asks for them.
-7. **Scanner language coverage.** v1 covers JS/TS frameworks + JS/TS-native ORMs. Python (FastAPI/Django/Flask + SQLAlchemy/Django ORM) is the next planned expansion.
+7. ~~**Scanner language coverage — Python.**~~ ✅ Resolved. Python support added in PR after `0.0.1`: detects FastAPI / Starlette / Flask / Django / Tornado from `requirements.txt` or `pyproject.toml` (PEP 621 + Poetry), parses FastAPI / Flask decorator-based routes, parses Django `urls.py` `path(...)` / `re_path(...)`, and parses SQLAlchemy + Django ORM models. Test files (`tests/`, `test_*.py`, `_test.py`, `conftest.py`) are excluded from route detection. Go and Rust are the next planned language expansions.
