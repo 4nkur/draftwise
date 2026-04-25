@@ -138,6 +138,226 @@ model Post {
     expect(result.files).toHaveLength(2);
   });
 
+  describe('Python support', () => {
+    it('detects FastAPI from requirements.txt and parses route decorators', async () => {
+      await writeFixture(dir, {
+        'requirements.txt': 'fastapi>=0.100\nuvicorn[standard]\n# comment\npydantic\n',
+        'app/main.py': `
+from fastapi import FastAPI
+app = FastAPI()
+
+@app.get("/healthz")
+def health():
+    return {"ok": True}
+
+@app.post("/users", response_model=User)
+async def create_user(user: User):
+    pass
+
+@router.delete("/users/{id}")
+def delete_user(id: int):
+    pass
+`,
+      });
+
+      const result = await scan(dir);
+      expect(result.frameworks).toContain('FastAPI');
+      expect(result.packageMeta.dependencies).toContain('fastapi');
+      expect(result.packageMeta.dependencies).toContain('uvicorn');
+      const routes = result.routes.map((r) => `${r.method} ${r.path}`).sort();
+      expect(routes).toContain('GET /healthz');
+      expect(routes).toContain('POST /users');
+      expect(routes).toContain('DELETE /users/{id}');
+    });
+
+    it('detects Flask routes including methods on @app.route', async () => {
+      await writeFixture(dir, {
+        'requirements.txt': 'flask\n',
+        'src/app.py': `
+from flask import Flask
+app = Flask(__name__)
+
+@app.route("/")
+def index():
+    return "ok"
+
+@app.route("/items", methods=["GET", "POST"])
+def items():
+    pass
+
+@app.get("/health")
+def health():
+    return "ok"
+`,
+      });
+
+      const result = await scan(dir);
+      expect(result.frameworks).toContain('Flask');
+      const lines = result.routes.map((r) => `${r.method} ${r.path}`).sort();
+      expect(lines).toContain('GET /');
+      expect(lines).toContain('GET /items');
+      expect(lines).toContain('POST /items');
+      expect(lines).toContain('GET /health');
+    });
+
+    it('detects Django routes from urls.py and Django ORM from settings', async () => {
+      await writeFixture(dir, {
+        'requirements.txt': 'django==4.2\npsycopg2-binary\n',
+        'project/urls.py': `
+from django.urls import path, re_path
+from . import views
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("api/users/", views.UserList.as_view()),
+    re_path(r"^api/users/(?P<pk>\\d+)$", views.UserDetail.as_view()),
+]
+`,
+      });
+
+      const result = await scan(dir);
+      expect(result.frameworks).toContain('Django');
+      expect(result.orms).toContain('Django ORM');
+      const paths = result.routes.map((r) => r.path).sort();
+      expect(paths).toContain('/admin/');
+      expect(paths).toContain('/api/users/');
+      expect(paths.some((p) => p.includes('api/users'))).toBe(true);
+    });
+
+    it('parses pyproject.toml PEP 621 dependencies', async () => {
+      await writeFixture(dir, {
+        'pyproject.toml': `
+[project]
+name = "demo"
+version = "0.1.0"
+description = "A demo project"
+dependencies = [
+  "fastapi>=0.100",
+  "sqlalchemy>=2.0",
+  "uvicorn",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+`,
+        'app/main.py': '# noop',
+      });
+
+      const result = await scan(dir);
+      expect(result.packageMeta.name).toBe('demo');
+      expect(result.packageMeta.dependencies).toEqual(
+        expect.arrayContaining(['fastapi', 'sqlalchemy', 'uvicorn']),
+      );
+      expect(result.packageMeta.devDependencies).toEqual(
+        expect.arrayContaining(['pytest', 'ruff']),
+      );
+      expect(result.frameworks).toContain('FastAPI');
+      expect(result.orms).toContain('SQLAlchemy');
+    });
+
+    it('parses pyproject.toml Poetry dependency tables', async () => {
+      await writeFixture(dir, {
+        'pyproject.toml': `
+[tool.poetry]
+name = "demo"
+version = "0.1.0"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+flask = "^3.0"
+sqlalchemy = "^2.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0"
+`,
+        'src/app.py': '# noop',
+      });
+
+      const result = await scan(dir);
+      expect(result.packageMeta.dependencies).toEqual(
+        expect.arrayContaining(['flask', 'sqlalchemy']),
+      );
+      expect(result.packageMeta.dependencies).not.toContain('python');
+      expect(result.packageMeta.devDependencies).toContain('pytest');
+      expect(result.frameworks).toContain('Flask');
+    });
+
+    it('parses SQLAlchemy models with class fields', async () => {
+      await writeFixture(dir, {
+        'requirements.txt': 'sqlalchemy>=2.0\n',
+        'app/models.py': `
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+class Base(DeclarativeBase):
+    pass
+
+class User(Base):
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(unique=True)
+
+class Post(Base):
+    __tablename__ = "posts"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str] = mapped_column()
+`,
+      });
+
+      const result = await scan(dir);
+      const names = result.models.map((m) => m.name).sort();
+      expect(names).toContain('User');
+      expect(names).toContain('Post');
+      const user = result.models.find((m) => m.name === 'User');
+      expect(user.fields).toContain('id');
+      expect(user.fields).toContain('email');
+      expect(user.tableName).toBe('users');
+    });
+
+    it('parses Django ORM models from models.py', async () => {
+      await writeFixture(dir, {
+        'requirements.txt': 'django==4.2\n',
+        'blog/models.py': `
+from django.db import models
+
+class Post(models.Model):
+    title = models.CharField(max_length=200)
+    body = models.TextField()
+    author = models.ForeignKey("auth.User", on_delete=models.CASCADE)
+
+class Comment(models.Model):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    body = models.TextField()
+`,
+      });
+
+      const result = await scan(dir);
+      expect(result.orms).toContain('Django ORM');
+      const names = result.models.map((m) => m.name).sort();
+      expect(names).toEqual(['Comment', 'Post']);
+      const post = result.models.find((m) => m.name === 'Post');
+      expect(post.fields).toContain('title');
+      expect(post.fields).toContain('body');
+    });
+
+    it('skips Python test files when detecting routes', async () => {
+      await writeFixture(dir, {
+        'requirements.txt': 'fastapi\n',
+        'app/main.py': `@app.get("/real")
+def real(): pass`,
+        'tests/test_routes.py': `@app.get("/from-test")
+def from_test(): pass`,
+        'app/test_helpers.py': `@app.get("/helper-test")
+def helper(): pass`,
+      });
+
+      const result = await scan(dir);
+      const paths = result.routes.map((r) => r.path);
+      expect(paths).toContain('/real');
+      expect(paths).not.toContain('/from-test');
+      expect(paths).not.toContain('/helper-test');
+    });
+  });
+
   it('ignores node_modules and .git', async () => {
     await writeFixture(dir, {
       'package.json': '{}',
