@@ -1,0 +1,44 @@
+# Normalize line endings to LF in the repo and the working tree.
+# Avoids the "LF will be replaced by CRLF" Git warnings on Windows
+# and keeps the shebang in bin/draftwise.js portable across OSes.
+
+* text=auto eol=lf
+
+# Source
+*.js text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.jsx text eol=lf
+*.vue text eol=lf
+*.svelte text eol=lf
+*.py text eol=lf
+*.go text eol=lf
+*.rs text eol=lf
+*.rb text eol=lf
+
+# Config / data
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+
+# Shell / scripts
+*.sh text eol=lf
+bin/* text eol=lf
+
+# Binaries — leave alone (Git wouldn't convert anyway, but be explicit).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary

@@ -7,7 +7,8 @@ Each released version is tagged in git (`v0.0.1`, `v0.1.0`, etc.) and includes t
 ## [Unreleased]
 
 ### Added
-- **Maintain CHANGELOG.md.** This file. Every functional PR going forward updates `[Unreleased]`; versioned sections move in when a release is tagged. — Ankur (#TBD)
+- **`.gitattributes` for cross-platform line-ending consistency.** Forces LF on commit and on checkout for source / config / docs / shell files; pins binary types as binary. Silences the "LF will be replaced by CRLF" warnings that Git on Windows surfaces on every commit, and keeps `bin/draftwise.js`'s shebang portable across OSes. — Ankur (#TBD)
+- **Maintain CHANGELOG.md.** This file. Every functional PR going forward updates `[Unreleased]`; versioned sections move in when a release is tagged. — Ankur (#19)
 
 ### Changed
 - **Prune resolved questions out of CLAUDE.md's Open questions section.** Real open items kept; resolved ones move into a new "Past decisions" section with implementation pointers. — Ankur (#18)
