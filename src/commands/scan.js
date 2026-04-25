@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { scan as defaultScan } from '../core/scanner.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
+import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { SYSTEM, buildPrompt, AGENT_INSTRUCTION } from '../ai/prompts/scan.js';
 
 async function pathExists(p) {
@@ -53,7 +54,7 @@ export default async function scanCommand(_args = [], deps = {}) {
   }
 
   log('Scanning repo...');
-  const result = await scan(cwd);
+  const result = await scan(cwd, { maxFiles: config.scanMaxFiles });
 
   if (!result.files || result.files.length === 0) {
     throw new Error(
@@ -65,6 +66,11 @@ export default async function scanCommand(_args = [], deps = {}) {
   log(
     `  ${summary.files} files · ${summary.frameworks.join(', ') || 'no framework detected'} · ${summary.routes} routes · ${summary.components} components · ${summary.models} models`,
   );
+  for (const warning of describeScanWarnings(result, {
+    includeFrameworkHint: true,
+  })) {
+    log(warning);
+  }
   log('');
 
   const scanForPrompt = {

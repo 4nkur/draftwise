@@ -4,6 +4,7 @@ import { stringify as yamlStringify } from 'yaml';
 import { select, input } from '@inquirer/prompts';
 import { scan as defaultScan } from '../core/scanner.js';
 import { complete as defaultComplete } from '../ai/provider.js';
+import { describeScanWarnings } from '../utils/scan-warnings.js';
 import {
   QUESTIONS_SYSTEM,
   STACKS_SYSTEM,
@@ -178,6 +179,11 @@ async function runBrownfield({ cwd, log, scan, draftwiseDir, aiConfig }) {
   log(
     `Found ${result.files.length} source file${result.files.length === 1 ? '' : 's'}.`,
   );
+  for (const warning of describeScanWarnings(result, {
+    includeFrameworkHint: true,
+  })) {
+    log(warning);
+  }
   log('');
 
   await mkdir(join(draftwiseDir, 'specs'), { recursive: true });

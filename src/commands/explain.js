@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { scan as defaultScan } from '../core/scanner.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
+import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { SYSTEM, buildPrompt, buildAgentInstruction } from '../ai/prompts/explain.js';
 import { slugify } from '../utils/slug.js';
 
@@ -59,7 +60,10 @@ export default async function explainCommand(args = [], deps = {}) {
   const slug = slugify(flow);
 
   log(`Tracing "${flow}"...`);
-  const result = await scan(cwd);
+  const result = await scan(cwd, { maxFiles: config.scanMaxFiles });
+  for (const warning of describeScanWarnings(result)) {
+    log(warning);
+  }
 
   if (!result.files || result.files.length === 0) {
     throw new Error(

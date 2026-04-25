@@ -49,6 +49,12 @@ export async function loadConfig(cwd = process.cwd()) {
     ? project.state
     : 'brownfield';
 
+  const scan = parsed?.scan ?? {};
+  let scanMaxFiles;
+  if (typeof scan.max_files === 'number' && Number.isFinite(scan.max_files)) {
+    scanMaxFiles = Math.max(1, Math.floor(scan.max_files));
+  }
+
   return {
     mode: ai.mode,
     provider: ai.provider,
@@ -56,5 +62,6 @@ export async function loadConfig(cwd = process.cwd()) {
     model: ai.model || '',
     projectState,
     stack: project.stack,
+    scanMaxFiles,
   };
 }
