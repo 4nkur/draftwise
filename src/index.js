@@ -7,6 +7,7 @@ const COMMANDS = {
   tasks: () => import('./commands/tasks.js'),
   list: () => import('./commands/list.js'),
   show: () => import('./commands/show.js'),
+  scaffold: () => import('./commands/scaffold.js'),
 };
 
 const HELP = `draftwise — codebase-aware spec drafting
@@ -16,6 +17,7 @@ Usage:
 
 Commands:
   init                          Set up .draftwise/ — greenfield plan or brownfield scan
+  scaffold                      Create initial files from a greenfield plan (greenfield only)
   scan                          Refresh the codebase overview
   explain <flow>                Trace how a specific flow works in the code
   new "<idea>"                  Conversational drafting → product-spec.md

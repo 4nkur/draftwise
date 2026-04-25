@@ -97,7 +97,7 @@ draftwise init
 
 `draftwise init` first asks whether you're starting **greenfield** (no code yet) or **brownfield** (existing codebase) and routes accordingly:
 
-- **Greenfield:** describe the idea → answer 4-6 clarifying questions → pick from 2-3 stack options → get a plan with directory structure and setup commands.
+- **Greenfield:** describe the idea → answer 4-6 clarifying questions → pick from 2-3 stack options → get a plan with directory structure and setup commands. Optional: `draftwise scaffold` to create the user-written initial files automatically.
 - **Brownfield:** scans the repo and writes an overview of flows, routes, components, and models.
 
 Either way, you end up in `.draftwise/` with `overview.md` and `config.yaml`. From there:
@@ -115,6 +115,7 @@ draftwise new "your feature idea" # draft a new spec
 | Command | What it does |
 |---------|-------------|
 | `draftwise init` | Set up `.draftwise/`. Asks whether the project is greenfield or brownfield and routes accordingly — either a stack-recommendation conversation or a codebase scan. |
+| `draftwise scaffold` | Create the user-written initial files from a greenfield plan. Reads `.draftwise/scaffold.json` (written by `init` in greenfield mode), confirms before writing, and skips existing files. |
 | `draftwise scan` | Refresh the structured codebase overview (brownfield). |
 | `draftwise explain <flow>` | Walk through how a specific flow works today, traced from the actual code (brownfield). |
 | `draftwise new "<idea>"` | Conversational drafting — generates a product spec grounded in the codebase or the greenfield plan. |
@@ -129,11 +130,12 @@ draftwise new "your feature idea" # draft a new spec
 
 ```
 .draftwise/
-├── overview.md                     # codebase summary — flows, surfaces, data, components
+├── overview.md                     # codebase summary (brownfield) or greenfield plan
+├── scaffold.json                   # greenfield only: structured stack data for `draftwise scaffold`
 ├── specs/
 │   └── add-collaborative-albums/
 │       ├── product-spec.md         # what & why
-│       ├── technical-spec.md       # how — grounded in your code
+│       ├── technical-spec.md       # how — grounded in your code (or "(new)" for greenfield)
 │       └── tasks.md                # ordered breakdown
 └── config.yaml
 ```
@@ -253,7 +255,7 @@ v1 commands are all shipped on `npm` as of `0.0.1`. The next published release w
 - [x] `tech` — technical spec, greenfield-aware (every file marked `(new)`, follows the planned directory structure)
 - [x] `tasks` — dependency-ordered breakdown, greenfield-aware (first 1-3 tasks are project setup before feature work)
 - [x] `list` and `show` — spec browsing utilities
-- [ ] optional file scaffolding from `init`'s greenfield plan (planned)
+- [x] optional file scaffolding from `init`'s greenfield plan via `draftwise scaffold`
 
 **Next:** OpenAI and Gemini provider adapters (Claude is the only fully-wired adapter today), framework support beyond JS/TS Node (Python, Go, Rust), greenfield-aware downstream commands, and a flag-aware scanner cache for very large repos.
 

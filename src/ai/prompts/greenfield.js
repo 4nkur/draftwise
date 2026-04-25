@@ -205,7 +205,15 @@ PHASE 2 — Recommend stacks:
 
 PHASE 3 — Write the plan:
   - Save the chosen stack and the conversation as .draftwise/overview.md, with sections: Idea, Discovery (Q&A), Chosen stack (name, summary, rationale, pros, cons), Directory structure, Initial files, Setup commands, Next steps.
-  - Tell the PM the next steps: run setup commands, create initial files, then \`draftwise scan\` once code exists, or \`draftwise new "<feature idea>"\` to draft a feature spec.
+  - Also save .draftwise/scaffold.json with the structured stack data so \`draftwise scaffold\` can use it later. Shape:
+    {
+      "stack": "<chosen stack name>",
+      "summary": "<one-sentence summary>",
+      "directory_structure": "<the markdown tree>",
+      "initial_files": [{ "path": "...", "purpose": "..." }],
+      "setup_commands": ["...", "..."]
+    }
+  - Tell the PM the next steps: run setup commands, optionally \`draftwise scaffold\` to create initial files, then \`draftwise scan\` once code exists, or \`draftwise new "<feature idea>"\` to draft a feature spec.
 
 Hard rules: ASK don't assume; stack options must be meaningfully different (not three flavors of the same thing); pros/cons must be specific to this project, not generic.`;
 }

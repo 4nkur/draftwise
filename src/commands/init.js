@@ -325,22 +325,43 @@ async function runGreenfield({
     'utf8',
   );
 
+  // Persist the structured stack data so `draftwise scaffold` can use it later.
+  await writeFile(
+    join(draftwiseDir, 'scaffold.json'),
+    JSON.stringify(
+      {
+        stack: chosen.name,
+        summary: chosen.summary,
+        directory_structure: chosen.directory_structure ?? '',
+        initial_files: chosen.initial_files ?? [],
+        setup_commands: chosen.setup_commands ?? [],
+      },
+      null,
+      2,
+    ),
+    'utf8',
+  );
+
   log('');
   log(`Picked: ${chosen.name}`);
   log('');
   log('Created .draftwise/ with:');
   log(
-    `  • overview.md   (greenfield plan: idea, discovery, ${chosen.name}, directory structure, setup)`,
+    `  • overview.md     (greenfield plan: idea, discovery, ${chosen.name}, directory structure, setup)`,
   );
-  log('  • specs/        (your specs will live here)');
-  log('  • config.yaml   (AI mode + project state + stack)');
+  log('  • specs/          (your specs will live here)');
+  log('  • config.yaml     (AI mode + project state + stack)');
+  log('  • scaffold.json   (structured plan for `draftwise scaffold`)');
   log('');
   log('Next steps:');
   log('  1. Open .draftwise/overview.md and run the setup commands.');
   log(
-    '  2. Once you have some code, `draftwise scan` will refresh this overview from the actual codebase.',
+    '  2. (Optional) `draftwise scaffold` to create the user-written initial files.',
   );
-  log('  3. `draftwise new "<feature idea>"` to draft your first feature spec.');
+  log(
+    '  3. Once you have some code, `draftwise scan` will refresh this overview.',
+  );
+  log('  4. `draftwise new "<feature idea>"` to draft your first feature spec.');
 }
 
 export default async function init(_args = [], deps = {}) {

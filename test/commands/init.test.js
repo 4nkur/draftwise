@@ -260,6 +260,15 @@ describe('draftwise init', () => {
       );
       expect(config).toContain('state: greenfield');
       expect(config).toContain('Next.js + Postgres + Prisma');
+
+      const scaffoldRaw = await readFile(
+        join(dir, '.draftwise', 'scaffold.json'),
+        'utf8',
+      );
+      const scaffold = JSON.parse(scaffoldRaw);
+      expect(scaffold.stack).toBe('Next.js + Postgres + Prisma');
+      expect(scaffold.initial_files).toHaveLength(1);
+      expect(scaffold.setup_commands).toContain('npx create-next-app@latest .');
     });
 
     it('does NOT require source files (empty repo is fine)', async () => {
