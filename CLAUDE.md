@@ -6,13 +6,17 @@ Context for Claude Code when working on this repo.
 
 ## What we're building
 
-Draftwise is a codebase-aware product spec drafting tool. It makes a team's codebase legible — explaining what already exists, tracing how specific flows work today — and drafts product and technical specs that fit the real code.
+Draftwise is a product spec drafting tool for PMs and product builders. It supports two starting points:
 
-The three primary jobs Draftwise does:
+- **Brownfield (existing codebase):** makes the codebase legible. Explains what already exists, traces how specific flows work today, drafts product and technical specs that fit the real code.
+- **Greenfield (no code yet):** asks clarifying questions about the idea, recommends 2-3 stack options with rationale + pros + cons, proposes a directory structure, and lays out the first setup commands.
 
-1. **Explains the product back to its team.** New PMs use it to onboard. Existing PMs use it to verify their mental model before drafting.
-2. **Traces current behavior.** Walk through how a specific flow actually works in the codebase, end to end.
-3. **Drafts grounded specs.** When a PM proposes a new feature, the spec references real components, real endpoints, real schemas — not generic placeholders.
+The four primary jobs Draftwise does:
+
+1. **Explains the product back to its team (brownfield).** New PMs use it to onboard. Existing PMs use it to verify their mental model before drafting.
+2. **Traces current behavior (brownfield).** Walk through how a specific flow actually works in the codebase, end to end.
+3. **Guides the start of a new project (greenfield).** Helps a PM go from "I have an idea" to "here's the stack, the structure, and the first commands to run" — grounded in their constraints, not generic boilerplate.
+4. **Drafts grounded specs (both).** When a PM proposes a feature, the spec references real components, endpoints, schemas (brownfield) or proposed ones with `(new)` markers (greenfield) — never generic placeholders.
 
 Everything Draftwise produces lives in `.draftwise/` inside the user's repo. Markdown files, version-controlled, alongside the code.
 
@@ -101,9 +105,9 @@ ai:
 ## Commands
 
 ```
-draftwise init                          → scan codebase, set up .draftwise/, generate overview.md
-draftwise scan                          → refresh the structured codebase overview
-draftwise explain <flow>                → trace how a specific flow works in the actual code
+draftwise init                          → set up .draftwise/; routes to greenfield or brownfield flow
+draftwise scan                          → refresh the structured codebase overview (brownfield)
+draftwise explain <flow>                → trace how a specific flow works in the actual code (brownfield)
 draftwise new "<idea>"                  → conversational drafting → product-spec.md
 draftwise tech [<feature>]              → drafts technical-spec.md from approved product spec
 draftwise tasks [<feature>]             → ordered tasks.md from technical spec
@@ -134,7 +138,10 @@ Each command is a separate file under `src/commands/` with a single `export defa
 
 The build order below was the original sequence. As of `0.0.1` published to npm, every command is implemented end-to-end with both AI modes (agent + api) and a vitest test suite (~70 tests). The next published version will be `0.1.0` after end-to-end smoke testing.
 
-1. **`init`** ✅ — creates `.draftwise/` skeleton, asks for AI mode, scans codebase, writes `overview.md` placeholder + `config.yaml`. Refuses if `.draftwise/` already exists. (`src/commands/init.js`)
+1. **`init`** ✅ — asks the user about project state (greenfield vs brownfield) and AI mode, then routes:
+   - **Brownfield path:** scans the codebase, writes `.draftwise/specs/`, `overview.md` placeholder, `config.yaml` (with `project.state: brownfield`).
+   - **Greenfield path:** prompts for the idea, then in **api mode** generates clarifying questions → captures answers → proposes 2-3 stack options with rationale/pros/cons/directory structure/setup commands → writes a full greenfield plan to `overview.md` + `config.yaml` (with `project.state: greenfield` and the chosen `stack`). In **agent mode**, prints a 3-phase instruction for the host coding agent to walk the conversation and rewrite `overview.md`.
+   Refuses if `.draftwise/` already exists. (`src/commands/init.js`, prompts in `src/ai/prompts/greenfield.js`)
 
 2. **`scan`** ✅ — runs the scanner and (api mode) calls the model to produce a narrated `overview.md`, or (agent mode) dumps scanner data + an instruction for the host agent. (`src/commands/scan.js`)
 
