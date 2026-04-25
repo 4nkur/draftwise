@@ -1,5 +1,6 @@
 const COMMANDS = {
   init: () => import('./commands/init.js'),
+  scan: () => import('./commands/scan.js'),
 };
 
 const HELP = `draftwise — codebase-aware spec drafting
@@ -9,6 +10,7 @@ Usage:
 
 Commands:
   init              Scan codebase and set up .draftwise/
+  scan              Refresh the codebase overview
 
 Run "draftwise <command> --help" for command-specific help (coming soon).
 `;
