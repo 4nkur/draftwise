@@ -5,6 +5,8 @@ const COMMANDS = {
   new: () => import('./commands/new.js'),
   tech: () => import('./commands/tech.js'),
   tasks: () => import('./commands/tasks.js'),
+  list: () => import('./commands/list.js'),
+  show: () => import('./commands/show.js'),
 };
 
 const HELP = `draftwise — codebase-aware spec drafting
@@ -13,12 +15,14 @@ Usage:
   draftwise <command> [args]
 
 Commands:
-  init                  Scan codebase and set up .draftwise/
-  scan                  Refresh the codebase overview
-  explain <flow>        Trace how a specific flow works in the code
-  new "<idea>"          Conversational drafting → product-spec.md
-  tech [<feature>]      Draft technical-spec.md from approved product spec
-  tasks [<feature>]     Generate ordered tasks.md from technical spec
+  init                          Scan codebase and set up .draftwise/
+  scan                          Refresh the codebase overview
+  explain <flow>                Trace how a specific flow works in the code
+  new "<idea>"                  Conversational drafting → product-spec.md
+  tech [<feature>]              Draft technical-spec.md from approved product spec
+  tasks [<feature>]             Generate ordered tasks.md from technical spec
+  list                          List all specs in .draftwise/specs/
+  show <feature> [type]         Show a spec (type: product | tech | tasks; default: product)
 
 Run "draftwise <command> --help" for command-specific help (coming soon).
 `;
