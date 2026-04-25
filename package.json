@@ -1,7 +1,7 @@
 {
   "name": "draftwise",
-  "version": "1.0.0",
-  "description": "<h1 align=\"center\">Draftwise</h1>",
+  "version": "0.0.1",
+  "description": "Codebase-aware product specs. AI scans your repo, then drafts specs that fit it.",
   "main": "src/index.js",
   "scripts": {
     "test": "vitest run",
@@ -13,8 +13,7 @@
     "type": "git",
     "url": "git+https://github.com/4nkur/draftwise.git"
   },
-  "keywords": [],
-  "author": "",
+  "author": "Ankur Goyal <04.ankur@gmail.com> (https://github.com/4nkur)",
   "license": "MIT",
   "type": "module",
   "bugs": {
@@ -34,5 +33,21 @@
   },
   "dependencies": {
     "@inquirer/prompts": "^8.4.2"
-  }
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "product-spec",
+    "product-management",
+    "spec-driven-development",
+    "ai-agent",
+    "cli",
+    "claude-code",
+    "cursor",
+    "codebase-aware"
+  ]
 }
