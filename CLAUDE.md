@@ -112,6 +112,7 @@ project:
 
 ```
 draftwise init                          → set up .draftwise/; routes to greenfield or brownfield flow
+draftwise scaffold                      → create initial files from the greenfield plan (greenfield only)
 draftwise scan                          → refresh the structured codebase overview (brownfield)
 draftwise explain <flow>                → trace how a specific flow works in the actual code (brownfield)
 draftwise new "<idea>"                  → conversational drafting → product-spec.md
@@ -129,13 +130,16 @@ Each command is a separate file under `src/commands/` with a single `export defa
 
 ```
 .draftwise/
-├── overview.md                  # codebase summary — flows, surfaces, data, components
+├── overview.md                  # codebase summary (brownfield) or greenfield plan
+├── scaffold.json                # greenfield only: structured stack data for `draftwise scaffold`
+├── flows/                       # `draftwise explain` snapshots (brownfield)
+│   └── <flow-slug>.md
 ├── specs/
 │   └── <feature-name>/
 │       ├── product-spec.md      # what & why
-│       ├── technical-spec.md    # how — grounded in real code
+│       ├── technical-spec.md    # how — grounded in real code (or marked "(new)" for greenfield)
 │       └── tasks.md             # ordered implementation breakdown
-└── config.yaml                  # AI provider, scan settings, template prefs
+└── config.yaml                  # AI provider + project state + chosen stack
 ```
 
 ---
@@ -160,6 +164,8 @@ The build order below was the original sequence. As of `0.0.1` published to npm,
 6. **`tasks [<feature>]`** ✅ — brownfield: reads `technical-spec.md`, drafts ordered `tasks.md` (Goal / Files / Depends on / Parallel with / Acceptance). Greenfield: reads the project plan + technical spec, drafts `tasks.md` where files are all `(new)` and the first 1-3 tasks are foundational scaffolding (run setup commands, install deps, configure env). (`src/commands/tasks.js`, `src/ai/prompts/tasks.js` with `selectSystem`)
 
 7. **`list` and `show <feature> [type]`** ✅ — file-system utilities, no AI. (`src/commands/list.js`, `src/commands/show.js`)
+
+8. **`scaffold`** ✅ — greenfield-only file scaffolder. Reads `.draftwise/scaffold.json` (written by `init` in greenfield + api mode, or by the host agent in greenfield + agent mode), confirms with the user — including a warning that scaffolders like `create-next-app` should run first — then creates each `initial_files` entry with placeholder content (skipping any that already exist). Prints the `setup_commands` as a reminder; doesn't run them. (`src/commands/scaffold.js`)
 
 ---
 
