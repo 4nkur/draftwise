@@ -32,12 +32,13 @@ If you're proposing a feature for Draftwise, the test is: **does this make the c
 
 ```
 bin/draftwise.js          → CLI entry point (shebang, calls src/index.js)
-src/index.js              → command router (dynamic imports, help, version)
+src/index.js              → command router (dynamic imports, help)
 src/commands/             → one file per CLI command, default export async fn
-src/core/                 → codebase scanning, spec generation, file management
-src/ai/                   → AI provider adapters and prompts
-src/templates/            → product-spec.md, technical-spec.md, config.yaml
-src/utils/                → shared helpers (markdown, yaml, file system)
+src/core/scanner.js       → codebase scanning (frameworks, routes, components, models)
+src/ai/provider.js        → routes complete() calls to the right provider adapter
+src/ai/providers/         → claude.js wired; openai.js + gemini.js stubbed
+src/ai/prompts/           → one prompt module per command (system + buildPrompt + agent instruction)
+src/utils/                → config.js (yaml loader), specs.js (list .draftwise/specs/), slug.js
 test/                     → vitest, mirrors src structure
 ```
 
@@ -53,7 +54,8 @@ The single most important module is `src/core/scanner.js` — it parses the user
 - **eslint + prettier** for code style
 - **YAML** for config (`yaml` package)
 - **Markdown** for all spec documents
-- **AI SDKs:** `@anthropic-ai/sdk`, `openai`, `@google/generative-ai` for direct API mode; agent integrations via slash commands and the Agent Skills standard
+- **`@inquirer/prompts`** for interactive prompts (init's mode select, new's Q&A loop, tech/tasks spec picker)
+- **AI SDKs:** `@anthropic-ai/sdk` is wired up for Mode 2 (api). `openai` and `@google/generative-ai` are stubbed in `src/ai/provider.js` and throw a clear "not yet wired up" error — install + implement when needed. Agent mode (Mode 1) ships scanner data + an instruction string for the host agent to consume; no SDK call.
 
 No TypeScript for v1 — keep it simple. May migrate later if the codebase grows.
 
@@ -88,7 +90,7 @@ ai:
 
 **The AI does homework before asking.** No spec command should write to disk before scanning relevant code. The reading-first principle is what makes Draftwise different from a template generator.
 
-**Templates are authoritative.** `src/templates/product-spec.md` and `src/templates/technical-spec.md` define structure. Don't hardcode structure inside command files.
+**Prompts are authoritative.** Each command's section structure lives in its prompt module under `src/ai/prompts/<command>.js` (a `SYSTEM` constant plus a `buildPrompt` function plus an agent-mode instruction). Don't hardcode structure inside command files — change the prompt instead.
 
 **Conversation, not form-filling.** `draftwise new` should walk the user through questions, not present a blank form. The conversation is the value — it surfaces gaps the user wouldn't have noticed in a template.
 
@@ -99,17 +101,17 @@ ai:
 ## Commands
 
 ```
-draftwise init                  → scan codebase, set up .draftwise/, generate overview.md
-draftwise scan                  → show structured product overview (refresh + display)
-draftwise explain <flow>        → trace how a specific flow works in the actual code
-draftwise new "<idea>"          → conversational drafting → product-spec.md
-draftwise tech                  → drafts technical-spec.md from approved product spec
-draftwise tasks                 → generates tasks.md from technical spec
-draftwise list                  → list all specs in the repo
-draftwise show <n>              → display a specific spec
+draftwise init                          → scan codebase, set up .draftwise/, generate overview.md
+draftwise scan                          → refresh the structured codebase overview
+draftwise explain <flow>                → trace how a specific flow works in the actual code
+draftwise new "<idea>"                  → conversational drafting → product-spec.md
+draftwise tech [<feature>]              → drafts technical-spec.md from approved product spec
+draftwise tasks [<feature>]             → ordered tasks.md from technical spec
+draftwise list                          → list all specs in .draftwise/specs/
+draftwise show <feature> [type]         → display a spec (type: product | tech | tasks; default: product)
 ```
 
-Each command is a separate file under `src/commands/` with a single `export default async function(args) {}`.
+Each command is a separate file under `src/commands/` with a single `export default async function(args, deps = {}) {}`. The `deps` object is the dependency-injection seam used by tests — `cwd`, `log`, `scan`, `loadConfig`, `complete`, and per-command prompt overrides.
 
 ---
 
@@ -128,23 +130,23 @@ Each command is a separate file under `src/commands/` with a single `export defa
 
 ---
 
-## Build order for v1
+## v1 status — all commands shipped
 
-Work through this sequence. Each command should be functional end-to-end (basic version is fine) before moving to the next.
+The build order below was the original sequence. As of `0.0.1` published to npm, every command is implemented end-to-end with both AI modes (agent + api) and a vitest test suite (~70 tests). The next published version will be `0.1.0` after end-to-end smoke testing.
 
-1. **`init`** — creates `.draftwise/` skeleton, asks for AI mode (agent vs API key), scans codebase, generates `overview.md`, writes `config.yaml`. This is the foundation; nothing else works without it.
+1. **`init`** ✅ — creates `.draftwise/` skeleton, asks for AI mode, scans codebase, writes `overview.md` placeholder + `config.yaml`. Refuses if `.draftwise/` already exists. (`src/commands/init.js`)
 
-2. **`scan`** — refreshes the codebase overview and displays it. Quick incremental update if the codebase hasn't changed much.
+2. **`scan`** ✅ — runs the scanner and (api mode) calls the model to produce a narrated `overview.md`, or (agent mode) dumps scanner data + an instruction for the host agent. (`src/commands/scan.js`)
 
-3. **`explain <flow>`** — user specifies a flow name or feature, AI traces from entry points (routes, UI events, scheduled jobs) through services, data writes, and side effects. Outputs a walkthrough as markdown.
+3. **`explain <flow>`** ✅ — traces a single flow end-to-end. Saves a snapshot to `.draftwise/flows/<slug>.md` in api mode. (`src/commands/explain.js`)
 
-4. **`new "<idea>"`** — AI scans codebase relevant to the idea, runs a conversational brainstorm covering problem, users, acceptance criteria, scope, edges, metrics. Generates `product-spec.md` in `.draftwise/specs/<feature-name>/`.
+4. **`new "<idea>"`** ✅ — three-phase conversational drafting: AI plan call (returns JSON with affected_flows, clarifying_questions, adjacent_opportunities) → inquirer Q&A + accept/decline loop → AI synthesis call → `product-spec.md`. Hard rule: never assume — turn every gap into a question. (`src/commands/new.js`)
 
-5. **`tech`** — reads the product spec, generates `technical-spec.md` referencing real files, endpoints, and schemas from the scanner output. Engineer refines manually.
+5. **`tech [<feature>]`** ✅ — reads product-spec.md, drafts technical-spec.md grounded in scanner output. Auto-picks if one feature, prompts to choose if multiple. (`src/commands/tech.js`)
 
-6. **`tasks`** — generates `tasks.md` from the technical spec. Ordered by dependency. Parallel tasks marked.
+6. **`tasks [<feature>]`** ✅ — reads technical-spec.md, drafts ordered tasks.md (each with Goal, Files, Depends on, Parallel with, Acceptance). (`src/commands/tasks.js`)
 
-7. **`list` and `show`** — simple file system + render utilities.
+7. **`list` and `show <feature> [type]`** ✅ — file-system utilities, no AI. (`src/commands/list.js`, `src/commands/show.js`)
 
 ---
 
@@ -185,13 +187,13 @@ Don't try to make v1 universal. A great experience for JS/TS is better than a me
 
 ## Conventions
 
-- **File per command.** `src/commands/<n>.js` with `export default async function(args) {}`.
+- **File per command.** `src/commands/<name>.js` with `export default async function(args, deps = {}) {}`. The `deps` argument is how tests inject `cwd`, `log`, `scan`, `loadConfig`, `complete`, and prompts.
 - **Async/await everywhere.** No `.then()` chains.
-- **Console output for CLI feedback.** Use a tiny helper for colored output (kleur or chalk).
-- **Errors bubble up to `src/index.js`.** It catches and prints a friendly message.
-- **Test file naming:** `test/commands/<n>.test.js` tests `src/commands/<n>.js`.
-- **Templates live in `src/templates/`** and are copied + filled during command execution. Don't duplicate template structure inside command files.
-- **AI prompts in `src/ai/prompts/`.** One file per command's prompt. Easy to iterate, easy to test.
+- **Console output for CLI feedback.** Plain text for now — colored output (kleur/chalk) is deferred until there's a need.
+- **Errors bubble up to `src/index.js`.** It catches and prints a friendly message, then exits non-zero.
+- **Test file naming:** `test/commands/<name>.test.js` tests `src/commands/<name>.js`. Other module tests mirror the source path (`test/utils/config.test.js`, `test/ai/new.test.js`, etc.).
+- **AI prompts in `src/ai/prompts/<command>.js`.** Each module exports a `SYSTEM` constant, one or more `buildPrompt` functions, and an agent-mode instruction string. Iterate the prompt here, not inside the command.
+- **No real network calls in tests.** Inject `complete` in deps and return a canned model response. Tests run in a temp dir, never the project's `.draftwise/`.
 
 ---
 
@@ -242,12 +244,13 @@ When a contributor proposes one of these, gently redirect — they're worth doin
 
 ---
 
-## Open questions (non-blocking for v1)
+## Open questions (post-v1)
 
-1. How deep does the codebase scan go on first run? Hard cap on files, or full scan?
-2. Should `scan` cache the overview, or regenerate every time?
-3. What's the right default AI model when mode is `api`?
-4. How should `explain` handle very large flows that span many files?
-5. When the scanner detects an unsupported framework, how should it degrade gracefully?
+Some originals have been answered by implementation; the remaining ones are real and worth revisiting before `0.1.0`:
 
-These don't need answers before starting. They'll surface naturally during implementation.
+1. **Scan depth.** Today the scanner walks the whole tree (skipping `node_modules`/build dirs/dotfiles) and skips files >200KB during route-regex scanning. No hard file cap. May need one for monorepos.
+2. **Scan caching.** Today every command re-runs the scanner — no caching, no incremental updates. Cheap enough for now but a bottleneck on huge repos.
+3. **Default model.** `claude-sonnet-4-6` is hardcoded in `src/ai/providers/claude.js` as the default; users can override via `ai.model` in `config.yaml`. Reasonable for now.
+4. **Large flow tracing.** `explain` sends the full scanner output to the model regardless of flow size. May need flow-aware filtering (only include relevant files) for very large flows.
+5. **Unsupported frameworks.** Scanner returns empty arrays for routes/components/models when nothing matches — graceful but silent. Should it warn the user explicitly?
+6. **OpenAI / Gemini adapters.** Stubbed with a clear error in `src/ai/provider.js`. Wire up when a user asks for them.

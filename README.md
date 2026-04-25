@@ -221,13 +221,17 @@ Or run standalone with an API key for Claude, GPT, or Gemini.
 
 ## Roadmap
 
-- [ ] `init` — codebase scan, `.draftwise/` setup, initial overview
-- [ ] `scan` — structured product overview
-- [ ] `explain` — traced walkthroughs of specific flows
-- [ ] `new` — codebase-aware conversational drafting
-- [ ] `tech` — technical spec grounded in real code
-- [ ] `tasks` — dependency-ordered implementation breakdown
-- [ ] `list` and `show` — spec browsing utilities
+v1 commands are all shipped on `npm` as of `0.0.1`. The next published release will be `0.1.0` after end-to-end smoke testing on a sample repo.
+
+- [x] `init` — codebase scan, `.draftwise/` setup, initial overview
+- [x] `scan` — structured product overview
+- [x] `explain` — traced walkthroughs of specific flows
+- [x] `new` — codebase-aware conversational drafting
+- [x] `tech` — technical spec grounded in real code
+- [x] `tasks` — dependency-ordered implementation breakdown
+- [x] `list` and `show` — spec browsing utilities
+
+**Next:** OpenAI and Gemini provider adapters (Claude is the only fully-wired adapter today), framework support beyond JS/TS Node (Python, Go, Rust), and a flag-aware scanner cache for very large repos.
 
 ---
 
