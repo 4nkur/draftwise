@@ -28,7 +28,30 @@ describe('loadConfig', () => {
       provider: undefined,
       apiKeyEnv: undefined,
       model: '',
+      projectState: 'brownfield',
+      stack: undefined,
     });
+  });
+
+  it('reads project state and stack when present', async () => {
+    await writeFile(
+      join(dir, '.draftwise', 'config.yaml'),
+      'ai:\n  mode: agent\nproject:\n  state: greenfield\n  stack: "Next.js + Postgres + Prisma"\n',
+      'utf8',
+    );
+    const config = await loadConfig(dir);
+    expect(config.projectState).toBe('greenfield');
+    expect(config.stack).toBe('Next.js + Postgres + Prisma');
+  });
+
+  it('defaults projectState to brownfield when missing (back-compat with v0.0.1 configs)', async () => {
+    await writeFile(
+      join(dir, '.draftwise', 'config.yaml'),
+      'ai:\n  mode: agent\n',
+      'utf8',
+    );
+    const config = await loadConfig(dir);
+    expect(config.projectState).toBe('brownfield');
   });
 
   it('reads api mode config with provider and api_key_env', async () => {

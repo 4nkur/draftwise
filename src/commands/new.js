@@ -4,9 +4,10 @@ import { input, select } from '@inquirer/prompts';
 import { scan as defaultScan } from '../core/scanner.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
+import { readOverview as defaultReadOverview } from '../utils/overview.js';
 import {
-  PLAN_SYSTEM,
-  SPEC_SYSTEM,
+  selectPlanSystem,
+  selectSpecSystem,
   buildPlanPrompt,
   parsePlanResponse,
   buildSpecPrompt,
@@ -23,9 +24,9 @@ const DEFAULT_PROMPTS = {
     select({
       message: `Opportunity ${index + 1}/${total} — adjacent change in "${flow}"\n  Suggestion: ${suggestion}\n  Why: ${rationale}\n  Decision:`,
       choices: [
-        { name: 'Accept — include in this spec',     value: 'accepted' },
-        { name: 'Decline — keep it out',             value: 'declined' },
-        { name: 'Defer — note it but don\'t commit', value: 'deferred' },
+        { name: 'Accept — include in this spec', value: 'accepted' },
+        { name: 'Decline — keep it out', value: 'declined' },
+        { name: "Defer — note it but don't commit", value: 'deferred' },
       ],
       default: 'declined',
     }),
@@ -58,13 +59,12 @@ export default async function newCommand(args = [], deps = {}) {
   const scan = deps.scan ?? defaultScan;
   const loadConfig = deps.loadConfig ?? defaultLoadConfig;
   const complete = deps.complete ?? defaultComplete;
+  const readOverview = deps.readOverview ?? defaultReadOverview;
   const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };
 
   const idea = args.join(' ').trim();
   if (!idea) {
-    throw new Error(
-      'Missing idea. Usage: draftwise new "<your feature idea>"',
-    );
+    throw new Error('Missing idea. Usage: draftwise new "<your feature idea>"');
   }
 
   const draftwiseDir = join(cwd, '.draftwise');
@@ -73,36 +73,68 @@ export default async function newCommand(args = [], deps = {}) {
   }
 
   const config = await loadConfig(cwd);
+  const isGreenfield = config.projectState === 'greenfield';
 
   log(`Idea: "${idea}"`);
-  log('Scanning repo...');
-  const result = await scan(cwd);
-  if (!result.files || result.files.length === 0) {
-    throw new Error(
-      `No source files found under ${cwd}. Run \`draftwise new\` from your repo root.`,
-    );
+
+  let scanForPrompt;
+  let packageMeta;
+  let overview;
+
+  if (isGreenfield) {
+    log('Reading project plan from overview.md...');
+    overview = await readOverview(cwd);
+    if (!overview.trim()) {
+      throw new Error(
+        'Greenfield project but .draftwise/overview.md is missing or empty. Re-run `draftwise init` to generate the plan, or switch the config to brownfield once code exists.',
+      );
+    }
+    scanForPrompt = null;
+    packageMeta = null;
+  } else {
+    log('Scanning repo...');
+    const result = await scan(cwd);
+    if (!result.files || result.files.length === 0) {
+      throw new Error(
+        `No source files found under ${cwd}. Run \`draftwise new\` from your repo root.`,
+      );
+    }
+    scanForPrompt = compactScan(result);
+    packageMeta = result.packageMeta;
   }
-  const scanForPrompt = compactScan(result);
 
   if (config.mode === 'agent') {
     log('');
-    log('Agent mode — handing scanner data + the conversation plan off to your coding agent.');
+    if (isGreenfield) {
+      log(
+        'Agent mode — handing the project plan + conversation off to your coding agent.',
+      );
+    } else {
+      log(
+        'Agent mode — handing scanner data + the conversation plan off to your coding agent.',
+      );
+    }
     log('');
     log('---');
     log(`IDEA: ${idea}`);
     log('');
-    log('SCANNER OUTPUT');
-    log('```json');
-    log(JSON.stringify(scanForPrompt, null, 2));
-    log('```');
-    log('');
-    log('PACKAGE METADATA');
-    log('```json');
-    log(JSON.stringify(result.packageMeta, null, 2));
-    log('```');
+    if (isGreenfield) {
+      log('PROJECT PLAN (overview.md)');
+      log(overview);
+    } else {
+      log('SCANNER OUTPUT');
+      log('```json');
+      log(JSON.stringify(scanForPrompt, null, 2));
+      log('```');
+      log('');
+      log('PACKAGE METADATA');
+      log('```json');
+      log(JSON.stringify(packageMeta, null, 2));
+      log('```');
+    }
     log('');
     log('INSTRUCTION');
-    log(buildAgentInstruction(idea));
+    log(buildAgentInstruction(idea, config.projectState));
     return;
   }
 
@@ -111,11 +143,13 @@ export default async function newCommand(args = [], deps = {}) {
     provider: config.provider,
     apiKeyEnv: config.apiKeyEnv,
     model: config.model,
-    system: PLAN_SYSTEM,
+    system: selectPlanSystem(config.projectState),
     prompt: buildPlanPrompt({
       idea,
       scan: scanForPrompt,
-      packageMeta: result.packageMeta,
+      packageMeta,
+      projectState: config.projectState,
+      overview,
     }),
   });
 
@@ -149,7 +183,9 @@ export default async function newCommand(args = [], deps = {}) {
   const opportunityDecisions = [];
   if (plan.adjacentOpportunities.length > 0) {
     log('');
-    log(`Pitching ${plan.adjacentOpportunities.length} adjacent opportunities:`);
+    log(
+      `Pitching ${plan.adjacentOpportunities.length} adjacent opportunities:`,
+    );
     log('');
     for (let i = 0; i < plan.adjacentOpportunities.length; i++) {
       const o = plan.adjacentOpportunities[i];
@@ -170,14 +206,16 @@ export default async function newCommand(args = [], deps = {}) {
     provider: config.provider,
     apiKeyEnv: config.apiKeyEnv,
     model: config.model,
-    system: SPEC_SYSTEM,
+    system: selectSpecSystem(config.projectState),
     prompt: buildSpecPrompt({
       idea,
       plan,
       scan: scanForPrompt,
-      packageMeta: result.packageMeta,
+      packageMeta,
       answers,
       opportunityDecisions,
+      projectState: config.projectState,
+      overview,
     }),
   });
 
@@ -188,5 +226,7 @@ export default async function newCommand(args = [], deps = {}) {
 
   log('');
   log(`Wrote .draftwise/specs/${slug}/product-spec.md`);
-  log('Next: review, refine, then run `draftwise tech` to generate the technical spec.');
+  log(
+    'Next: review, refine, then run `draftwise tech` to generate the technical spec.',
+  );
 }

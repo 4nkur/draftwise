@@ -4,6 +4,7 @@ import { parse as parseYaml } from 'yaml';
 
 const VALID_MODES = new Set(['agent', 'api']);
 const VALID_PROVIDERS = new Set(['claude', 'openai', 'gemini']);
+const VALID_PROJECT_STATES = new Set(['greenfield', 'brownfield']);
 
 export async function loadConfig(cwd = process.cwd()) {
   const path = join(cwd, '.draftwise', 'config.yaml');
@@ -43,10 +44,17 @@ export async function loadConfig(cwd = process.cwd()) {
     }
   }
 
+  const project = parsed?.project ?? {};
+  const projectState = VALID_PROJECT_STATES.has(project.state)
+    ? project.state
+    : 'brownfield';
+
   return {
     mode: ai.mode,
     provider: ai.provider,
     apiKeyEnv: ai.api_key_env,
     model: ai.model || '',
+    projectState,
+    stack: project.stack,
   };
 }
