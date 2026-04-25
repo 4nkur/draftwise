@@ -199,9 +199,19 @@ Test plan                → unit, integration, E2E
 
 ## Agent compatibility
 
-Claude Code · GitHub Copilot · Cursor · Gemini CLI · Codex CLI · Windsurf · Amp · Roo Code · Kilo Code · OpenCode · Qoder
+Draftwise's agent mode is designed to be host-agnostic — the CLI prints structured scanner data and an instruction string; the host's model handles the reasoning. In principle that works with any agentic IDE or CLI:
 
-Or run standalone with an API key for Claude, GPT, or Gemini.
+Claude Code · GitHub Copilot · Cursor · Gemini CLI · Codex CLI · Antigravity · Windsurf · Amp · Roo Code · Kilo Code · OpenCode · Qoder
+
+In practice it has only been smoke-tested in a plain terminal so far. If you run it inside one of these and something breaks, please open an issue.
+
+Standalone (API mode) currently supports:
+
+- ✅ **Claude** (Anthropic) — fully wired
+- ⏳ **GPT (OpenAI)** — adapter not yet implemented
+- ⏳ **Gemini** (Google) — adapter not yet implemented
+
+Until the OpenAI and Gemini adapters land, pick `agent` mode at `draftwise init` if you want to use those models — they'll work via the host (e.g. Gemini via Antigravity or Gemini CLI; GPT via Codex CLI or Copilot).
 
 ---
 
