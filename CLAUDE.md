@@ -270,12 +270,20 @@ When a contributor proposes one of these, gently redirect — they're worth doin
 
 ---
 
-## Open questions (post-v1)
+## Open questions
 
-1. ~~**Scan depth.**~~ ✅ Resolved. Scanner now caps at `DEFAULT_MAX_FILES` (5000) by default; users can raise via `scan.max_files` in `config.yaml`. When the cap is hit, scan results carry `truncated: true` and commands surface a warning pointing at the config knob.
-2. ~~**Scan caching.**~~ ✅ Resolved. `src/utils/scan-cache.js` introduces `cachedScan(root, opts)` — a wrapper around the raw scanner that fingerprints the tree (file path + mtime, hashed with `maxFiles` mixed in), stores results at `.draftwise/.cache/scan.json`, and returns the cached scan when fingerprints match. Cache invalidates automatically on any file change or `scan.max_files` bump. Init writes a `.draftwise/.gitignore` excluding `.cache/`.
-3. **Default model.** `claude-sonnet-4-6` hardcoded in `src/ai/providers/claude.js` as the default; users can override via `ai.model` in `config.yaml`. Reasonable for now.
-4. ~~**Large flow tracing.**~~ ✅ Resolved. `src/utils/flow-filter.js` provides `filterScanForFlow(scan, flow)` — tokenizes the flow name (lowercase, drops punctuation, strips 1-char tokens), filters routes/components/models to items whose paths/names contain any token. Falls back to the unfiltered category if filtering wipes a previously-non-empty list (better to over-include than send empty arrays). `explain` runs every scan through this filter before building the prompt.
-5. ~~**Unsupported frameworks.**~~ ✅ Resolved. `init` and `scan` now log an explicit "no framework detected" hint when the scanner returns an empty `frameworks` array, listing what's supported.
-6. **OpenAI / Gemini adapters.** Stubbed with a clear error in `src/ai/provider.js`. Wire up when a user asks for them.
-7. ~~**Scanner language coverage — Python.**~~ ✅ Resolved. Python support added in PR after `0.0.1`: detects FastAPI / Starlette / Flask / Django / Tornado from `requirements.txt` or `pyproject.toml` (PEP 621 + Poetry), parses FastAPI / Flask decorator-based routes, parses Django `urls.py` `path(...)` / `re_path(...)`, and parses SQLAlchemy + Django ORM models. Test files (`tests/`, `test_*.py`, `_test.py`, `conftest.py`) are excluded from route detection. Go and Rust are the next planned language expansions.
+Real, currently-open questions only. Resolved decisions move to **Past decisions** below.
+
+1. **Default model.** `claude-sonnet-4-6` hardcoded in `src/ai/providers/claude.js` as the default; users can override via `ai.model` in `config.yaml`. Reasonable for now; revisit when Anthropic ships a successor or a noticeably better trade-off model lands.
+2. **OpenAI / Gemini adapters.** Stubbed with a clear error in `src/ai/provider.js`. Wire up when a user asks for them; structure mirrors `claude.js`.
+3. **Scanner language coverage — Go and Rust.** Same shape as the Python expansion. Go: net/http, Gin, Echo, Chi + GORM, Ent. Rust: Axum, Actix, Rocket + Diesel, sqlx.
+
+## Past decisions
+
+Resolved questions kept here as a quick map from "why is X like this?" to the implementation. Use this when revisiting the design.
+
+- **Scan depth (file cap).** Scanner caps at `DEFAULT_MAX_FILES` (5000) by default; raise via `scan.max_files` in `config.yaml`. Cap hits set `truncated: true` and surface a warning. → `src/core/scanner.js`, `src/utils/scan-warnings.js`.
+- **Scan caching.** Fingerprinted (file path + mtime, hashed with `maxFiles`) cache at `.draftwise/.cache/scan.json`. Auto-invalidates on file change or `scan.max_files` bump. Init writes a `.draftwise/.gitignore` excluding `.cache/`. → `src/utils/scan-cache.js`.
+- **Large flow tracing.** `filterScanForFlow(scan, flow)` tokenizes the flow name and narrows routes/components/models; per-category fallback to unfiltered if filtering wipes a previously non-empty list. `explain` always runs scans through the filter. → `src/utils/flow-filter.js`, `src/commands/explain.js`.
+- **Unsupported framework warning.** `init` and `scan` log an explicit "no framework detected" hint listing what's supported when `frameworks` is empty. → `src/utils/scan-warnings.js`.
+- **Scanner language coverage — Python.** Detects FastAPI / Starlette / Flask / Django / Tornado from `requirements.txt` or `pyproject.toml` (PEP 621 + Poetry); parses FastAPI / Flask decorator routes and Django `urls.py` `path(...)` / `re_path(...)`; parses SQLAlchemy and Django ORM models. Test files (`tests/`, `test_*.py`, `_test.py`, `conftest.py`) excluded from route detection. → `src/core/scanner.js` (Python sections).
