@@ -1,0 +1,32 @@
+{
+  "name": "draftwise",
+  "version": "1.0.0",
+  "description": "<h1 align=\"center\">Draftwise</h1>",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/4nkur/draftwise.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/4nkur/draftwise/issues"
+  },
+  "homepage": "https://github.com/4nkur/draftwise#readme",
+  "bin": {
+    "draftwise": "bin/draftwise.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^10.2.1",
+    "prettier": "^3.8.3",
+    "vitest": "^4.1.5"
+  }
+}
