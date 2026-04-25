@@ -6,31 +6,39 @@ Each released version is tagged in git (`v0.0.1`, `v0.1.0`, etc.) and includes t
 
 ## [Unreleased]
 
+_No unreleased changes._
+
+## [0.1.0] — 2026-04-25 — Ankur
+
+The "PMs starting from scratch" release. Draftwise now meets you wherever the project is — empty directory or established codebase — and the scanner reaches beyond JavaScript.
+
+### Highlights
+
+- **Greenfield project support.** `init` now asks whether you have an existing codebase or you're starting from scratch. Greenfield: walks you through 4–6 clarifying questions and proposes 2–3 stack options with rationale, pros, cons, directory structure, and setup commands. A new `draftwise scaffold` command turns the chosen plan into actual files. `new` / `tech` / `tasks` adapt their prompts when there's no code yet (every file marked `(new)`, scaffolding tasks first).
+- **Python scanner support.** FastAPI, Starlette, Flask, Django, Tornado, plus SQLAlchemy and Django ORM. Reads `requirements.txt` or `pyproject.toml` (PEP 621 + Poetry). Parses decorator routes, Django `urls.py`, SQLAlchemy column bindings, and Django model fields.
+- **Faster repeat runs.** Fingerprinted scan cache (`.draftwise/.cache/scan.json`) auto-invalidates on any file change. Configurable file cap via `scan.max_files` for monorepos. `explain` filters scan output to flow-relevant items so prompts stay tight.
+- **Better feedback.** Friendly warnings when the scanner truncates due to file cap, when no framework is detected, and when running brownfield-only commands in a greenfield project.
+
 ### Added
-- **`.gitattributes` for cross-platform line-ending consistency.** Forces LF on commit and on checkout for source / config / docs / shell files; pins binary types as binary. Silences the "LF will be replaced by CRLF" warnings that Git on Windows surfaces on every commit, and keeps `bin/draftwise.js`'s shebang portable across OSes. — Ankur (#TBD)
-- **Maintain CHANGELOG.md.** This file. Every functional PR going forward updates `[Unreleased]`; versioned sections move in when a release is tagged. — Ankur (#19)
+
+- **Greenfield routing in `draftwise init`.** First prompt asks whether the project is greenfield or brownfield. Greenfield path runs a conversational stack-picking flow and writes a full plan to `overview.md` plus a structured `scaffold.json`. Agent-mode greenfield init dumps a 3-phase instruction for the host coding agent. `config.yaml` gains a `project` section (`state`, `stack`). — Ankur (#12)
+- **Greenfield-aware `new` / `tech` / `tasks`.** Each command checks `config.projectState`. Greenfield path skips the scanner, reads `overview.md`, and uses prompt variants that drop scanner-grounded constraints — `affected_flows` / `adjacent_opportunities` removed for `new`, every file marked `(new)` for `tech`, scaffolding tasks first for `tasks`. `scan` and `explain` short-circuit gracefully in greenfield. — Ankur (#13)
+- **`draftwise scaffold` command.** Reads the greenfield plan from `.draftwise/scaffold.json`, confirms with the user before writing, creates each `initial_files` entry with placeholder content, skips files that already exist, prints (does not run) the setup commands. — Ankur (#14)
+- **Scanner robustness — file cap and framework warnings.** Default `maxFiles` of 5000, configurable via `scan.max_files`. Truncation surfaces a warning across every command. Missing-framework hint listed in `init` / `scan` when the scanner returns empty `frameworks`. Closes Q1 and Q5. — Ankur (#15)
+- **Python scanner support.** Detects FastAPI / Starlette / Flask / Django / Tornado from `requirements.txt` or `pyproject.toml` (PEP 621 + Poetry tables). Parses FastAPI / Flask decorator-based routes, Django `urls.py` `path()` / `re_path()`, SQLAlchemy and Django ORM models. Excludes Python test files (`tests/`, `test_*.py`, `_test.py`, `conftest.py`) from route detection. — Ankur (#16)
+- **Scanner cache and flow filter.** `cachedScan(root, opts)` fingerprints the tree by mtime + `maxFiles` and persists results at `.draftwise/.cache/scan.json`; `filterScanForFlow(scan, flow)` narrows routes / components / models to flow-keyword matches with per-category fallback. `init` writes a `.draftwise/.gitignore` excluding `.cache/`. Closes Q2 and Q4. — Ankur (#17)
+- **`CHANGELOG.md`.** Single source of truth for release-by-release changes by tag ID / date / author. — Ankur (#19)
+- **`.gitattributes` for cross-platform line-ending consistency.** Forces LF on commit and on checkout for source / config / docs / shell files. Silences "LF will be replaced by CRLF" warnings on Windows and keeps `bin/draftwise.js`'s shebang portable. — Ankur (#20)
 
 ### Changed
-- **Prune resolved questions out of CLAUDE.md's Open questions section.** Real open items kept; resolved ones move into a new "Past decisions" section with implementation pointers. — Ankur (#18)
+
+- **Docs synced with v1 reality.** CLAUDE.md "Build order for v1" replaced with "v1 status — all commands shipped". "Templates are authoritative" replaced with "Prompts are authoritative" pointing at `src/ai/prompts/<command>.js`. README roadmap items checked off. — Ankur (#10)
+- **README compatibility claims qualified.** Agent-host list now reads "designed host-agnostic, smoke-tested in plain terminal so far" rather than implying every host on the list is verified. Standalone API providers explicitly marked: ✅ Claude / ⏳ GPT / ⏳ Gemini. Antigravity added to the agent-host list. — Ankur (#11)
+- **Pruned resolved questions out of CLAUDE.md's Open questions section.** Resolved items moved to a new "Past decisions" section with implementation pointers, leaving "Open questions" for actually-open ones only. — Ankur (#18)
 
 ### Fixed
-- **Stop matching Python decorator syntax in JS route detection.** A doc-comment example (`@app.get("/path")`) inside `src/core/scanner.js` was triggering the JS-route regex on a self-scan. Added a `(?<!@)` lookbehind. — Ankur (#16)
 
----
-
-_The entries below were added retroactively from git history on 2026-04-25 — they describe everything that has shipped to `main` since `v0.0.1` but has not yet been published to npm._
-
-### Added (post-0.0.1, unreleased on npm)
-- **Scanner cache and flow filter.** `src/utils/scan-cache.js` introduces `cachedScan(root, opts)` — fingerprints the tree (file path + mtime, hashed with `maxFiles`), persists at `.draftwise/.cache/scan.json`, returns the cached result when fingerprints match. `src/utils/flow-filter.js` adds `filterScanForFlow(scan, flow)` — narrows routes/components/models to flow-keyword matches with per-category fallback to unfiltered. `init` now writes a `.draftwise/.gitignore` excluding `.cache/`. Closes Q2 and Q4. — Ankur (#17)
-- **Python scanner support.** Detects FastAPI / Starlette / Flask / Django / Tornado from `requirements.txt` or `pyproject.toml` (PEP 621 + Poetry tables). Parses FastAPI / Flask decorator-based routes, Django `urls.py` `path()` / `re_path()`, SQLAlchemy and Django ORM models. Excludes Python test files (`tests/`, `test_*.py`, `_test.py`, `conftest.py`) from route detection. — Ankur (#16)
-- **Scanner robustness — file cap and missing-framework warnings.** Default `maxFiles` of 5000; configurable via `scan.max_files` in `config.yaml`. Truncated scans surface a warning across every command. `init` and `scan` log an explicit "no framework detected" hint when the scanner returns empty `frameworks`. Closes Q1 and Q5. — Ankur (#15)
-- **`draftwise scaffold`.** Reads `.draftwise/scaffold.json` (written by `init` in greenfield mode), confirms with the user before writing, creates each `initial_files` entry with placeholder content, skips conflicts, prints (does not run) the setup commands. — Ankur (#14)
-- **Greenfield-aware `new` / `tech` / `tasks`.** Each command checks `config.projectState`. Greenfield path skips the scanner, reads `overview.md` (the project plan), and uses prompt variants that drop scanner-grounded constraints — affected_flows / adjacent_opportunities removed for `new`, every file marked `(new)` for `tech`, scaffolding tasks first for `tasks`. `scan` and `explain` short-circuit gracefully in greenfield with a hint pointing to the plan. — Ankur (#13)
-- **Greenfield routing in `init`.** New first prompt asks whether the project is greenfield or brownfield. Greenfield path: idea → 4-6 clarifying questions → 2-3 stack options with rationale, pros, cons, directory structure, and setup commands → user picks one → writes a full plan to `overview.md` plus `scaffold.json`. Agent-mode greenfield init dumps a 3-phase instruction for the host coding agent. `config.yaml` gains a `project` section (`state`, `stack`). — Ankur (#12)
-
-### Changed (post-0.0.1, unreleased on npm)
-- **README compatibility claims qualified.** Agent-host list now reads "designed host-agnostic, smoke-tested in plain terminal so far" rather than implying every host on the list is verified. Standalone API providers explicitly marked: ✅ Claude / ⏳ GPT / ⏳ Gemini. Antigravity added to the agent-host list. — Ankur (#11)
-- **Docs synced with v1 reality.** CLAUDE.md "Build order for v1" replaced with "v1 status — all commands shipped"; "Templates are authoritative" replaced with "Prompts are authoritative" pointing at `src/ai/prompts/<command>.js`. README roadmap items checked off. — Ankur (#10)
+- **JS route detection no longer matches Python decorator syntax.** A doc comment in `src/core/scanner.js` (`@app.get("/path")`) was triggering the JS-route regex on a self-scan. Added a `(?<!@)` lookbehind. — Ankur (#16)
 
 ## [0.0.1] — 2026-04-25 — Ankur
 
@@ -49,5 +57,6 @@ First public release on npm.
 ### Released
 - Tagged `v0.0.1` and published to npm under name `draftwise`. — Ankur
 
-[Unreleased]: https://github.com/4nkur/draftwise/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/4nkur/draftwise/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/4nkur/draftwise/releases/tag/v0.1.0
 [0.0.1]: https://github.com/4nkur/draftwise/releases/tag/v0.0.1
