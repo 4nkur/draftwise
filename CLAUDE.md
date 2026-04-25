@@ -86,6 +86,8 @@ ai:
 project:
   state: greenfield | brownfield      # set by `draftwise init`; controls prompt routing
   stack: "Next.js + Postgres + Prisma" # greenfield only; the stack the PM picked at init
+scan:
+  max_files: 5000                      # optional; raise for monorepos. Scanner emits a "truncated" warning when this is hit.
 ```
 
 `loadConfig()` in `src/utils/config.js` defaults `project.state` to `brownfield` for back-compat with configs written before the greenfield routing landed.
@@ -265,11 +267,10 @@ When a contributor proposes one of these, gently redirect — they're worth doin
 
 ## Open questions (post-v1)
 
-Some originals have been answered by implementation; the remaining ones are real and worth revisiting before `0.1.0`:
-
-1. **Scan depth.** Today the scanner walks the whole tree (skipping `node_modules`/build dirs/dotfiles) and skips files >200KB during route-regex scanning. No hard file cap. May need one for monorepos.
-2. **Scan caching.** Today every command re-runs the scanner — no caching, no incremental updates. Cheap enough for now but a bottleneck on huge repos.
-3. **Default model.** `claude-sonnet-4-6` is hardcoded in `src/ai/providers/claude.js` as the default; users can override via `ai.model` in `config.yaml`. Reasonable for now.
+1. ~~**Scan depth.**~~ ✅ Resolved. Scanner now caps at `DEFAULT_MAX_FILES` (5000) by default; users can raise via `scan.max_files` in `config.yaml`. When the cap is hit, scan results carry `truncated: true` and commands surface a warning pointing at the config knob.
+2. **Scan caching.** Today every command re-runs the scanner — no caching, no incremental updates. Cheap enough for typical repos but a bottleneck on huge ones. Worth tackling alongside flow-aware filtering for `explain`.
+3. **Default model.** `claude-sonnet-4-6` hardcoded in `src/ai/providers/claude.js` as the default; users can override via `ai.model` in `config.yaml`. Reasonable for now.
 4. **Large flow tracing.** `explain` sends the full scanner output to the model regardless of flow size. May need flow-aware filtering (only include relevant files) for very large flows.
-5. **Unsupported frameworks.** Scanner returns empty arrays for routes/components/models when nothing matches — graceful but silent. Should it warn the user explicitly?
+5. ~~**Unsupported frameworks.**~~ ✅ Resolved. `init` and `scan` now log an explicit "no framework detected" hint when the scanner returns an empty `frameworks` array, listing what's supported.
 6. **OpenAI / Gemini adapters.** Stubbed with a clear error in `src/ai/provider.js`. Wire up when a user asks for them.
+7. **Scanner language coverage.** v1 covers JS/TS frameworks + JS/TS-native ORMs. Python (FastAPI/Django/Flask + SQLAlchemy/Django ORM) is the next planned expansion.

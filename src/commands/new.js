@@ -5,6 +5,7 @@ import { scan as defaultScan } from '../core/scanner.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { readOverview as defaultReadOverview } from '../utils/overview.js';
+import { describeScanWarnings } from '../utils/scan-warnings.js';
 import {
   selectPlanSystem,
   selectSpecSystem,
@@ -93,11 +94,14 @@ export default async function newCommand(args = [], deps = {}) {
     packageMeta = null;
   } else {
     log('Scanning repo...');
-    const result = await scan(cwd);
+    const result = await scan(cwd, { maxFiles: config.scanMaxFiles });
     if (!result.files || result.files.length === 0) {
       throw new Error(
         `No source files found under ${cwd}. Run \`draftwise new\` from your repo root.`,
       );
+    }
+    for (const warning of describeScanWarnings(result)) {
+      log(warning);
     }
     scanForPrompt = compactScan(result);
     packageMeta = result.packageMeta;

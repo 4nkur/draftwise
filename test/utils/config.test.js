@@ -54,6 +54,36 @@ describe('loadConfig', () => {
     expect(config.projectState).toBe('brownfield');
   });
 
+  it('parses scan.max_files when set', async () => {
+    await writeFile(
+      join(dir, '.draftwise', 'config.yaml'),
+      'ai:\n  mode: agent\nscan:\n  max_files: 10000\n',
+      'utf8',
+    );
+    const config = await loadConfig(dir);
+    expect(config.scanMaxFiles).toBe(10000);
+  });
+
+  it('leaves scanMaxFiles undefined when not set (scanner uses its default)', async () => {
+    await writeFile(
+      join(dir, '.draftwise', 'config.yaml'),
+      'ai:\n  mode: agent\n',
+      'utf8',
+    );
+    const config = await loadConfig(dir);
+    expect(config.scanMaxFiles).toBeUndefined();
+  });
+
+  it('coerces scan.max_files to a positive integer', async () => {
+    await writeFile(
+      join(dir, '.draftwise', 'config.yaml'),
+      'ai:\n  mode: agent\nscan:\n  max_files: 250.7\n',
+      'utf8',
+    );
+    const config = await loadConfig(dir);
+    expect(config.scanMaxFiles).toBe(250);
+  });
+
   it('reads api mode config with provider and api_key_env', async () => {
     await writeFile(
       join(dir, '.draftwise', 'config.yaml'),

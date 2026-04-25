@@ -6,6 +6,7 @@ import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { listSpecs as defaultListSpecs } from '../utils/specs.js';
 import { readOverview as defaultReadOverview } from '../utils/overview.js';
+import { describeScanWarnings } from '../utils/scan-warnings.js';
 import {
   selectSystem,
   buildPrompt,
@@ -112,11 +113,14 @@ export default async function techCommand(args = [], deps = {}) {
     packageMeta = null;
   } else {
     log('Scanning repo...');
-    const result = await scan(cwd);
+    const result = await scan(cwd, { maxFiles: config.scanMaxFiles });
     if (!result.files || result.files.length === 0) {
       throw new Error(
         `No source files found under ${cwd}. Run \`draftwise tech\` from your repo root.`,
       );
+    }
+    for (const warning of describeScanWarnings(result)) {
+      log(warning);
     }
     scanForPrompt = compactScan(result);
     packageMeta = result.packageMeta;

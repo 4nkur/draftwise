@@ -114,6 +114,30 @@ model Post {
     expect(user.fields).toContain('email');
   });
 
+  it('caps files at maxFiles and sets truncated', async () => {
+    const fixture = { 'package.json': '{}' };
+    for (let i = 0; i < 10; i++) {
+      fixture[`src/file${i}.js`] = `// ${i}`;
+    }
+    await writeFixture(dir, fixture);
+
+    const result = await scan(dir, { maxFiles: 5 });
+    expect(result.files.length).toBe(5);
+    expect(result.truncated).toBe(true);
+    expect(result.maxFiles).toBe(5);
+  });
+
+  it('does not flag truncated when within the cap', async () => {
+    await writeFixture(dir, {
+      'package.json': '{}',
+      'src/a.js': '//',
+      'src/b.js': '//',
+    });
+    const result = await scan(dir, { maxFiles: 100 });
+    expect(result.truncated).toBe(false);
+    expect(result.files).toHaveLength(2);
+  });
+
   it('ignores node_modules and .git', async () => {
     await writeFixture(dir, {
       'package.json': '{}',

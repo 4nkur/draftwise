@@ -60,9 +60,13 @@ const ORM_DEPS = {
   knex: 'Knex',
 };
 
-export async function scan(root) {
+export const DEFAULT_MAX_FILES = 5000;
+
+export async function scan(root, options = {}) {
+  const maxFiles = options.maxFiles ?? DEFAULT_MAX_FILES;
   const files = [];
-  await walk(root, root, files);
+  const state = { count: 0, max: maxFiles, truncated: false };
+  await walk(root, root, files, state);
 
   const packageMeta = await readPackageJson(root);
   const frameworks = detectFrameworks(packageMeta);
@@ -84,10 +88,13 @@ export async function scan(root) {
     routes,
     components,
     models,
+    truncated: state.truncated,
+    maxFiles,
   };
 }
 
-async function walk(root, dir, out) {
+async function walk(root, dir, out, state) {
+  if (state.truncated) return;
   let entries;
   try {
     entries = await readdir(dir, { withFileTypes: true });
@@ -95,14 +102,20 @@ async function walk(root, dir, out) {
     return;
   }
   for (const entry of entries) {
+    if (state.truncated) return;
     if (IGNORE_DIRS.has(entry.name)) continue;
     if (entry.name.startsWith('.')) continue;
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
-      await walk(root, full, out);
+      await walk(root, full, out, state);
     } else if (entry.isFile()) {
       if (CODE_EXTENSIONS.has(extOf(entry.name))) {
+        if (state.count >= state.max) {
+          state.truncated = true;
+          return;
+        }
         out.push(toPosix(relative(root, full)));
+        state.count++;
       }
     }
   }
