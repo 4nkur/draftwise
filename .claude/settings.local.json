@@ -8,7 +8,9 @@
       "Bash(npm init *)",
       "Bash(npm test *)",
       "Bash(npm install *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(node *)",
+      "Bash(git fetch *)"
     ]
   }
 }
