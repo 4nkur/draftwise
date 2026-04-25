@@ -1,7 +1,7 @@
 import { readdir, readFile, access } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 
-const IGNORE_DIRS = new Set([
+export const IGNORE_DIRS = new Set([
   'node_modules',
   '.git',
   '.draftwise',
@@ -30,7 +30,7 @@ const IGNORE_DIRS = new Set([
   '.eggs',
 ]);
 
-const CODE_EXTENSIONS = new Set([
+export const CODE_EXTENSIONS = new Set([
   '.js', '.mjs', '.cjs', '.jsx',
   '.ts', '.tsx', '.mts', '.cts',
   '.vue', '.svelte',

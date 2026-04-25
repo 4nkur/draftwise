@@ -2,7 +2,7 @@ import { mkdir, access, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { stringify as yamlStringify } from 'yaml';
 import { select, input } from '@inquirer/prompts';
-import { scan as defaultScan } from '../core/scanner.js';
+import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
 import {
@@ -21,6 +21,10 @@ const ENV_VAR_BY_PROVIDER = {
   openai: 'OPENAI_API_KEY',
   gemini: 'GEMINI_API_KEY',
 };
+
+const DRAFTWISE_GITIGNORE = `# Draftwise generates these locally; don't commit them.
+.cache/
+`;
 
 const BROWNFIELD_OVERVIEW_PLACEHOLDER = `# Codebase overview
 
@@ -197,11 +201,13 @@ async function runBrownfield({ cwd, log, scan, draftwiseDir, aiConfig }) {
     buildConfigYaml({ ...aiConfig, projectState: 'brownfield' }),
     'utf8',
   );
+  await writeFile(join(draftwiseDir, '.gitignore'), DRAFTWISE_GITIGNORE, 'utf8');
 
   log('Created .draftwise/ with:');
   log('  • overview.md   (placeholder — `draftwise scan` will fill it in)');
   log('  • specs/        (your specs will live here)');
   log('  • config.yaml   (AI mode + project state)');
+  log('  • .gitignore    (excludes .cache/ from version control)');
   log('');
   if (aiConfig.mode === 'api') {
     log(
@@ -249,11 +255,17 @@ async function runGreenfield({
       buildConfigYaml({ ...aiConfig, projectState: 'greenfield' }),
       'utf8',
     );
+    await writeFile(
+      join(draftwiseDir, '.gitignore'),
+      DRAFTWISE_GITIGNORE,
+      'utf8',
+    );
 
     log('Created .draftwise/ with:');
     log('  • overview.md   (placeholder — your agent will rewrite from the conversation)');
     log('  • specs/        (your specs will live here)');
     log('  • config.yaml   (AI mode + project state)');
+    log('  • .gitignore    (excludes .cache/ from version control)');
     log('');
     log('Run draftwise commands inside your coding agent (Claude Code, Cursor, etc.).');
     return;
@@ -330,6 +342,7 @@ async function runGreenfield({
     }),
     'utf8',
   );
+  await writeFile(join(draftwiseDir, '.gitignore'), DRAFTWISE_GITIGNORE, 'utf8');
 
   // Persist the structured stack data so `draftwise scaffold` can use it later.
   await writeFile(

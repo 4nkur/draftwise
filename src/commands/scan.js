@@ -1,6 +1,6 @@
 import { writeFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
-import { scan as defaultScan } from '../core/scanner.js';
+import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';

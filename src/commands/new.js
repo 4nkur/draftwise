@@ -1,7 +1,7 @@
 import { writeFile, mkdir, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { input, select } from '@inquirer/prompts';
-import { scan as defaultScan } from '../core/scanner.js';
+import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { readOverview as defaultReadOverview } from '../utils/overview.js';

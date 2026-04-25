@@ -42,7 +42,7 @@ src/core/scanner.js       → codebase scanning (frameworks, routes, components,
 src/ai/provider.js        → routes complete() calls to the right provider adapter
 src/ai/providers/         → claude.js wired; openai.js + gemini.js stubbed
 src/ai/prompts/           → one prompt module per command. Each exports brownfield + greenfield SYSTEM constants, a selectSystem(projectState) helper, a buildPrompt() that branches on projectState, and an agent-mode instruction
-src/utils/                → config.js (yaml loader, returns projectState + stack), specs.js (list .draftwise/specs/), slug.js, overview.js (read .draftwise/overview.md for greenfield context)
+src/utils/                → config.js (yaml loader; returns projectState/stack/scanMaxFiles), specs.js (list .draftwise/specs/), slug.js, overview.js (read .draftwise/overview.md for greenfield context), scan-cache.js (fingerprinted scan cache, drop-in for scan()), flow-filter.js (narrow scan to flow-relevant items), scan-warnings.js (truncation + missing-framework messages)
 test/                     → vitest, mirrors src structure
 ```
 
@@ -132,6 +132,9 @@ Each command is a separate file under `src/commands/` with a single `export defa
 
 ```
 .draftwise/
+├── .gitignore                   # written by init; excludes .cache/ from version control
+├── .cache/
+│   └── scan.json                # fingerprinted scan cache (gitignored)
 ├── overview.md                  # codebase summary (brownfield) or greenfield plan
 ├── scaffold.json                # greenfield only: structured stack data for `draftwise scaffold`
 ├── flows/                       # `draftwise explain` snapshots (brownfield)
@@ -270,9 +273,9 @@ When a contributor proposes one of these, gently redirect — they're worth doin
 ## Open questions (post-v1)
 
 1. ~~**Scan depth.**~~ ✅ Resolved. Scanner now caps at `DEFAULT_MAX_FILES` (5000) by default; users can raise via `scan.max_files` in `config.yaml`. When the cap is hit, scan results carry `truncated: true` and commands surface a warning pointing at the config knob.
-2. **Scan caching.** Today every command re-runs the scanner — no caching, no incremental updates. Cheap enough for typical repos but a bottleneck on huge ones. Worth tackling alongside flow-aware filtering for `explain`.
+2. ~~**Scan caching.**~~ ✅ Resolved. `src/utils/scan-cache.js` introduces `cachedScan(root, opts)` — a wrapper around the raw scanner that fingerprints the tree (file path + mtime, hashed with `maxFiles` mixed in), stores results at `.draftwise/.cache/scan.json`, and returns the cached scan when fingerprints match. Cache invalidates automatically on any file change or `scan.max_files` bump. Init writes a `.draftwise/.gitignore` excluding `.cache/`.
 3. **Default model.** `claude-sonnet-4-6` hardcoded in `src/ai/providers/claude.js` as the default; users can override via `ai.model` in `config.yaml`. Reasonable for now.
-4. **Large flow tracing.** `explain` sends the full scanner output to the model regardless of flow size. May need flow-aware filtering (only include relevant files) for very large flows.
+4. ~~**Large flow tracing.**~~ ✅ Resolved. `src/utils/flow-filter.js` provides `filterScanForFlow(scan, flow)` — tokenizes the flow name (lowercase, drops punctuation, strips 1-char tokens), filters routes/components/models to items whose paths/names contain any token. Falls back to the unfiltered category if filtering wipes a previously-non-empty list (better to over-include than send empty arrays). `explain` runs every scan through this filter before building the prompt.
 5. ~~**Unsupported frameworks.**~~ ✅ Resolved. `init` and `scan` now log an explicit "no framework detected" hint when the scanner returns an empty `frameworks` array, listing what's supported.
 6. **OpenAI / Gemini adapters.** Stubbed with a clear error in `src/ai/provider.js`. Wire up when a user asks for them.
 7. ~~**Scanner language coverage — Python.**~~ ✅ Resolved. Python support added in PR after `0.0.1`: detects FastAPI / Starlette / Flask / Django / Tornado from `requirements.txt` or `pyproject.toml` (PEP 621 + Poetry), parses FastAPI / Flask decorator-based routes, parses Django `urls.py` `path(...)` / `re_path(...)`, and parses SQLAlchemy + Django ORM models. Test files (`tests/`, `test_*.py`, `_test.py`, `conftest.py`) are excluded from route detection. Go and Rust are the next planned language expansions.
