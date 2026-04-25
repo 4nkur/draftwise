@@ -1,10 +1,7 @@
 import { mkdir, access, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import * as readline from 'node:readline/promises';
-import { stdin, stdout } from 'node:process';
+import { select, input } from '@inquirer/prompts';
 import { scan as defaultScan } from '../core/scanner.js';
-
-const VALID_PROVIDERS = new Set(['claude', 'openai', 'gemini']);
 
 const ENV_VAR_BY_PROVIDER = {
   claude: 'ANTHROPIC_API_KEY',
@@ -21,6 +18,40 @@ is fully implemented.
 For now, \`draftwise init\` confirmed this repo contains source code and set
 up \`.draftwise/\`. Run \`draftwise scan\` next to populate this file.
 `;
+
+const DEFAULT_PROMPTS = {
+  promptMode: () =>
+    select({
+      message: 'AI mode',
+      choices: [
+        {
+          name: 'Inside a coding agent (Claude Code, Cursor, etc.)',
+          value: 'agent',
+          description: "The agent's existing model handles reasoning",
+        },
+        {
+          name: 'Direct API call (with your own API key)',
+          value: 'api',
+          description: 'Draftwise calls the model API directly',
+        },
+      ],
+      default: 'agent',
+    }),
+  promptProvider: () =>
+    select({
+      message: 'Which provider?',
+      choices: [
+        { name: 'Claude (Anthropic)', value: 'claude' },
+        { name: 'OpenAI', value: 'openai' },
+        { name: 'Gemini (Google)', value: 'gemini' },
+      ],
+    }),
+  promptApiKeyEnv: ({ provider, suggested }) =>
+    input({
+      message: `Environment variable holding the ${provider} API key`,
+      default: suggested,
+    }),
+};
 
 function buildConfigYaml({ mode, provider, apiKeyEnv }) {
   const lines = ['ai:', `  mode: ${mode}`];
@@ -41,24 +72,15 @@ async function pathExists(p) {
   }
 }
 
-function defaultPrompter() {
-  const rl = readline.createInterface({ input: stdin, output: stdout });
-  return {
-    ask: (q) => rl.question(q),
-    close: () => rl.close(),
-  };
-}
-
 export default async function init(_args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
   const log = deps.log ?? ((msg) => console.log(msg));
   const scan = deps.scan ?? defaultScan;
-  const prompter = deps.prompter ?? defaultPrompter();
+  const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };
 
   const draftwiseDir = join(cwd, '.draftwise');
 
   if (await pathExists(draftwiseDir)) {
-    prompter.close?.();
     throw new Error(
       '.draftwise/ already exists in this directory. Delete it or run from a different directory to re-init.',
     );
@@ -67,40 +89,17 @@ export default async function init(_args = [], deps = {}) {
   log('Welcome to Draftwise. A few quick questions before we scan your repo.');
   log('');
 
-  const modeAnswer = (
-    await prompter.ask(
-      'AI mode — run inside a coding agent or call an API directly? [agent/api] (default: agent): ',
-    )
-  )
-    .trim()
-    .toLowerCase();
-  const mode = modeAnswer === '' ? 'agent' : modeAnswer;
-  if (mode !== 'agent' && mode !== 'api') {
-    prompter.close?.();
-    throw new Error(`Invalid AI mode "${mode}". Must be "agent" or "api".`);
-  }
+  const mode = await prompts.promptMode();
 
   let provider;
   let apiKeyEnv;
   if (mode === 'api') {
-    provider = (await prompter.ask('Which provider? [claude/openai/gemini]: '))
-      .trim()
-      .toLowerCase();
-    if (!VALID_PROVIDERS.has(provider)) {
-      prompter.close?.();
-      throw new Error(
-        `Invalid provider "${provider}". Must be one of: claude, openai, gemini.`,
-      );
-    }
-    const suggested = ENV_VAR_BY_PROVIDER[provider];
-    const envAnswer = (
-      await prompter.ask(
-        `Environment variable holding the ${provider} API key (default: ${suggested}): `,
-      )
-    ).trim();
-    apiKeyEnv = envAnswer === '' ? suggested : envAnswer;
+    provider = await prompts.promptProvider();
+    apiKeyEnv = await prompts.promptApiKeyEnv({
+      provider,
+      suggested: ENV_VAR_BY_PROVIDER[provider],
+    });
   }
-  prompter.close?.();
 
   log('');
   log('Scanning repo for source files...');

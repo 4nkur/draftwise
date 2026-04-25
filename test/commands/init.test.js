@@ -4,21 +4,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import init from '../../src/commands/init.js';
 
-function makePrompter(answers) {
-  const queue = [...answers];
-  const asked = [];
-  return {
-    ask: async (question) => {
-      asked.push(question);
-      return queue.shift() ?? '';
-    },
-    close: () => {},
-    asked,
-  };
-}
-
 function fakeScan(files) {
   return async (root) => ({ root, files });
+}
+
+function makePrompts({ mode, provider, apiKeyEnv } = {}) {
+  return {
+    promptMode: async () => mode,
+    promptProvider: async () => provider,
+    promptApiKeyEnv: async ({ suggested }) => apiKeyEnv ?? suggested,
+  };
 }
 
 describe('draftwise init', () => {
@@ -36,7 +31,7 @@ describe('draftwise init', () => {
     await init([], {
       cwd: dir,
       log: () => {},
-      prompter: makePrompter(['agent']),
+      prompts: makePrompts({ mode: 'agent' }),
       scan: fakeScan(['src/foo.js', 'src/bar.ts']),
     });
 
@@ -53,23 +48,11 @@ describe('draftwise init', () => {
     expect(config).not.toContain('api_key_env:');
   });
 
-  it('defaults to agent mode when the user hits enter', async () => {
-    await init([], {
-      cwd: dir,
-      log: () => {},
-      prompter: makePrompter(['']),
-      scan: fakeScan(['src/foo.js']),
-    });
-
-    const config = await readFile(join(dir, '.draftwise', 'config.yaml'), 'utf8');
-    expect(config).toContain('mode: agent');
-  });
-
   it('writes provider and default api_key_env in api mode', async () => {
     await init([], {
       cwd: dir,
       log: () => {},
-      prompter: makePrompter(['api', 'claude', '']),
+      prompts: makePrompts({ mode: 'api', provider: 'claude' }),
       scan: fakeScan(['src/foo.js']),
     });
 
@@ -83,7 +66,11 @@ describe('draftwise init', () => {
     await init([], {
       cwd: dir,
       log: () => {},
-      prompter: makePrompter(['api', 'openai', 'WORK_OPENAI_KEY']),
+      prompts: makePrompts({
+        mode: 'api',
+        provider: 'openai',
+        apiKeyEnv: 'WORK_OPENAI_KEY',
+      }),
       scan: fakeScan(['src/foo.js']),
     });
 
@@ -99,7 +86,7 @@ describe('draftwise init', () => {
       init([], {
         cwd: dir,
         log: () => {},
-        prompter: makePrompter([]),
+        prompts: makePrompts({ mode: 'agent' }),
         scan: fakeScan(['src/foo.js']),
       }),
     ).rejects.toThrow(/already exists/);
@@ -110,31 +97,9 @@ describe('draftwise init', () => {
       init([], {
         cwd: dir,
         log: () => {},
-        prompter: makePrompter(['agent']),
+        prompts: makePrompts({ mode: 'agent' }),
         scan: fakeScan([]),
       }),
     ).rejects.toThrow(/No source files/);
-  });
-
-  it('rejects an invalid AI mode answer', async () => {
-    await expect(
-      init([], {
-        cwd: dir,
-        log: () => {},
-        prompter: makePrompter(['offline']),
-        scan: fakeScan(['src/foo.js']),
-      }),
-    ).rejects.toThrow(/Invalid AI mode/);
-  });
-
-  it('rejects an invalid provider', async () => {
-    await expect(
-      init([], {
-        cwd: dir,
-        log: () => {},
-        prompter: makePrompter(['api', 'cohere']),
-        scan: fakeScan(['src/foo.js']),
-      }),
-    ).rejects.toThrow(/Invalid provider/);
   });
 });
