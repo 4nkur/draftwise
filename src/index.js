@@ -15,7 +15,7 @@ Usage:
   draftwise <command> [args]
 
 Commands:
-  init                          Scan codebase and set up .draftwise/
+  init                          Set up .draftwise/ — greenfield plan or brownfield scan
   scan                          Refresh the codebase overview
   explain <flow>                Trace how a specific flow works in the code
   new "<idea>"                  Conversational drafting → product-spec.md
