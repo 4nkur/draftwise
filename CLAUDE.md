@@ -41,8 +41,8 @@ src/commands/             → one file per CLI command, default export async fn
 src/core/scanner.js       → codebase scanning (frameworks, routes, components, models)
 src/ai/provider.js        → routes complete() calls to the right provider adapter
 src/ai/providers/         → claude.js wired; openai.js + gemini.js stubbed
-src/ai/prompts/           → one prompt module per command (system + buildPrompt + agent instruction)
-src/utils/                → config.js (yaml loader), specs.js (list .draftwise/specs/), slug.js
+src/ai/prompts/           → one prompt module per command. Each exports brownfield + greenfield SYSTEM constants, a selectSystem(projectState) helper, a buildPrompt() that branches on projectState, and an agent-mode instruction
+src/utils/                → config.js (yaml loader, returns projectState + stack), specs.js (list .draftwise/specs/), slug.js, overview.js (read .draftwise/overview.md for greenfield context)
 test/                     → vitest, mirrors src structure
 ```
 
@@ -81,8 +81,14 @@ Configured in `.draftwise/config.yaml`:
 ai:
   mode: agent | api
   provider: claude | openai | gemini  # only if mode: api
+  api_key_env: ANTHROPIC_API_KEY      # only if mode: api
   model: ""                            # optional override
+project:
+  state: greenfield | brownfield      # set by `draftwise init`; controls prompt routing
+  stack: "Next.js + Postgres + Prisma" # greenfield only; the stack the PM picked at init
 ```
+
+`loadConfig()` in `src/utils/config.js` defaults `project.state` to `brownfield` for back-compat with configs written before the greenfield routing landed.
 
 ---
 
@@ -143,15 +149,15 @@ The build order below was the original sequence. As of `0.0.1` published to npm,
    - **Greenfield path:** prompts for the idea, then in **api mode** generates clarifying questions → captures answers → proposes 2-3 stack options with rationale/pros/cons/directory structure/setup commands → writes a full greenfield plan to `overview.md` + `config.yaml` (with `project.state: greenfield` and the chosen `stack`). In **agent mode**, prints a 3-phase instruction for the host coding agent to walk the conversation and rewrite `overview.md`.
    Refuses if `.draftwise/` already exists. (`src/commands/init.js`, prompts in `src/ai/prompts/greenfield.js`)
 
-2. **`scan`** ✅ — runs the scanner and (api mode) calls the model to produce a narrated `overview.md`, or (agent mode) dumps scanner data + an instruction for the host agent. (`src/commands/scan.js`)
+2. **`scan`** ✅ — brownfield: runs the scanner and (api) calls the model to produce a narrated `overview.md`, or (agent) dumps scanner data + an instruction for the host agent. Greenfield: short-circuits with a friendly "no code yet" message — `overview.md` is the greenfield plan from `init`. (`src/commands/scan.js`)
 
-3. **`explain <flow>`** ✅ — traces a single flow end-to-end. Saves a snapshot to `.draftwise/flows/<slug>.md` in api mode. (`src/commands/explain.js`)
+3. **`explain <flow>`** ✅ — brownfield: traces a single flow end-to-end. Greenfield: short-circuits with a friendly message (no flows to trace yet). (`src/commands/explain.js`)
 
-4. **`new "<idea>"`** ✅ — three-phase conversational drafting: AI plan call (returns JSON with affected_flows, clarifying_questions, adjacent_opportunities) → inquirer Q&A + accept/decline loop → AI synthesis call → `product-spec.md`. Hard rule: never assume — turn every gap into a question. (`src/commands/new.js`)
+4. **`new "<idea>"`** ✅ — brownfield: three-phase conversational drafting (AI plan call returns JSON with affected_flows / clarifying_questions / adjacent_opportunities → inquirer Q&A + accept/decline loop → AI synthesis call → `product-spec.md`). Greenfield: skips the scanner and reads `overview.md` (the project plan from `init`); plan call returns clarifying questions only (no affected_flows / adjacent_opportunities — there's nothing existing to integrate with); synthesis writes a spec without "Affected flows" / "Adjacent changes" sections. Hard rule shared across both modes: never assume — turn every gap into a question. (`src/commands/new.js`, prompts in `src/ai/prompts/new.js` with `selectPlanSystem` / `selectSpecSystem`)
 
-5. **`tech [<feature>]`** ✅ — reads product-spec.md, drafts technical-spec.md grounded in scanner output. Auto-picks if one feature, prompts to choose if multiple. (`src/commands/tech.js`)
+5. **`tech [<feature>]`** ✅ — brownfield: reads `product-spec.md`, drafts `technical-spec.md` grounded in scanner output. Greenfield: skips scanner, reads `overview.md` (the project plan), drafts `technical-spec.md` with every file path marked `(new)` and the chosen stack's conventions. (`src/commands/tech.js`, `src/ai/prompts/tech.js` with `selectSystem`)
 
-6. **`tasks [<feature>]`** ✅ — reads technical-spec.md, drafts ordered tasks.md (each with Goal, Files, Depends on, Parallel with, Acceptance). (`src/commands/tasks.js`)
+6. **`tasks [<feature>]`** ✅ — brownfield: reads `technical-spec.md`, drafts ordered `tasks.md` (Goal / Files / Depends on / Parallel with / Acceptance). Greenfield: reads the project plan + technical spec, drafts `tasks.md` where files are all `(new)` and the first 1-3 tasks are foundational scaffolding (run setup commands, install deps, configure env). (`src/commands/tasks.js`, `src/ai/prompts/tasks.js` with `selectSystem`)
 
 7. **`list` and `show <feature> [type]`** ✅ — file-system utilities, no AI. (`src/commands/list.js`, `src/commands/show.js`)
 

@@ -247,13 +247,12 @@ Until the OpenAI and Gemini adapters land, pick `agent` mode at `draftwise init`
 v1 commands are all shipped on `npm` as of `0.0.1`. The next published release will be `0.1.0` after end-to-end smoke testing on a sample repo.
 
 - [x] `init` — `.draftwise/` setup, with greenfield (stack recommendation) and brownfield (codebase scan) routing
-- [x] `scan` — structured product overview (brownfield)
-- [x] `explain` — traced walkthroughs of specific flows (brownfield)
-- [x] `new` — conversational spec drafting
-- [x] `tech` — technical spec grounded in real code
-- [x] `tasks` — dependency-ordered implementation breakdown
+- [x] `scan` — structured product overview (brownfield); friendly short-circuit in greenfield
+- [x] `explain` — traced walkthroughs of specific flows (brownfield); friendly short-circuit in greenfield
+- [x] `new` — conversational spec drafting, greenfield-aware (drops affected_flows / adjacent_opportunities when there's no code yet)
+- [x] `tech` — technical spec, greenfield-aware (every file marked `(new)`, follows the planned directory structure)
+- [x] `tasks` — dependency-ordered breakdown, greenfield-aware (first 1-3 tasks are project setup before feature work)
 - [x] `list` and `show` — spec browsing utilities
-- [ ] greenfield-aware `new` / `tech` / `tasks` — drop scanner-grounded constraints when there's no code yet (planned)
 - [ ] optional file scaffolding from `init`'s greenfield plan (planned)
 
 **Next:** OpenAI and Gemini provider adapters (Claude is the only fully-wired adapter today), framework support beyond JS/TS Node (Python, Go, Rust), greenfield-aware downstream commands, and a flag-aware scanner cache for very large repos.

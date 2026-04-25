@@ -5,14 +5,21 @@ import { scan as defaultScan } from '../core/scanner.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { listSpecs as defaultListSpecs } from '../utils/specs.js';
-import { SYSTEM, buildPrompt, buildAgentInstruction } from '../ai/prompts/tasks.js';
+import { readOverview as defaultReadOverview } from '../utils/overview.js';
+import {
+  selectSystem,
+  buildPrompt,
+  buildAgentInstruction,
+} from '../ai/prompts/tasks.js';
 
 const DEFAULT_PROMPTS = {
   pickSpec: ({ specs }) =>
     select({
       message: 'Which feature do you want a task breakdown for?',
       choices: specs.map((s) => ({
-        name: s.hasTasks ? `${s.slug}  (tasks.md exists — will overwrite)` : s.slug,
+        name: s.hasTasks
+          ? `${s.slug}  (tasks.md exists — will overwrite)`
+          : s.slug,
         value: s.slug,
       })),
     }),
@@ -46,6 +53,7 @@ export default async function tasksCommand(args = [], deps = {}) {
   const loadConfig = deps.loadConfig ?? defaultLoadConfig;
   const complete = deps.complete ?? defaultComplete;
   const listSpecs = deps.listSpecs ?? defaultListSpecs;
+  const readOverview = deps.readOverview ?? defaultReadOverview;
   const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };
 
   const draftwiseDir = join(cwd, '.draftwise');
@@ -54,6 +62,7 @@ export default async function tasksCommand(args = [], deps = {}) {
   }
 
   const config = await loadConfig(cwd);
+  const isGreenfield = config.projectState === 'greenfield';
   const requestedSlug = args[0];
 
   const specs = (await listSpecs(cwd)).filter((s) => s.hasTechnicalSpec);
@@ -87,18 +96,39 @@ export default async function tasksCommand(args = [], deps = {}) {
     );
   }
 
-  log('Scanning repo...');
-  const result = await scan(cwd);
-  if (!result.files || result.files.length === 0) {
-    throw new Error(
-      `No source files found under ${cwd}. Run \`draftwise tasks\` from your repo root.`,
-    );
+  let scanForPrompt;
+  let packageMeta;
+  let overview;
+
+  if (isGreenfield) {
+    log('Reading project plan from overview.md...');
+    overview = await readOverview(cwd);
+    if (!overview.trim()) {
+      throw new Error(
+        'Greenfield project but .draftwise/overview.md is missing or empty. Re-run `draftwise init` to generate the plan.',
+      );
+    }
+    scanForPrompt = null;
+    packageMeta = null;
+  } else {
+    log('Scanning repo...');
+    const result = await scan(cwd);
+    if (!result.files || result.files.length === 0) {
+      throw new Error(
+        `No source files found under ${cwd}. Run \`draftwise tasks\` from your repo root.`,
+      );
+    }
+    scanForPrompt = compactScan(result);
+    packageMeta = result.packageMeta;
   }
-  const scanForPrompt = compactScan(result);
 
   if (config.mode === 'agent') {
     log('');
-    log('Agent mode — handing scanner data + technical spec off to your coding agent.');
+    if (isGreenfield) {
+      log('Agent mode — handing project plan + technical spec off to your coding agent.');
+    } else {
+      log('Agent mode — handing scanner data + technical spec off to your coding agent.');
+    }
     log('');
     log('---');
     log(`SPEC: ${target.slug}`);
@@ -106,18 +136,23 @@ export default async function tasksCommand(args = [], deps = {}) {
     log('TECHNICAL SPEC');
     log(technicalSpec);
     log('');
-    log('SCANNER OUTPUT');
-    log('```json');
-    log(JSON.stringify(scanForPrompt, null, 2));
-    log('```');
-    log('');
-    log('PACKAGE METADATA');
-    log('```json');
-    log(JSON.stringify(result.packageMeta, null, 2));
-    log('```');
+    if (isGreenfield) {
+      log('PROJECT PLAN (overview.md)');
+      log(overview);
+    } else {
+      log('SCANNER OUTPUT');
+      log('```json');
+      log(JSON.stringify(scanForPrompt, null, 2));
+      log('```');
+      log('');
+      log('PACKAGE METADATA');
+      log('```json');
+      log(JSON.stringify(packageMeta, null, 2));
+      log('```');
+    }
     log('');
     log('INSTRUCTION');
-    log(buildAgentInstruction(target.slug));
+    log(buildAgentInstruction(target.slug, config.projectState));
     return;
   }
 
@@ -126,11 +161,13 @@ export default async function tasksCommand(args = [], deps = {}) {
     provider: config.provider,
     apiKeyEnv: config.apiKeyEnv,
     model: config.model,
-    system: SYSTEM,
+    system: selectSystem(config.projectState),
     prompt: buildPrompt({
       technicalSpec,
       scan: scanForPrompt,
-      packageMeta: result.packageMeta,
+      packageMeta,
+      projectState: config.projectState,
+      overview,
     }),
   });
 

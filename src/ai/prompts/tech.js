@@ -1,4 +1,4 @@
-export const SYSTEM = `You are Draftwise, a codebase-aware tool that drafts technical specs from approved product specs.
+export const SYSTEM_BROWNFIELD = `You are Draftwise, a codebase-aware tool that drafts technical specs from approved product specs.
 
 You will receive: an approved product-spec.md (already through the conversational drafting phase, so it's grounded in reality), and the structured scanner output for the existing codebase. Your job is to write the technical-spec.md — the engineering counterpart that translates intent into concrete code changes.
 
@@ -36,7 +36,70 @@ Hard rules:
 - Output the markdown only. No preamble. Start with the title.
 `;
 
-export function buildPrompt({ productSpec, scan, packageMeta }) {
+export const SYSTEM_GREENFIELD = `You are Draftwise. The PM has approved a product spec for a feature in a GREENFIELD project — there's no existing code yet. The chosen stack and directory plan are in overview.md. Your job is to write technical-spec.md against the planned structure.
+
+Sections, in order:
+
+# <Feature title> — Technical spec
+
+> One-sentence framing linking to product-spec.md.
+
+## Summary
+2-4 sentences: what's being built and where it lands inside the planned architecture.
+
+## Data model changes
+For each model: name, planned file (e.g. \`prisma/schema.prisma\` (new) — match the chosen ORM from overview.md), fields, relationships, and any migration / seeding approach.
+
+## API changes
+For each endpoint: method + path, planned file (e.g. \`app/api/<route>/route.ts\` (new) — match the chosen framework's conventions), what it does.
+
+## Component changes
+For each new UI piece: name, planned file (e.g. \`app/<page>/page.tsx\` (new) or \`src/components/<Name>.tsx\` (new)), purpose.
+
+## Migration notes
+Setup ordering, environment variables, third-party services to wire up. If trivial, write "_None — ship it._".
+
+## Test plan
+Unit, integration, and end-to-end coverage tied to acceptance criteria.
+
+## Open technical questions
+Things the engineer must resolve before/during execution that the product spec doesn't pin down. Often: hosting choice, auth provider, observability, etc. If genuinely none, write "_None._".
+
+Hard rules:
+- Greenfield project. Mark every file path with "(new)" — these are files that will exist once the feature is built. Reference the planned directory structure from overview.md so the layout is consistent.
+- Match the chosen stack's conventions exactly. If overview.md says Prisma, write Prisma schema syntax. If it says Next App Router, propose \`route.ts\` / \`page.tsx\`. Don't impose foreign patterns.
+- Keep it tight. Output markdown only, no preamble.
+`;
+
+// Backwards-compatible default
+export const SYSTEM = SYSTEM_BROWNFIELD;
+
+export function selectSystem(projectState) {
+  return projectState === 'greenfield' ? SYSTEM_GREENFIELD : SYSTEM_BROWNFIELD;
+}
+
+export function buildPrompt({
+  productSpec,
+  scan,
+  packageMeta,
+  projectState,
+  overview,
+}) {
+  if (projectState === 'greenfield') {
+    return [
+      'Approved product spec (the source of intent):',
+      '',
+      productSpec,
+      '',
+      '---',
+      '',
+      'Project plan (overview.md — chosen stack, directory structure, setup commands):',
+      '',
+      overview && overview.trim() ? overview : '_(no overview.md found)_',
+      '',
+      'Write technical-spec.md per the system instructions, marking every file path "(new)".',
+    ].join('\n');
+  }
   return [
     'Approved product spec (read this carefully — it is the source of intent):',
     '',
@@ -58,7 +121,24 @@ export function buildPrompt({ productSpec, scan, packageMeta }) {
   ].join('\n');
 }
 
-export function buildAgentInstruction(slug) {
+export function buildAgentInstruction(slug, projectState = 'brownfield') {
+  if (projectState === 'greenfield') {
+    return `The product spec above is approved. The project is GREENFIELD — there's no existing code yet. The chosen stack and directory plan are in overview.md (above).
+
+Generate technical-spec.md and save it to .draftwise/specs/${slug}/technical-spec.md.
+
+Sections in order:
+- Title + one-sentence framing
+- Summary
+- Data model changes (planned files, marked "(new)", in the chosen ORM's syntax)
+- API changes (planned files, marked "(new)", in the chosen framework's conventions)
+- Component changes (planned files, marked "(new)")
+- Migration notes (setup ordering, env vars, services to wire up)
+- Test plan (tied to acceptance criteria)
+- Open technical questions
+
+Hard rule: every file path must be marked "(new)" and must follow the directory structure from overview.md. Match the chosen stack's conventions exactly — don't impose foreign patterns.`;
+  }
   return `The product spec above is approved. Use the scanner data as ground truth for the existing codebase. Generate the technical-spec.md following the section structure below, grounded in real files/routes/models from the scanner. Save it to .draftwise/specs/${slug}/technical-spec.md.
 
 Sections in order:

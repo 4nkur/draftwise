@@ -190,4 +190,95 @@ describe('draftwise new', () => {
     );
     expect(spec).toContain('# Spec');
   });
+
+  it('greenfield api mode: skips scanner, reads overview, calls greenfield prompts', async () => {
+    let scanCalled = false;
+    let callCount = 0;
+    const captured = [];
+
+    const greenfieldPlan = {
+      feature_slug: 'recipe-uploads',
+      feature_title: 'Recipe Uploads',
+      clarifying_questions: [
+        { text: 'Photos required?', why: 'data model decision' },
+      ],
+    };
+
+    await newCommand(['add', 'recipe', 'uploads'], {
+      cwd: dir,
+      log: () => {},
+      scan: async () => {
+        scanCalled = true;
+        return SAMPLE_SCAN;
+      },
+      loadConfig: async () => ({
+        mode: 'api',
+        provider: 'claude',
+        apiKeyEnv: 'ANTHROPIC_API_KEY',
+        model: '',
+        projectState: 'greenfield',
+      }),
+      readOverview: async () => '# Recipe app — Greenfield plan\n\nNext.js + Postgres + Prisma\n',
+      complete: async (req) => {
+        callCount++;
+        captured.push(req);
+        if (callCount === 1) return JSON.stringify(greenfieldPlan);
+        return '# Recipe Uploads\n\nGreenfield spec body.';
+      },
+      prompts: fakePrompts({ answers: ['Yes'], decisions: [] }),
+    });
+
+    expect(scanCalled).toBe(false);
+    expect(callCount).toBe(2);
+    expect(captured[0].system).toContain('GREENFIELD');
+    expect(captured[0].prompt).toContain('Recipe app');
+    expect(captured[1].system).toContain('GREENFIELD');
+    expect(captured[1].prompt).not.toContain('"affected_flows"');
+
+    const spec = await readFile(
+      join(dir, '.draftwise', 'specs', 'recipe-uploads', 'product-spec.md'),
+      'utf8',
+    );
+    expect(spec).toContain('# Recipe Uploads');
+  });
+
+  it('greenfield agent mode: dumps PROJECT PLAN instead of SCANNER OUTPUT', async () => {
+    const localLogs = [];
+    await newCommand(['recipe', 'app'], {
+      cwd: dir,
+      log: (m) => localLogs.push(m),
+      scan: async () => {
+        throw new Error('scan should not be called in greenfield');
+      },
+      loadConfig: async () => ({
+        mode: 'agent',
+        projectState: 'greenfield',
+      }),
+      readOverview: async () => '# Recipe app — Greenfield plan\n',
+      complete: async () => {
+        throw new Error('complete should not be called in agent mode');
+      },
+    });
+
+    const out = localLogs.join('\n');
+    expect(out).toContain('PROJECT PLAN');
+    expect(out).not.toContain('SCANNER OUTPUT');
+    expect(out).toContain('Recipe app');
+  });
+
+  it('greenfield: errors if overview.md is empty', async () => {
+    await expect(
+      newCommand(['feature'], {
+        cwd: dir,
+        log: () => {},
+        scan: async () => SAMPLE_SCAN,
+        loadConfig: async () => ({
+          mode: 'agent',
+          projectState: 'greenfield',
+        }),
+        readOverview: async () => '',
+        complete: async () => '',
+      }),
+    ).rejects.toThrow(/overview\.md is missing or empty/);
+  });
 });

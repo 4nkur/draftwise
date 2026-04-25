@@ -47,6 +47,15 @@ export default async function explainCommand(args = [], deps = {}) {
   }
 
   const config = await loadConfig(cwd);
+
+  if (config.projectState === 'greenfield') {
+    log(`No code yet — \`draftwise explain\` traces flows that exist in the codebase.`);
+    log(
+      'Once you have implemented this flow, come back and run `draftwise explain <flow>`.',
+    );
+    return;
+  }
+
   const slug = slugify(flow);
 
   log(`Tracing "${flow}"...`);

@@ -41,6 +41,17 @@ export default async function scanCommand(_args = [], deps = {}) {
 
   const config = await loadConfig(cwd);
 
+  if (config.projectState === 'greenfield') {
+    log('No code yet — `draftwise scan` works on existing codebases.');
+    log(
+      'Once you have some code on disk, run scan to refresh .draftwise/overview.md from the actual code.',
+    );
+    log('');
+    log('In the meantime, the greenfield plan is in .draftwise/overview.md and');
+    log('`draftwise new "<feature idea>"` is the next step toward a spec.');
+    return;
+  }
+
   log('Scanning repo...');
   const result = await scan(cwd);
 

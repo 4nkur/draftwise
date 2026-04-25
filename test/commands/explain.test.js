@@ -121,6 +121,24 @@ describe('draftwise explain', () => {
     expect(logs.join('\n')).toContain('# Flow: login');
   });
 
+  it('short-circuits in greenfield mode with a friendly message', async () => {
+    let scanCalled = false;
+    await explainCommand(['login'], {
+      cwd: dir,
+      log: (m) => logs.push(m),
+      scan: async () => {
+        scanCalled = true;
+        return SAMPLE_SCAN;
+      },
+      loadConfig: async () => ({ mode: 'agent', projectState: 'greenfield' }),
+      complete: async () => {
+        throw new Error('should not be called in greenfield');
+      },
+    });
+    expect(scanCalled).toBe(false);
+    expect(logs.join('\n')).toContain('No code yet');
+  });
+
   it('errors when the scan returns zero files', async () => {
     await expect(
       explainCommand(['login'], {

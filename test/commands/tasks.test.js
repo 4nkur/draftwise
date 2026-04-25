@@ -202,4 +202,68 @@ describe('draftwise tasks', () => {
       }),
     ).rejects.toThrow(/empty/);
   });
+
+  it('greenfield: skips scanner, reads overview, uses greenfield prompts', async () => {
+    await seedSpec(dir, 'collab-albums', { technical: '# Tech\n\nGreenfield.' });
+
+    let scanCalled = false;
+    let captured;
+
+    await tasksCommand([], {
+      cwd: dir,
+      log: () => {},
+      scan: async () => {
+        scanCalled = true;
+        return SAMPLE_SCAN;
+      },
+      loadConfig: async () => ({
+        mode: 'api',
+        provider: 'claude',
+        apiKeyEnv: 'ANTHROPIC_API_KEY',
+        model: '',
+        projectState: 'greenfield',
+      }),
+      readOverview: async () => '# Plan\n\nNext.js + Prisma\n',
+      complete: async (req) => {
+        captured = req;
+        return '# Tasks\n\n1. Scaffold project';
+      },
+    });
+
+    expect(scanCalled).toBe(false);
+    expect(captured.system).toContain('GREENFIELD');
+    expect(captured.prompt).toContain('Plan');
+    expect(captured.prompt).not.toContain('"frameworks"');
+
+    const tasks = await readFile(
+      join(dir, '.draftwise', 'specs', 'collab-albums', 'tasks.md'),
+      'utf8',
+    );
+    expect(tasks).toContain('Scaffold project');
+  });
+
+  it('greenfield agent mode: dumps PROJECT PLAN instead of SCANNER OUTPUT', async () => {
+    await seedSpec(dir, 'collab-albums', { technical: '# Tech' });
+
+    const localLogs = [];
+    await tasksCommand([], {
+      cwd: dir,
+      log: (m) => localLogs.push(m),
+      scan: async () => {
+        throw new Error('should not be called in greenfield agent mode');
+      },
+      loadConfig: async () => ({
+        mode: 'agent',
+        projectState: 'greenfield',
+      }),
+      readOverview: async () => '# Plan\n\nNext.js + Prisma\n',
+      complete: async () => {
+        throw new Error('should not be called in agent mode');
+      },
+    });
+
+    const out = localLogs.join('\n');
+    expect(out).toContain('PROJECT PLAN');
+    expect(out).not.toContain('SCANNER OUTPUT');
+  });
 });

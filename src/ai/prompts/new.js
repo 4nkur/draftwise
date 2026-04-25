@@ -1,4 +1,4 @@
-export const PLAN_SYSTEM = `You are Draftwise, a codebase-aware product spec drafting tool.
+export const PLAN_SYSTEM_BROWNFIELD = `You are Draftwise, a codebase-aware product spec drafting tool.
 
 A PM has proposed a new feature for a real codebase. Your job in this turn is NOT to write the spec yet. Your job is to plan the conversation that will lead to a good spec.
 
@@ -33,7 +33,47 @@ Hard rules:
 - Output JSON only. No markdown around it except the single fenced block.
 `;
 
-export function buildPlanPrompt({ idea, scan, packageMeta }) {
+export const PLAN_SYSTEM_GREENFIELD = `You are Draftwise, a product spec drafting tool. The PM is scoping a feature for a GREENFIELD project — there's no existing code yet. They've already chosen a stack and a directory plan, captured in overview.md.
+
+Your job in this turn is NOT to write the spec yet. Your job is to plan the conversation by generating clarifying questions tailored to this feature on top of the chosen plan.
+
+Return ONE JSON object inside a single fenced \`\`\`json block:
+
+{
+  "feature_slug": "kebab-case (3-5 words)",
+  "feature_title": "human-readable title",
+  "clarifying_questions": [
+    { "text": "the question",
+      "why": "what gap this fills — be specific to the project plan" }
+  ]
+}
+
+Hard rules:
+- ASK, DO NOT ASSUME. 4-8 clarifying questions specific to this feature on top of the chosen stack: user behavior, edge cases, integration points within the planned structure, scope boundaries, success criteria.
+- Don't ask stack-selection questions — that decision is already made (see overview.md).
+- Don't generate affected_flows or adjacent_opportunities — there are no existing flows yet. If integration with the planned structure matters, surface it as a clarifying question.
+- Output JSON only. No markdown around the fenced block.
+`;
+
+export function selectPlanSystem(projectState) {
+  return projectState === 'greenfield'
+    ? PLAN_SYSTEM_GREENFIELD
+    : PLAN_SYSTEM_BROWNFIELD;
+}
+
+export function buildPlanPrompt({ idea, scan, packageMeta, projectState, overview }) {
+  if (projectState === 'greenfield') {
+    return [
+      `PM's idea: "${idea}"`,
+      '',
+      'Project plan (overview.md — chosen stack, directory structure, setup):',
+      overview && overview.trim()
+        ? overview
+        : '_(no overview.md found; treat the idea as the only context)_',
+      '',
+      'Generate clarifying questions per the system instructions.',
+    ].join('\n');
+  }
   return [
     `PM's idea: "${idea}"`,
     '',
@@ -51,9 +91,17 @@ export function buildPlanPrompt({ idea, scan, packageMeta }) {
   ].join('\n');
 }
 
+function extractJsonFromFence(text) {
+  const opener = text.match(/```(?:json)?\s*\n?/);
+  if (!opener) return text.trim();
+  const start = opener.index + opener[0].length;
+  const lastFence = text.lastIndexOf('```');
+  if (lastFence <= start) return text.slice(start).trim();
+  return text.slice(start, lastFence).trim();
+}
+
 export function parsePlanResponse(text) {
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const raw = (fenced ? fenced[1] : text).trim();
+  const raw = extractJsonFromFence(text);
   let parsed;
   try {
     parsed = JSON.parse(raw);
@@ -76,7 +124,7 @@ export function parsePlanResponse(text) {
   };
 }
 
-export const SPEC_SYSTEM = `You are Draftwise, a codebase-aware product spec drafting tool.
+export const SPEC_SYSTEM_BROWNFIELD = `You are Draftwise, a codebase-aware product spec drafting tool.
 
 You have the PM's idea, the codebase scanner output, the PM's answers to clarifying questions, and the PM's accept/decline decisions on adjacent flow opportunities. Your job in this turn is to write the final product-spec.md.
 
@@ -129,11 +177,93 @@ Hard rules:
 - Output the markdown only. No preamble. Start with the title.
 `;
 
-export function buildSpecPrompt({ idea, plan, scan, packageMeta, answers, opportunityDecisions }) {
+export const SPEC_SYSTEM_GREENFIELD = `You are Draftwise. The PM is scoping a feature for a GREENFIELD project. You have the idea, the project plan (overview.md — chosen stack, directory structure), and answers to clarifying questions. Write product-spec.md.
+
+The spec has these sections, in order:
+
+# <Feature title>
+
+> One-sentence description.
+
+## Problem
+Concrete; cite what the PM said in answers. No generic prose.
+
+## Users
+Who this is for, drawn from answers.
+
+## User stories
+3-7 stories in "As a <user>, I want <action>, so that <outcome>" form.
+
+## Acceptance criteria
+Given/when/then bullets. Concrete, testable.
+
+## Edge cases
+What could go wrong, what should happen. Anchor in the answers; don't invent.
+
+## Test cases
+Product-level scenarios. Happy path + each edge case.
+
+## Scope
+Four sub-bullets:
+- **Covered:** what this spec includes
+- **Assumed:** what we're taking as given
+- **Hypothesized:** what we believe but haven't proven
+- **Out of scope:** what this spec explicitly excludes
+
+## Core metrics
+What success looks like. Measurable.
+
+## Counter metrics
+What could go wrong if we succeed too hard.
+
+Hard rules:
+- Greenfield project — there are no existing flows or files. Don't include "Affected flows" or "Adjacent changes" sections; they don't apply.
+- If something feels like an integration with the planned structure, mention the planned file/component (from overview.md) but mark it forward-looking.
+- If a section has no content, write "_None._" — don't fabricate.
+- Output the markdown only. No preamble. Start with the title.
+`;
+
+export function selectSpecSystem(projectState) {
+  return projectState === 'greenfield'
+    ? SPEC_SYSTEM_GREENFIELD
+    : SPEC_SYSTEM_BROWNFIELD;
+}
+
+export function buildSpecPrompt({
+  idea,
+  plan,
+  scan,
+  packageMeta,
+  answers,
+  opportunityDecisions,
+  projectState,
+  overview,
+}) {
   const qa = plan.clarifyingQuestions.map((q, i) => ({
     question: q.text,
     answer: answers[i] ?? '',
   }));
+
+  if (projectState === 'greenfield') {
+    return [
+      `PM's idea: "${idea}"`,
+      `Feature slug: ${plan.featureSlug}`,
+      `Feature title: ${plan.featureTitle}`,
+      '',
+      'Project plan (overview.md):',
+      overview && overview.trim()
+        ? overview
+        : '_(no overview.md found)_',
+      '',
+      "PM's answers to clarifying questions:",
+      '```json',
+      JSON.stringify(qa, null, 2),
+      '```',
+      '',
+      'Write the full product-spec.md per the system instructions.',
+    ].join('\n');
+  }
+
   const opportunities = plan.adjacentOpportunities.map((o, i) => ({
     flow: o.flow,
     suggestion: o.suggestion,
@@ -175,7 +305,27 @@ export function buildSpecPrompt({ idea, plan, scan, packageMeta, answers, opport
   ].join('\n');
 }
 
-export function buildAgentInstruction(idea) {
+export function buildAgentInstruction(idea, projectState = 'brownfield') {
+  if (projectState === 'greenfield') {
+    return `The PM has proposed a feature for a GREENFIELD project: "${idea}".
+
+The project plan (overview.md above) describes the chosen stack and directory structure. There is no existing code yet. Run a conversation with the PM in three phases:
+
+PHASE 1 — Plan the conversation:
+  - Draft 4-8 clarifying questions specific to this feature on top of the chosen plan: user behavior, edge cases, integration points within the planned structure, scope, success criteria.
+  - Don't ask stack-selection questions — that decision is in overview.md.
+  - Don't try to enumerate "affected flows" — there are no existing flows yet.
+
+PHASE 2 — Walk the PM through the questions:
+  - Ask one clarifying question at a time. Wait for the answer.
+
+PHASE 3 — Generate product-spec.md:
+  - Sections in order: Problem, Users, User stories, Acceptance criteria, Edge cases, Test cases, Scope (covered/assumed/hypothesized/out of scope), Core metrics, Counter metrics.
+  - Skip "Affected flows" and "Adjacent changes" — they don't apply for greenfield.
+  - Save to .draftwise/specs/<feature-slug>/product-spec.md.
+
+Hard rule: ASK don't assume; ground every claim in the answers and the project plan, never invented detail.`;
+  }
   return `The PM has proposed: "${idea}".
 
 Use the scanner data above as ground truth for the existing codebase. Run a conversation with the PM in three phases:
@@ -197,3 +347,7 @@ PHASE 3 — Generate product-spec.md:
 
 Hard rules: ground every claim in the scanner; turn every gap into a question, not an assumption; keep the spec tight.`;
 }
+
+// Backwards compatibility — keep the old names alive as aliases.
+export const PLAN_SYSTEM = PLAN_SYSTEM_BROWNFIELD;
+export const SPEC_SYSTEM = SPEC_SYSTEM_BROWNFIELD;
