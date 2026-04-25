@@ -1,0 +1,199 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import techCommand from '../../src/commands/tech.js';
+
+const SAMPLE_SCAN = {
+  root: '/repo',
+  files: ['src/api/albums.ts'],
+  packageMeta: { name: 'photos', dependencies: ['next'], devDependencies: [] },
+  frameworks: ['Next.js'],
+  orms: ['Prisma'],
+  routes: [{ method: 'GET', path: '/albums', file: 'src/api/albums.ts' }],
+  components: [],
+  models: [{ name: 'Album', file: 'prisma/schema.prisma', fields: ['id', 'title'] }],
+};
+
+async function seedSpec(dir, slug, productBody = '# Product Spec\n\nBody.') {
+  const specDir = join(dir, '.draftwise', 'specs', slug);
+  await mkdir(specDir, { recursive: true });
+  await writeFile(join(specDir, 'product-spec.md'), productBody, 'utf8');
+  return specDir;
+}
+
+describe('draftwise tech', () => {
+  let dir;
+  let logs;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'draftwise-tech-'));
+    await mkdir(join(dir, '.draftwise'));
+    logs = [];
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('errors if .draftwise/ is missing', async () => {
+    await rm(join(dir, '.draftwise'), { recursive: true });
+    await expect(
+      techCommand([], {
+        cwd: dir,
+        log: () => {},
+        scan: async () => SAMPLE_SCAN,
+        loadConfig: async () => ({ mode: 'agent' }),
+        complete: async () => '',
+      }),
+    ).rejects.toThrow(/Run `draftwise init` first/);
+  });
+
+  it('errors if there are no product specs yet', async () => {
+    await expect(
+      techCommand([], {
+        cwd: dir,
+        log: () => {},
+        scan: async () => SAMPLE_SCAN,
+        loadConfig: async () => ({ mode: 'agent' }),
+        complete: async () => '',
+      }),
+    ).rejects.toThrow(/No product specs found/);
+  });
+
+  it('auto-picks the only spec when there is exactly one', async () => {
+    await seedSpec(dir, 'collab-albums');
+    let captured;
+    await techCommand([], {
+      cwd: dir,
+      log: (m) => logs.push(m),
+      scan: async () => SAMPLE_SCAN,
+      loadConfig: async () => ({
+        mode: 'api',
+        provider: 'claude',
+        apiKeyEnv: 'ANTHROPIC_API_KEY',
+        model: '',
+      }),
+      complete: async (req) => {
+        captured = req;
+        return '# Tech\n\nWritten.';
+      },
+    });
+
+    expect(logs.join('\n')).toContain('Using the only product spec: collab-albums');
+    expect(captured.system).toContain('technical-spec.md');
+    expect(captured.prompt).toContain('# Product Spec');
+
+    const tech = await readFile(
+      join(dir, '.draftwise', 'specs', 'collab-albums', 'technical-spec.md'),
+      'utf8',
+    );
+    expect(tech).toBe('# Tech\n\nWritten.');
+  });
+
+  it('uses the slug arg to pick a specific spec when given', async () => {
+    await seedSpec(dir, 'alpha');
+    await seedSpec(dir, 'beta');
+
+    await techCommand(['beta'], {
+      cwd: dir,
+      log: () => {},
+      scan: async () => SAMPLE_SCAN,
+      loadConfig: async () => ({
+        mode: 'api',
+        provider: 'claude',
+        apiKeyEnv: 'ANTHROPIC_API_KEY',
+        model: '',
+      }),
+      complete: async () => '# Beta tech',
+    });
+
+    const tech = await readFile(
+      join(dir, '.draftwise', 'specs', 'beta', 'technical-spec.md'),
+      'utf8',
+    );
+    expect(tech).toBe('# Beta tech');
+
+    await expect(
+      readFile(join(dir, '.draftwise', 'specs', 'alpha', 'technical-spec.md')),
+    ).rejects.toThrow();
+  });
+
+  it('errors when an unknown slug is requested', async () => {
+    await seedSpec(dir, 'alpha');
+
+    await expect(
+      techCommand(['ghost'], {
+        cwd: dir,
+        log: () => {},
+        scan: async () => SAMPLE_SCAN,
+        loadConfig: async () => ({ mode: 'agent' }),
+        complete: async () => '',
+      }),
+    ).rejects.toThrow(/No product spec found for "ghost"/);
+  });
+
+  it('prompts the user when there are multiple specs and no slug arg', async () => {
+    await seedSpec(dir, 'alpha');
+    await seedSpec(dir, 'beta');
+
+    await techCommand([], {
+      cwd: dir,
+      log: () => {},
+      scan: async () => SAMPLE_SCAN,
+      loadConfig: async () => ({
+        mode: 'api',
+        provider: 'claude',
+        apiKeyEnv: 'ANTHROPIC_API_KEY',
+        model: '',
+      }),
+      complete: async () => '# Beta tech',
+      prompts: { pickSpec: async () => 'beta' },
+    });
+
+    const tech = await readFile(
+      join(dir, '.draftwise', 'specs', 'beta', 'technical-spec.md'),
+      'utf8',
+    );
+    expect(tech).toBe('# Beta tech');
+  });
+
+  it('agent mode dumps product spec + scanner + instruction without writing', async () => {
+    await seedSpec(dir, 'collab-albums', '# Product\n\nThe spec.');
+
+    await techCommand([], {
+      cwd: dir,
+      log: (m) => logs.push(m),
+      scan: async () => SAMPLE_SCAN,
+      loadConfig: async () => ({ mode: 'agent' }),
+      complete: async () => {
+        throw new Error('should not be called in agent mode');
+      },
+    });
+
+    const output = logs.join('\n');
+    expect(output).toContain('SPEC: collab-albums');
+    expect(output).toContain('PRODUCT SPEC');
+    expect(output).toContain('# Product');
+    expect(output).toContain('SCANNER OUTPUT');
+    expect(output).toContain('INSTRUCTION');
+
+    await expect(
+      readFile(join(dir, '.draftwise', 'specs', 'collab-albums', 'technical-spec.md')),
+    ).rejects.toThrow();
+  });
+
+  it('errors if the product spec is empty', async () => {
+    await seedSpec(dir, 'empty', '');
+
+    await expect(
+      techCommand([], {
+        cwd: dir,
+        log: () => {},
+        scan: async () => SAMPLE_SCAN,
+        loadConfig: async () => ({ mode: 'agent' }),
+        complete: async () => '',
+      }),
+    ).rejects.toThrow(/empty/);
+  });
+});
