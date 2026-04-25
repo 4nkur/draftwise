@@ -130,6 +130,7 @@ draftwise new "your feature idea" # draft a new spec
 
 ```
 .draftwise/
+├── .gitignore                      # written by init; keeps the cache out of version control
 ├── overview.md                     # codebase summary (brownfield) or greenfield plan
 ├── scaffold.json                   # greenfield only: structured stack data for `draftwise scaffold`
 ├── specs/
@@ -140,7 +141,7 @@ draftwise new "your feature idea" # draft a new spec
 └── config.yaml
 ```
 
-Markdown. Version-controlled. Travels with your repo.
+Markdown. Version-controlled. Travels with your repo. (Draftwise also writes a `.cache/` folder that's gitignored automatically — fingerprint-based scan cache that invalidates on any code change.)
 
 ---
 

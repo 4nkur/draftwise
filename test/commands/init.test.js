@@ -116,6 +116,9 @@ describe('draftwise init', () => {
       expect(config).toContain('mode: agent');
       expect(config).toContain('state: brownfield');
       expect(config).not.toContain('provider:');
+
+      const gitignore = await readFile(join(drafts, '.gitignore'), 'utf8');
+      expect(gitignore).toContain('.cache/');
     });
 
     it('writes provider and api_key_env in api mode', async () => {

@@ -1,9 +1,10 @@
 import { writeFile, mkdir, access } from 'node:fs/promises';
 import { join } from 'node:path';
-import { scan as defaultScan } from '../core/scanner.js';
+import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
+import { filterScanForFlow } from '../utils/flow-filter.js';
 import { SYSTEM, buildPrompt, buildAgentInstruction } from '../ai/prompts/explain.js';
 import { slugify } from '../utils/slug.js';
 
@@ -71,7 +72,8 @@ export default async function explainCommand(args = [], deps = {}) {
     );
   }
 
-  const scanForPrompt = compactScan(result);
+  const compact = compactScan(result);
+  const scanForPrompt = filterScanForFlow(compact, flow);
 
   if (config.mode === 'agent') {
     log('');
