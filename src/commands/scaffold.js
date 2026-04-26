@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname, resolve, sep } from 'node:path';
 import { confirm } from '@inquirer/prompts';
 import { pathExists } from '../utils/fs.js';
+import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 
 export const HELP = `draftwise scaffold — create initial files from a greenfield plan
 
@@ -56,11 +57,23 @@ function placeholderFor(path, purpose) {
 export default async function scaffoldCommand(_args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
   const log = deps.log ?? ((msg) => console.error(msg));
+  const loadConfig = deps.loadConfig ?? defaultLoadConfig;
   const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };
 
   const draftwiseDir = join(cwd, '.draftwise');
   if (!(await pathExists(draftwiseDir))) {
     throw new Error('.draftwise/ not found. Run `draftwise init` first.');
+  }
+
+  // Short-circuit for brownfield projects — scaffold has nothing to do, and
+  // the missing-scaffold.json error message would mislead the user toward
+  // an "ask your agent" path that doesn't apply.
+  const config = await loadConfig(cwd);
+  if (config.projectState === 'brownfield') {
+    log(
+      'scaffold is greenfield-only — your project is brownfield, so there are no initial files to create.',
+    );
+    return;
   }
 
   const scaffoldPath = join(draftwiseDir, 'scaffold.json');

@@ -57,6 +57,9 @@ describe('draftwise scan', () => {
     expect(output).toContain('SCANNER OUTPUT');
     expect(output).toContain('Next.js');
     expect(output).toContain('INSTRUCTION');
+    // The orienting prefix lets a plain-terminal user know what to do with
+    // the wall of structured output below it.
+    expect(output).toContain('coding agent should pick this up');
 
     await expect(readFile(join(dir, '.draftwise', 'overview.md'))).rejects.toThrow();
   });
@@ -87,6 +90,11 @@ describe('draftwise scan', () => {
 
     const overview = await readFile(join(dir, '.draftwise', 'overview.md'), 'utf8');
     expect(overview).toContain('# Overview');
+
+    // First-time users need a nudge toward the next command after scan.
+    const out = logs.join('\n');
+    expect(out).toContain('Next:');
+    expect(out).toContain('draftwise new');
   });
 
   it('short-circuits in greenfield mode with a friendly message', async () => {

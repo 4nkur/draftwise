@@ -8,6 +8,7 @@ import { readOverview as defaultReadOverview } from '../utils/overview.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { pathExists } from '../utils/fs.js';
 import { compactScan } from '../utils/scan-projection.js';
+import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import {
   selectPlanSystem,
   selectSpecSystem,
@@ -130,6 +131,7 @@ export default async function newCommand(args = [], deps = {}) {
         'Agent mode — handing scanner data + the conversation plan off to your coding agent.',
       );
     }
+    log(AGENT_HANDOFF_PREFIX);
     log('');
     log('---');
     log(`IDEA: ${idea}`);
