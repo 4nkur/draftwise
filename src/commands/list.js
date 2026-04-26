@@ -37,6 +37,8 @@ function pad(s, n) {
 
 export default async function listCommand(_args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
+  // The table IS the output of `list` — keep it on stdout so piping works
+  // (`draftwise list > specs.txt`).
   const log = deps.log ?? ((msg) => console.log(msg));
   const listSpecs = deps.listSpecs ?? defaultListSpecs;
 

@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # Runtime + dev dependencies. Weekly cadence keeps PR noise low.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Bundle dev tooling so a single PR covers eslint/prettier/vitest bumps.
+      dev-tooling:
+        patterns:
+          - eslint
+          - '@eslint/*'
+          - prettier
+          - vitest
+          - globals
+
+  # GitHub Actions used by .github/workflows. Keeps actions/checkout,
+  # actions/setup-node etc. up to date without committing to SHA pins.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3

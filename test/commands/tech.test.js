@@ -83,6 +83,8 @@ describe('draftwise tech', () => {
     expect(logs.join('\n')).toContain('Using the only product spec: collab-albums');
     expect(captured.system).toContain('technical-spec.md');
     expect(captured.prompt).toContain('# Product Spec');
+    // tech streams the synthesis live to stdout.
+    expect(typeof captured.onToken).toBe('function');
 
     const tech = await readFile(
       join(dir, '.draftwise', 'specs', 'collab-albums', 'technical-spec.md'),

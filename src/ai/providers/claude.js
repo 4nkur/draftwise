@@ -32,14 +32,21 @@ export async function complete({
   if (typeof onToken === 'function') {
     let accumulated = '';
     const stream = client.messages.stream(params);
-    for await (const event of stream) {
-      if (
-        event.type === 'content_block_delta' &&
-        event.delta?.type === 'text_delta'
-      ) {
-        accumulated += event.delta.text;
-        onToken(event.delta.text);
+    try {
+      for await (const event of stream) {
+        if (
+          event.type === 'content_block_delta' &&
+          event.delta?.type === 'text_delta'
+        ) {
+          accumulated += event.delta.text;
+          onToken(event.delta.text);
+        }
       }
+    } catch (err) {
+      // If iteration or onToken throws, ensure the underlying HTTP
+      // request is closed before we propagate the error.
+      stream.abort?.();
+      throw err;
     }
     if (!accumulated) {
       throw new Error('Claude returned an empty response.');
