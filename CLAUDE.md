@@ -160,7 +160,7 @@ Each command is a separate file under `src/commands/` with a single `export defa
 
 ## v1 status — all commands shipped
 
-The build order below was the original sequence. As of `0.0.1` published to npm, every command is implemented end-to-end with both AI modes (agent + api) and a vitest test suite (~70 tests). The next published version will be `0.1.0` after end-to-end smoke testing.
+The build order below was the original sequence. As of `0.1.5` published to npm, every command is implemented end-to-end with both AI modes (agent + api) and a vitest test suite (~240 tests). The original `0.0.1` cut shipped the command surface; `0.1.0` added greenfield support and Python scanner; `0.1.5` added overwrite protection, live token streaming, and a richer set of drafting / spec-quality prompt rules.
 
 1. **`init`** ✅ — asks the user about project state (greenfield vs brownfield) and AI mode, then routes:
    - **Brownfield path:** scans the codebase, writes `.draftwise/specs/`, `overview.md` placeholder, `config.yaml` (with `project.state: brownfield`).
