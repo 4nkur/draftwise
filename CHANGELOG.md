@@ -6,7 +6,17 @@ Each released version is tagged in git (`v0.0.1`, `v0.1.0`, etc.) and includes t
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Added
+- **`eslint.config.js`.** ESLint v10 flat config with sensible defaults for an ESM Node CLI. `npm run lint` now actually works — the project's own `lint` script was broken before this. Closes the audit's P0 finding. — Ankur (#TBD)
+- **Tests for `src/ai/provider.js` and `src/ai/providers/claude.js`.** The provider router (unknown-provider error, missing-env-var error, openai/gemini stubs) and the Claude SDK adapter (response-block extraction, multi-block handling, empty-text detection, model defaulting / override, SDK error propagation) now have direct test coverage. Closes the audit's P1 — these were both production-critical paths with zero unit tests. — Ankur (#TBD)
+- **Path-traversal guard in `draftwise scaffold`.** AI-supplied file paths in `scaffold.json` are now resolved with `path.resolve` and checked to stay under the project root. Anything that escapes (e.g. `../../etc/passwd`) is logged as `blocked` and skipped instead of being written. Closes a P1 from the audit. — Ankur (#TBD)
+- **`DRAFTWISE_DEBUG=1` for stack traces.** When set, `src/index.js` prints `err.stack` plus any `cause:` chain on unexpected errors. Without it, only the message prints, with a one-line hint. Closes a P1 from the audit. — Ankur (#TBD)
+- **`prepublishOnly` script.** `npm publish` now runs `npm test && npm run lint` first, so a broken main can't be released by accident. Closes a P1 from the audit. — Ankur (#TBD)
+
+### Fixed
+- **Preserve error chains across re-throws.** Five `throw new Error(...)` sites that wrapped a caught error were dropping the original — `src/utils/config.js`, both parsers in `src/ai/prompts/greenfield.js`, the parser in `src/ai/prompts/new.js`, and `src/commands/scaffold.js`. They now pass `{ cause: err }` so the inner stack is recoverable via `DRAFTWISE_DEBUG=1`. Caught by the new ESLint config's `preserve-caught-error` rule. — Ankur (#TBD)
+- **Useless escapes in scanner regexes.** `src/core/scanner.js` had `\-` in two character classes where `-` at the end is unambiguous. Cosmetic; flagged by ESLint's `no-useless-escape`. — Ankur (#TBD)
+- **Drop unused `cwd` arg from `runGreenfield`.** Was destructured but never used inside the function body — `draftwiseDir` is computed at the call site. — Ankur (#TBD)
 
 ## [0.1.0] — 2026-04-25 — Ankur
 

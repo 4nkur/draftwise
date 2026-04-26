@@ -305,7 +305,7 @@ function pythonRequirementName(spec) {
   const trimmed = spec.trim().replace(/^['"]|['"]$/g, '');
   if (!trimmed) return null;
   // Stop at first comparator, environment marker, extras bracket, or whitespace.
-  const m = trimmed.match(/^([A-Za-z0-9_][A-Za-z0-9_.\-]*)/);
+  const m = trimmed.match(/^([A-Za-z0-9_][A-Za-z0-9_.-]*)/);
   if (!m) return null;
   return m[1].toLowerCase();
 }
@@ -332,7 +332,7 @@ function parseTomlSections(raw) {
       i++;
       continue;
     }
-    const kvMatch = stripped.match(/^([A-Za-z0-9_\-]+)\s*=\s*(.*)$/);
+    const kvMatch = stripped.match(/^([A-Za-z0-9_-]+)\s*=\s*(.*)$/);
     if (!kvMatch) {
       i++;
       continue;

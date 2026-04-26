@@ -108,6 +108,7 @@ export function parsePlanResponse(text) {
   } catch (err) {
     throw new Error(
       `Could not parse the plan from the model response. ${err.message}\n\nResponse was:\n${text.slice(0, 500)}`,
+      { cause: err },
     );
   }
   if (!parsed.feature_slug || !Array.isArray(parsed.clarifying_questions)) {
