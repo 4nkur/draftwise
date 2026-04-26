@@ -41,7 +41,7 @@ export default async function showCommand(args = [], deps = {}) {
 
   if (!slug) {
     throw new Error(
-      'Usage: draftwise show <feature> [product|tech|tasks]  (default type: product)',
+      'Missing feature name. Usage: draftwise show <feature> [product|tech|tasks]  (default type: product)',
     );
   }
   if (!VALID_TYPES.includes(type)) {

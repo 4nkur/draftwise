@@ -84,7 +84,7 @@ const DEFAULT_PROMPTS = {
     }),
   promptMode: () =>
     select({
-      message: 'AI mode',
+      message: 'How should Draftwise call the AI?',
       choices: [
         {
           name: 'Inside a coding agent (Claude Code, Cursor, Antigravity, etc.)',
@@ -101,7 +101,7 @@ const DEFAULT_PROMPTS = {
     }),
   promptProvider: () =>
     select({
-      message: 'Which provider?',
+      message: 'Which AI provider?',
       choices: [
         { name: 'Claude (Anthropic) — fully wired', value: 'claude' },
         { name: 'OpenAI — adapter not yet implemented', value: 'openai' },
@@ -110,7 +110,7 @@ const DEFAULT_PROMPTS = {
     }),
   promptApiKeyEnv: ({ provider, suggested }) =>
     input({
-      message: `Environment variable holding the ${provider} API key`,
+      message: `Which environment variable holds your ${provider} API key?`,
       default: suggested,
     }),
   promptIdea: () =>
@@ -121,7 +121,7 @@ const DEFAULT_PROMPTS = {
     }),
   askGreenfieldQuestion: ({ index, total, text, why }) =>
     input({
-      message: `Q${index + 1}/${total} — ${text}\n  (why: ${why})\n  Your answer (or press enter to skip):`,
+      message: `Q${index + 1}/${total} — ${text}\n  Why: ${why}\n  (press enter to skip)`,
     }),
   pickStack: ({ stackOptions }) =>
     select({
