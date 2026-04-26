@@ -3,6 +3,16 @@ import { join } from 'node:path';
 import { listSpecs as defaultListSpecs } from '../utils/specs.js';
 import { pathExists } from '../utils/fs.js';
 
+export const HELP = `draftwise list — list all specs in .draftwise/specs/
+
+Usage:
+  draftwise list
+
+Three columns: slug, status (which artifacts exist —
+product · tech · tasks), and the title from product-spec.md's H1.
+Empty spec dirs show as "(empty)".
+`;
+
 async function readTitle(file) {
   try {
     const content = await readFile(file, 'utf8');

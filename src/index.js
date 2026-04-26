@@ -1,3 +1,9 @@
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
+const VERSION = pkg.version;
+
 const COMMANDS = {
   init: () => import('./commands/init.js'),
   scan: () => import('./commands/scan.js'),
@@ -26,14 +32,27 @@ Commands:
   list                          List all specs in .draftwise/specs/
   show <feature> [type]         Show a spec (type: product | tech | tasks; default: product)
 
-Run "draftwise <command> --help" for command-specific help (coming soon).
+Flags:
+  -h, --help                    Show this help (or per-command help when after a command)
+  -v, --version                 Print the installed draftwise version
+
+Set DRAFTWISE_DEBUG=1 for stack traces on unexpected errors.
 `;
+
+function asksForHelp(args) {
+  return args.includes('--help') || args.includes('-h');
+}
 
 export default async function run(argv) {
   const [cmd, ...rest] = argv;
 
   if (!cmd || cmd === '-h' || cmd === '--help' || cmd === 'help') {
     console.log(HELP);
+    return;
+  }
+
+  if (cmd === '-v' || cmd === '--version' || cmd === 'version') {
+    console.log(VERSION);
     return;
   }
 
@@ -46,6 +65,10 @@ export default async function run(argv) {
 
   try {
     const mod = await loader();
+    if (asksForHelp(rest)) {
+      console.log(mod.HELP || `(no help available for "${cmd}")`);
+      return;
+    }
     await mod.default(rest);
   } catch (err) {
     if (process.env.DRAFTWISE_DEBUG === '1') {

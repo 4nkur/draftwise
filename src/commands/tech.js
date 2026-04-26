@@ -15,6 +15,19 @@ import {
   buildAgentInstruction,
 } from '../ai/prompts/tech.js';
 
+export const HELP = `draftwise tech [<feature>] — draft technical-spec.md from a product spec
+
+Usage:
+  draftwise tech                 # auto-pick if exactly one product spec exists
+  draftwise tech <feature-slug>  # target a specific feature
+  draftwise tech                 # multi-spec → inquirer picker
+
+Reads the product spec, writes technical-spec.md grounded in the
+real codebase (brownfield) or the planned directory structure
+(greenfield, with "(new)" markers). Existing technical-spec.md
+gets overwritten — flagged in the picker.
+`;
+
 const DEFAULT_PROMPTS = {
   pickSpec: ({ specs }) =>
     select({

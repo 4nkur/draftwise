@@ -17,6 +17,17 @@ import {
   buildAgentInstruction as buildGreenfieldAgentInstruction,
 } from '../ai/prompts/greenfield.js';
 
+export const HELP = `draftwise init — set up .draftwise/ for the current project
+
+Usage:
+  draftwise init
+
+Asks whether the project is greenfield (no code yet) or brownfield
+(existing codebase) and routes accordingly. Greenfield walks you
+through stack selection with rationale, pros, and cons. Brownfield
+scans the codebase. Refuses to overwrite an existing .draftwise/.
+`;
+
 const ENV_VAR_BY_PROVIDER = {
   claude: 'ANTHROPIC_API_KEY',
   openai: 'OPENAI_API_KEY',

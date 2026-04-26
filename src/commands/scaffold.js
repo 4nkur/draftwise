@@ -3,6 +3,18 @@ import { join, dirname, resolve, sep } from 'node:path';
 import { confirm } from '@inquirer/prompts';
 import { pathExists } from '../utils/fs.js';
 
+export const HELP = `draftwise scaffold — create initial files from a greenfield plan
+
+Usage:
+  draftwise scaffold
+
+Reads .draftwise/scaffold.json (written by \`draftwise init\` in
+greenfield mode), confirms before writing, then creates each
+initial_files entry with placeholder content. Skips files that
+already exist. Refuses paths that escape the project root. Does
+NOT run setup commands — they're printed for manual execution.
+`;
+
 const DEFAULT_PROMPTS = {
   confirmScaffold: ({ stack, fileCount }) =>
     confirm({
