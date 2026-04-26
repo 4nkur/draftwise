@@ -111,6 +111,8 @@ scan:
 
 **Opinionated about how the AI talks.** Draftwise injects a shared `CORE_PRINCIPLES` block into every conversational / drafting prompt: no filler, redirect drift, push back on weak ideas (don't repackage them as agreement), extend existing architecture before adding new pieces, flag bad assumptions and uncertain claims, offer the counter-case on strategic decisions. Source of truth: `src/ai/prompts/principles.js`. Change behavior there, not in each command's prompt.
 
+**Opinionated about how the spec reads.** A second shared block — `SPEC_LANGUAGE_RULES` plus `EDGE_CASE_DISCIPLINE` — lives in `src/ai/prompts/spec-quality.js`. The language rules go into the synthesis SYSTEM constants for `new` and `tech` (specific over generic, active voice, same term every time, cut filler, examples for ambiguous claims, don't blame users, equal-effort sections). The edge-case discipline goes into `tech` only — it tells the model to name empty data, errors, loading, permissions, concurrency, and large-data behavior inline in each component / endpoint section. JSON-shaped calls (plan, questions, stacks) and `tasks` skip both because they aren't drafting prose. Same single-source-of-truth pattern as `principles.js` — change the rule there, not per command.
+
 **Single repo, single feature spec at a time.** No cross-spec dependency tracking. No multi-repo. Keep scope tight.
 
 ---

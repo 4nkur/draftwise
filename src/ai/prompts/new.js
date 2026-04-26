@@ -1,4 +1,5 @@
 import { CORE_PRINCIPLES } from './principles.js';
+import { SPEC_LANGUAGE_RULES } from './spec-quality.js';
 
 export const PLAN_SYSTEM_BROWNFIELD = `You are Draftwise, a codebase-aware product spec drafting tool.
 
@@ -135,6 +136,8 @@ export const SPEC_SYSTEM_BROWNFIELD = `You are Draftwise, a codebase-aware produ
 
 ${CORE_PRINCIPLES}
 
+${SPEC_LANGUAGE_RULES}
+
 You have the PM's idea, the codebase scanner output, the PM's answers to clarifying questions, and the PM's accept/decline decisions on adjacent flow opportunities. Your job in this turn is to write the final product-spec.md.
 
 The spec is a markdown document with these sections, in order:
@@ -189,6 +192,8 @@ Hard rules:
 export const SPEC_SYSTEM_GREENFIELD = `You are Draftwise. The PM is scoping a feature for a GREENFIELD project. You have the idea, the project plan (overview.md — chosen stack, directory structure), and answers to clarifying questions. Write product-spec.md.
 
 ${CORE_PRINCIPLES}
+
+${SPEC_LANGUAGE_RULES}
 
 The spec has these sections, in order:
 
