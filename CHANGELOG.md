@@ -7,6 +7,8 @@ Each released version is tagged in git (`v0.0.1`, `v0.1.0`, etc.) and includes t
 ## [Unreleased]
 
 ### Changed
+- **Parallelize per-file reads in scanner detectors.** The eight detector loops (Express/Fastify routes, Mongoose, Drizzle, FastAPI, Flask, Django routes, SQLAlchemy, Django models) used to read files sequentially — fine for small repos, painful on monorepos. Now use a 50-way bounded `mapConcurrent` from new `src/utils/concurrency.js`. Same matches, faster on big trees. — Ankur (#TBD)
+- **Bump default Claude `max_tokens` to 16384 and expose `ai.max_tokens` in config.** The previous 8192 truncated overviews and tech specs on richly-scanned repos. Default raised; users can override via config (or set lower to cap costs). — Ankur (#TBD)
 - **Extract shared `pathExists` and `compactScan` helpers.** The audit's two duplication smells — `pathExists` defined identically in 10 files, `compactScan` defined identically in 4 — now live in `src/utils/fs.js` and `src/utils/scan-projection.js` respectively. Pure refactor; no behavior change. The 14 consumer files import the shared versions and drop their local definitions (and the `access` import that only existed for `pathExists`). Going forward, any tuning to the prompt-sized scan projection happens in one place. Closes audit P2 #1 and #2. — Ankur (#TBD)
 
 ### Added

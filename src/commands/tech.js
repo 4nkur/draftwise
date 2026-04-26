@@ -146,6 +146,7 @@ export default async function techCommand(args = [], deps = {}) {
     provider: config.provider,
     apiKeyEnv: config.apiKeyEnv,
     model: config.model,
+    maxTokens: config.maxTokens,
     system: selectSystem(config.projectState),
     prompt: buildPrompt({
       productSpec,

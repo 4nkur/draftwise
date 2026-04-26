@@ -1,0 +1,20 @@
+// Run an async function over a list with a concurrency cap. Returns the
+// results in input order. Used by the scanner detectors so a monorepo
+// with thousands of source files doesn't open a file descriptor for
+// every match at once.
+export async function mapConcurrent(items, limit, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+
+  async function worker() {
+    while (true) {
+      const i = next++;
+      if (i >= items.length) return;
+      results[i] = await fn(items[i], i);
+    }
+  }
+
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+  await Promise.all(Array.from({ length: workerCount }, worker));
+  return results;
+}
