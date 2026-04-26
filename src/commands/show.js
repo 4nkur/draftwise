@@ -1,6 +1,7 @@
-import { readFile, access } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { listSpecs as defaultListSpecs } from '../utils/specs.js';
+import { pathExists } from '../utils/fs.js';
 
 const VALID_TYPES = ['product', 'tech', 'tasks'];
 
@@ -15,15 +16,6 @@ const TYPE_TO_FILENAME = {
   tech: 'technical-spec.md',
   tasks: 'tasks.md',
 };
-
-async function pathExists(p) {
-  try {
-    await access(p);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export default async function showCommand(args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();

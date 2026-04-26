@@ -1,10 +1,11 @@
-import { mkdir, access, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { stringify as yamlStringify } from 'yaml';
 import { select, input } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
+import { pathExists } from '../utils/fs.js';
 import {
   QUESTIONS_SYSTEM,
   STACKS_SYSTEM,
@@ -132,15 +133,6 @@ function buildConfigYaml({ mode, provider, apiKeyEnv, projectState, stack }) {
   const project = { state: projectState };
   if (stack) project.stack = stack;
   return yamlStringify({ ai, project });
-}
-
-async function pathExists(p) {
-  try {
-    await access(p);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 async function collectAiConfig(prompts) {

@@ -1,6 +1,7 @@
-import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname, resolve, sep } from 'node:path';
 import { confirm } from '@inquirer/prompts';
+import { pathExists } from '../utils/fs.js';
 
 const DEFAULT_PROMPTS = {
   confirmScaffold: ({ stack, fileCount }) =>
@@ -9,15 +10,6 @@ const DEFAULT_PROMPTS = {
       default: false,
     }),
 };
-
-async function pathExists(p) {
-  try {
-    await access(p);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 function placeholderFor(path, purpose) {
   const ext = path.slice(path.lastIndexOf('.')).toLowerCase();
