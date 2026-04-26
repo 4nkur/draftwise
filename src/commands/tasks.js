@@ -9,6 +9,7 @@ import { readOverview as defaultReadOverview } from '../utils/overview.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { pathExists } from '../utils/fs.js';
 import { compactScan } from '../utils/scan-projection.js';
+import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import {
   selectSystem,
   buildPrompt,
@@ -156,6 +157,7 @@ export default async function tasksCommand(args = [], deps = {}) {
     } else {
       log('Agent mode — handing scanner data + technical spec off to your coding agent.');
     }
+    log(AGENT_HANDOFF_PREFIX);
     log('');
     log('---');
     log(`SPEC: ${target.slug}`);

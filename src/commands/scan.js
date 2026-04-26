@@ -5,6 +5,7 @@ import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { pathExists } from '../utils/fs.js';
+import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import { SYSTEM, buildPrompt, AGENT_INSTRUCTION } from '../ai/prompts/scan.js';
 
 export const HELP = `draftwise scan — refresh the codebase overview (brownfield)
@@ -89,6 +90,7 @@ export default async function scanCommand(_args = [], deps = {}) {
 
   if (config.mode === 'agent') {
     log('Agent mode — handing scanner data off to your coding agent.');
+    log(AGENT_HANDOFF_PREFIX);
     log('');
     log('---');
     log('SCANNER OUTPUT');
@@ -122,4 +124,8 @@ export default async function scanCommand(_args = [], deps = {}) {
   await writeFile(join(draftwiseDir, 'overview.md'), overview, 'utf8');
   log('');
   log('Wrote .draftwise/overview.md');
+  log('');
+  log(
+    'Next: review the overview, then `draftwise new "<feature idea>"` to draft your first spec — or `draftwise explain <flow>` to trace a specific area.',
+  );
 }

@@ -6,6 +6,7 @@ import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { pathExists } from '../utils/fs.js';
+import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import {
   QUESTIONS_SYSTEM,
   STACKS_SYSTEM,
@@ -238,6 +239,7 @@ async function runGreenfield({
   if (aiConfig.mode === 'agent') {
     log('');
     log('Agent mode — handing the greenfield conversation off to your coding agent.');
+    log(AGENT_HANDOFF_PREFIX);
     log('');
     log('---');
     log(`IDEA: ${idea}`);

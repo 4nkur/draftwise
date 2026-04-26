@@ -45,6 +45,9 @@ function fakePrompts(answer) {
   return { confirmScaffold: async () => answer };
 }
 
+const greenfieldConfig = async () => ({ projectState: 'greenfield' });
+const brownfieldConfig = async () => ({ projectState: 'brownfield' });
+
 describe('draftwise scaffold', () => {
   let dir;
   let logs;
@@ -67,15 +70,37 @@ describe('draftwise scaffold', () => {
   it('errors if scaffold.json is missing', async () => {
     await mkdir(join(dir, '.draftwise'));
     await expect(
-      scaffoldCommand([], { cwd: dir, log: () => {} }),
+      scaffoldCommand([], {
+        cwd: dir,
+        log: () => {},
+        loadConfig: greenfieldConfig,
+      }),
     ).rejects.toThrow(/scaffold\.json not found/);
+  });
+
+  it('short-circuits with a friendly hint when run on a brownfield project', async () => {
+    // Seed a scaffold.json so a "missing-file" code path can't possibly fire —
+    // we want to confirm the brownfield check happens BEFORE the file check.
+    await seedScaffold(dir);
+    await scaffoldCommand([], {
+      cwd: dir,
+      log: (m) => logs.push(m),
+      loadConfig: brownfieldConfig,
+    });
+    expect(logs.join('\n')).toContain('scaffold is greenfield-only');
+    // Nothing should have been written.
+    expect(await pathExists(join(dir, 'app/page.tsx'))).toBe(false);
   });
 
   it('errors if scaffold.json is malformed', async () => {
     await mkdir(join(dir, '.draftwise'));
     await writeFile(join(dir, '.draftwise', 'scaffold.json'), '{not json', 'utf8');
     await expect(
-      scaffoldCommand([], { cwd: dir, log: () => {} }),
+      scaffoldCommand([], {
+        cwd: dir,
+        log: () => {},
+        loadConfig: greenfieldConfig,
+      }),
     ).rejects.toThrow(/Failed to parse/);
   });
 
@@ -84,6 +109,7 @@ describe('draftwise scaffold', () => {
     await scaffoldCommand([], {
       cwd: dir,
       log: (m) => logs.push(m),
+      loadConfig: greenfieldConfig,
       prompts: fakePrompts(true),
     });
     expect(logs.join('\n')).toContain('Nothing to do');
@@ -94,6 +120,7 @@ describe('draftwise scaffold', () => {
     await scaffoldCommand([], {
       cwd: dir,
       log: (m) => logs.push(m),
+      loadConfig: greenfieldConfig,
       prompts: fakePrompts(false),
     });
     expect(logs.join('\n')).toContain('Aborted');
@@ -105,6 +132,7 @@ describe('draftwise scaffold', () => {
     await scaffoldCommand([], {
       cwd: dir,
       log: (m) => logs.push(m),
+      loadConfig: greenfieldConfig,
       prompts: fakePrompts(true),
     });
 
@@ -138,6 +166,7 @@ describe('draftwise scaffold', () => {
     await scaffoldCommand([], {
       cwd: dir,
       log: (m) => logs.push(m),
+      loadConfig: greenfieldConfig,
       prompts: fakePrompts(true),
     });
 
@@ -161,6 +190,7 @@ describe('draftwise scaffold', () => {
     await scaffoldCommand([], {
       cwd: dir,
       log: (m) => logs.push(m),
+      loadConfig: greenfieldConfig,
       prompts: fakePrompts(true),
     });
 

@@ -6,6 +6,7 @@ import { complete as defaultComplete } from '../ai/provider.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { filterScanForFlow } from '../utils/flow-filter.js';
 import { pathExists } from '../utils/fs.js';
+import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import { compactScan } from '../utils/scan-projection.js';
 import { SYSTEM, buildPrompt, buildAgentInstruction } from '../ai/prompts/explain.js';
 import { slugify } from '../utils/slug.js';
@@ -73,6 +74,7 @@ export default async function explainCommand(args = [], deps = {}) {
   if (config.mode === 'agent') {
     log('');
     log('Agent mode — handing scanner data off to your coding agent.');
+    log(AGENT_HANDOFF_PREFIX);
     log('');
     log('---');
     log(`FLOW: ${flow}`);

@@ -195,6 +195,7 @@ describe('draftwise init', () => {
       expect(output).toContain('PHASE 1');
       expect(output).toContain('PHASE 2');
       expect(output).toContain('PHASE 3');
+      expect(output).toContain('coding agent should pick this up');
 
       const overview = await readFile(
         join(dir, '.draftwise', 'overview.md'),

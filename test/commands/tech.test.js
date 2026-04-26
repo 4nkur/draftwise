@@ -179,6 +179,7 @@ describe('draftwise tech', () => {
     expect(output).toContain('# Product');
     expect(output).toContain('SCANNER OUTPUT');
     expect(output).toContain('INSTRUCTION');
+    expect(output).toContain('coding agent should pick this up');
 
     await expect(
       readFile(join(dir, '.draftwise', 'specs', 'collab-albums', 'technical-spec.md')),

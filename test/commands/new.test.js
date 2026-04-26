@@ -107,6 +107,7 @@ describe('draftwise new', () => {
     expect(output).toContain('PHASE 1');
     expect(output).toContain('PHASE 2');
     expect(output).toContain('PHASE 3');
+    expect(output).toContain('coding agent should pick this up');
 
     await expect(
       readFile(join(dir, '.draftwise', 'specs', 'collab-albums', 'product-spec.md')),

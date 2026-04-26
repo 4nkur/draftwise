@@ -84,6 +84,7 @@ describe('draftwise explain', () => {
     expect(output).toContain('SCANNER OUTPUT');
     expect(output).toContain('Express');
     expect(output).toContain('INSTRUCTION');
+    expect(output).toContain('coding agent should pick this up');
 
     await expect(
       readFile(join(dir, '.draftwise', 'flows', 'login.md')),
