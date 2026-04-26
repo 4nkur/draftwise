@@ -1,5 +1,5 @@
 import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve, sep } from 'node:path';
 import { confirm } from '@inquirer/prompts';
 
 const DEFAULT_PROMPTS = {
@@ -71,7 +71,10 @@ export default async function scaffoldCommand(_args = [], deps = {}) {
     const raw = await readFile(scaffoldPath, 'utf8');
     plan = JSON.parse(raw);
   } catch (err) {
-    throw new Error(`Failed to parse .draftwise/scaffold.json: ${err.message}`);
+    throw new Error(
+      `Failed to parse .draftwise/scaffold.json: ${err.message}`,
+      { cause: err },
+    );
   }
 
   const initialFiles = Array.isArray(plan.initial_files) ? plan.initial_files : [];
@@ -101,9 +104,21 @@ export default async function scaffoldCommand(_args = [], deps = {}) {
   log('');
   let created = 0;
   let skipped = 0;
+  let blocked = 0;
+  const cwdResolved = resolve(cwd);
   for (const f of initialFiles) {
     if (!f.path || typeof f.path !== 'string') continue;
-    const fullPath = join(cwd, f.path);
+    const fullPath = resolve(cwd, f.path);
+    // Guard: a malicious or careless plan could specify "../../etc/passwd".
+    // Refuse anything that resolves outside the project root.
+    if (
+      fullPath !== cwdResolved &&
+      !fullPath.startsWith(cwdResolved + sep)
+    ) {
+      log(`  ! blocked (escapes project root): ${f.path}`);
+      blocked++;
+      continue;
+    }
     if (await pathExists(fullPath)) {
       log(`  ~ skipped (exists): ${f.path}`);
       skipped++;
@@ -116,7 +131,9 @@ export default async function scaffoldCommand(_args = [], deps = {}) {
   }
 
   log('');
-  log(`Done — ${created} created, ${skipped} skipped.`);
+  log(
+    `Done — ${created} created, ${skipped} skipped${blocked > 0 ? `, ${blocked} blocked` : ''}.`,
+  );
 
   const setupCommands = Array.isArray(plan.setup_commands)
     ? plan.setup_commands

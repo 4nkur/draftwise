@@ -48,7 +48,16 @@ export default async function run(argv) {
     const mod = await loader();
     await mod.default(rest);
   } catch (err) {
-    console.error(err?.message ?? err);
+    if (process.env.DRAFTWISE_DEBUG === '1') {
+      console.error(err?.stack || err);
+      if (err?.cause) {
+        console.error('Caused by:');
+        console.error(err.cause?.stack || err.cause);
+      }
+    } else {
+      console.error(err?.message ?? err);
+      console.error('  (set DRAFTWISE_DEBUG=1 to see the stack trace)');
+    }
     process.exit(1);
   }
 }

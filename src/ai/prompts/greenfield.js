@@ -47,6 +47,7 @@ export function parseQuestionsResponse(text) {
   } catch (err) {
     throw new Error(
       `Could not parse the clarifying questions from the model response. ${err.message}\n\nResponse was:\n${text.slice(0, 500)}`,
+      { cause: err },
     );
   }
   if (!Array.isArray(parsed.questions) || parsed.questions.length === 0) {
@@ -115,6 +116,7 @@ export function parseStacksResponse(text) {
   } catch (err) {
     throw new Error(
       `Could not parse the stack options from the model response. ${err.message}\n\nResponse was:\n${text.slice(0, 500)}`,
+      { cause: err },
     );
   }
   if (!Array.isArray(parsed.stack_options) || parsed.stack_options.length === 0) {

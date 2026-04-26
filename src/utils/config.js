@@ -21,7 +21,9 @@ export async function loadConfig(cwd = process.cwd()) {
   try {
     parsed = parseYaml(raw);
   } catch (err) {
-    throw new Error(`Failed to parse .draftwise/config.yaml: ${err.message}`);
+    throw new Error(`Failed to parse .draftwise/config.yaml: ${err.message}`, {
+      cause: err,
+    });
   }
 
   const ai = parsed?.ai;

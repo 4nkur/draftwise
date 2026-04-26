@@ -223,7 +223,6 @@ async function runBrownfield({ cwd, log, scan, draftwiseDir, aiConfig }) {
 }
 
 async function runGreenfield({
-  cwd,
   log,
   complete,
   draftwiseDir,
@@ -407,5 +406,5 @@ export default async function init(_args = [], deps = {}) {
   if (projectState === 'brownfield') {
     return runBrownfield({ cwd, log, scan, draftwiseDir, aiConfig });
   }
-  return runGreenfield({ cwd, log, complete, draftwiseDir, aiConfig, prompts });
+  return runGreenfield({ log, complete, draftwiseDir, aiConfig, prompts });
 }

@@ -125,6 +125,34 @@ describe('draftwise scaffold', () => {
     expect(out).toContain('npx create-next-app');
   });
 
+  it('blocks file paths that escape the project root', async () => {
+    await seedScaffold(dir, {
+      ...SAMPLE_PLAN,
+      initial_files: [
+        { path: '../escape.txt', purpose: 'should not be written' },
+        { path: '../../../etc/foo.txt', purpose: 'also blocked' },
+        { path: 'src/legit.ts', purpose: 'this one is fine' },
+      ],
+    });
+
+    await scaffoldCommand([], {
+      cwd: dir,
+      log: (m) => logs.push(m),
+      prompts: fakePrompts(true),
+    });
+
+    const out = logs.join('\n');
+    expect(out).toContain('blocked (escapes project root): ../escape.txt');
+    expect(out).toContain('blocked (escapes project root): ../../../etc/foo.txt');
+    expect(out).toContain('+ created: src/legit.ts');
+    expect(out).toMatch(/2 blocked/);
+
+    // Sanity: the legit file landed; the escape attempts didn't.
+    expect(await pathExists(join(dir, 'src/legit.ts'))).toBe(true);
+    // Walk one level up to confirm escape didn't write anything.
+    expect(await pathExists(join(dir, '..', 'escape.txt'))).toBe(false);
+  });
+
   it('skips files that already exist instead of overwriting', async () => {
     await seedScaffold(dir);
     await mkdir(join(dir, 'app'), { recursive: true });
