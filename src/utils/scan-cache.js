@@ -10,6 +10,11 @@ import {
 
 const CACHE_REL_PATH = ['.draftwise', '.cache', 'scan.json'];
 
+// Bump this when the scan result shape changes (new field, renamed key,
+// removed field). Old cache entries with a different version are
+// treated as cache-miss instead of returning stale-shape data.
+const CACHE_VERSION = 1;
+
 function cachePath(root) {
   return join(root, ...CACHE_REL_PATH);
 }
@@ -27,12 +32,17 @@ export async function cachedScan(root, options = {}) {
   const path = cachePath(root);
   const cached = await readCache(path);
 
-  if (cached && cached.fingerprint === fingerprint) {
+  if (
+    cached &&
+    cached.cacheVersion === CACHE_VERSION &&
+    cached.fingerprint === fingerprint
+  ) {
     return { ...cached.result, fromCache: true };
   }
 
   const fresh = await scan(root, { maxFiles });
   await writeCache(path, {
+    cacheVersion: CACHE_VERSION,
     fingerprint,
     savedAt: new Date().toISOString(),
     result: fresh,
