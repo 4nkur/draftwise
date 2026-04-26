@@ -1,6 +1,6 @@
 import { writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { input, select } from '@inquirer/prompts';
+import { input, select, confirm } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
@@ -18,12 +18,15 @@ import {
 } from '../ai/prompts/new.js';
 import { slugify } from '../utils/slug.js';
 
-export const HELP = `draftwise new "<idea>" — conversational product-spec drafting
+export const HELP = `draftwise new "<idea>" [--force] — conversational product-spec drafting
 
 Usage:
   draftwise new "<your feature idea>"
   draftwise new "add collaborative albums"
   draftwise new "let users mute notifications"
+
+Flags:
+  --force                       # skip the overwrite confirmation prompt
 
 Three phases:
   1. AI plans the conversation — clarifying questions tailored to
@@ -32,8 +35,11 @@ Three phases:
   2. You walk through questions and accept/decline opportunities.
   3. AI synthesizes a product-spec.md under .draftwise/specs/<slug>/.
 
-Hard rule: every claim grounds in scanner output (brownfield) or
-the project plan (greenfield). Never invents files.
+If product-spec.md already exists for the resolved slug (a re-run
+on the same idea, for instance), you'll be asked to confirm before
+it's overwritten — pass --force to skip the prompt. Hard rule:
+every claim grounds in scanner output (brownfield) or the project
+plan (greenfield). Never invents files.
 `;
 
 const DEFAULT_PROMPTS = {
@@ -51,6 +57,11 @@ const DEFAULT_PROMPTS = {
       ],
       default: 'declined',
     }),
+  confirmOverwrite: ({ slug, file }) =>
+    confirm({
+      message: `${slug}/${file} already exists. Overwrite?`,
+      default: false,
+    }),
 };
 
 export default async function newCommand(args = [], deps = {}) {
@@ -62,7 +73,9 @@ export default async function newCommand(args = [], deps = {}) {
   const readOverview = deps.readOverview ?? defaultReadOverview;
   const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };
 
-  const idea = args.join(' ').trim();
+  const force = args.includes('--force') || args.includes('-f');
+  const positional = args.filter((a) => a !== '--force' && a !== '-f');
+  const idea = positional.join(' ').trim();
   if (!idea) {
     throw new Error('Missing idea. Usage: draftwise new "<your feature idea>"');
   }
@@ -160,6 +173,27 @@ export default async function newCommand(args = [], deps = {}) {
   const plan = parsePlanResponse(planText);
   log('');
   log(`Feature: ${plan.featureTitle} (slug: ${plan.featureSlug})`);
+
+  // Confirm before clobbering an existing product-spec.md (re-running on the
+  // same idea, slug collision, etc.). Done before the Q&A loop so a cancel
+  // doesn't waste the user's time on questions whose answers get thrown away.
+  const slug = slugify(plan.featureSlug);
+  const specDir = join(draftwiseDir, 'specs', slug);
+  const productSpecPath = join(specDir, 'product-spec.md');
+  if (!force && (await pathExists(productSpecPath))) {
+    log('');
+    const proceed = await prompts.confirmOverwrite({
+      slug,
+      file: 'product-spec.md',
+    });
+    if (!proceed) {
+      log(
+        'Cancelled. No changes written. (Pass --force to skip this prompt.)',
+      );
+      return;
+    }
+  }
+
   if (plan.affectedFlows.length > 0) {
     log('');
     log('Affected flows:');
@@ -227,10 +261,8 @@ export default async function newCommand(args = [], deps = {}) {
   });
   log('');
 
-  const slug = slugify(plan.featureSlug);
-  const specDir = join(draftwiseDir, 'specs', slug);
   await mkdir(specDir, { recursive: true });
-  await writeFile(join(specDir, 'product-spec.md'), spec, 'utf8');
+  await writeFile(productSpecPath, spec, 'utf8');
 
   log('');
   log(`Wrote .draftwise/specs/${slug}/product-spec.md`);

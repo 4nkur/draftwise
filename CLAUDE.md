@@ -109,6 +109,8 @@ scan:
 
 **Conversation, not form-filling.** `draftwise new` should walk the user through questions, not present a blank form. The conversation is the value — it surfaces gaps the user wouldn't have noticed in a template.
 
+**Don't clobber hand-edits silently.** Specs are work product — PMs review and refine them after generation. Re-running `new`, `tech`, or `tasks` against an existing file (same slug, same target) prompts to confirm overwrite; `--force` skips the prompt for scripted use. Agent mode is exempt because the host coding agent does the write, not Draftwise. `scan` is also exempt — refreshing `overview.md` IS its purpose. The check is positioned *before* the synthesis API call (after the plan call in `new`, after target selection in `tech` / `tasks`) so a cancel doesn't burn tokens or waste user-typed answers.
+
 **Opinionated about how the AI talks.** Draftwise injects a shared `CORE_PRINCIPLES` block into every conversational / drafting prompt: no filler, redirect drift, push back on weak ideas (don't repackage them as agreement), extend existing architecture before adding new pieces, flag bad assumptions and uncertain claims, offer the counter-case on strategic decisions. Source of truth: `src/ai/prompts/principles.js`. Change behavior there, not in each command's prompt.
 
 **Opinionated about how the spec reads.** A second shared block — `SPEC_LANGUAGE_RULES` plus `EDGE_CASE_DISCIPLINE` — lives in `src/ai/prompts/spec-quality.js`. The language rules go into the synthesis SYSTEM constants for `new` and `tech` (specific over generic, active voice, same term every time, cut filler, examples for ambiguous claims, don't blame users, equal-effort sections). The edge-case discipline goes into `tech` only — it tells the model to name empty data, errors, loading, permissions, concurrency, and large-data behavior inline in each component / endpoint section. JSON-shaped calls (plan, questions, stacks) and `tasks` skip both because they aren't drafting prose. Same single-source-of-truth pattern as `principles.js` — change the rule there, not per command.
@@ -124,9 +126,9 @@ draftwise init                          → set up .draftwise/; routes to greenf
 draftwise scaffold                      → create initial files from the greenfield plan (greenfield only)
 draftwise scan                          → refresh the structured codebase overview (brownfield)
 draftwise explain <flow>                → trace how a specific flow works in the actual code (brownfield)
-draftwise new "<idea>"                  → conversational drafting → product-spec.md
-draftwise tech [<feature>]              → drafts technical-spec.md from approved product spec
-draftwise tasks [<feature>]             → ordered tasks.md from technical spec
+draftwise new "<idea>" [--force]        → conversational drafting → product-spec.md
+draftwise tech [<feature>] [--force]    → drafts technical-spec.md from approved product spec
+draftwise tasks [<feature>] [--force]   → ordered tasks.md from technical spec
 draftwise list                          → list all specs in .draftwise/specs/
 draftwise show <feature> [type]         → display a spec (type: product | tech | tasks; default: product)
 ```
@@ -284,6 +286,7 @@ Real, currently-open questions only. Resolved decisions move to **Past decisions
 1. **Default model.** `claude-sonnet-4-6` hardcoded in `src/ai/providers/claude.js` as the default; users can override via `ai.model` in `config.yaml`. Reasonable for now; revisit when Anthropic ships a successor or a noticeably better trade-off model lands.
 2. **OpenAI / Gemini adapters.** Stubbed with a clear error in `src/ai/provider.js`. Wire up when a user asks for them; structure mirrors `claude.js`.
 3. **Scanner language coverage — Go and Rust.** Same shape as the Python expansion. Go: net/http, Gin, Echo, Chi + GORM, Ent. Rust: Axum, Actix, Rocket + Diesel, sqlx.
+4. **AI-assisted spec merge mode.** Today, re-running `new` / `tech` / `tasks` on an existing spec offers Overwrite or Cancel — both blunt. The richer behavior is a "refine" mode where the model reads the existing file, identifies user edits, and returns a unified spec that preserves them. Different shape of API call (refine vs synthesize) and a real feature, not polish. Defer until there's user demand; the `--force` / cancel default is the safe baseline in the meantime.
 
 ## Past decisions
 

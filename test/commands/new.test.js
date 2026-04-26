@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import newCommand from '../../src/commands/new.js';
@@ -192,6 +192,141 @@ describe('draftwise new', () => {
       'utf8',
     );
     expect(spec).toContain('# Spec');
+  });
+
+  it('prompts before overwriting an existing product-spec.md, and bails if user declines', async () => {
+    // Pre-seed the spec dir with a hand-edited file the user would lose.
+    const specDir = join(dir, '.draftwise', 'specs', 'collab-albums');
+    await mkdir(specDir, { recursive: true });
+    await writeFile(
+      join(specDir, 'product-spec.md'),
+      '# Hand-edited product spec\n',
+      'utf8',
+    );
+
+    let callCount = 0;
+    let promptCalls = 0;
+
+    await newCommand(['add', 'collab', 'albums'], {
+      cwd: dir,
+      log: (m) => logs.push(m),
+      scan: async () => SAMPLE_SCAN,
+      loadConfig: async () => ({
+        mode: 'api',
+        provider: 'claude',
+        apiKeyEnv: 'ANTHROPIC_API_KEY',
+        model: '',
+      }),
+      complete: async () => {
+        callCount++;
+        if (callCount === 1) {
+          return '```json\n' + JSON.stringify(SAMPLE_PLAN) + '\n```';
+        }
+        // Synthesis call must NOT fire when the user declines overwrite.
+        throw new Error('synthesis call should not happen when user cancels');
+      },
+      prompts: {
+        ...fakePrompts({ answers: [], decisions: [] }),
+        confirmOverwrite: async () => {
+          promptCalls++;
+          return false;
+        },
+      },
+    });
+
+    expect(callCount).toBe(1); // plan only, no synthesis
+    expect(promptCalls).toBe(1);
+    expect(logs.join('\n')).toContain('Cancelled');
+
+    const spec = await readFile(join(specDir, 'product-spec.md'), 'utf8');
+    expect(spec).toBe('# Hand-edited product spec\n');
+  });
+
+  it('overwrites product-spec.md when user confirms the prompt', async () => {
+    const specDir = join(dir, '.draftwise', 'specs', 'collab-albums');
+    await mkdir(specDir, { recursive: true });
+    await writeFile(
+      join(specDir, 'product-spec.md'),
+      '# Old product spec\n',
+      'utf8',
+    );
+
+    let callCount = 0;
+
+    await newCommand(['add', 'collab', 'albums'], {
+      cwd: dir,
+      log: () => {},
+      scan: async () => SAMPLE_SCAN,
+      loadConfig: async () => ({
+        mode: 'api',
+        provider: 'claude',
+        apiKeyEnv: 'ANTHROPIC_API_KEY',
+        model: '',
+      }),
+      complete: async () => {
+        callCount++;
+        if (callCount === 1) {
+          return JSON.stringify(SAMPLE_PLAN);
+        }
+        return '# Regenerated product spec';
+      },
+      prompts: {
+        ...fakePrompts({
+          answers: ['Anyone in the album', 'Yes'],
+          decisions: ['declined'],
+        }),
+        confirmOverwrite: async () => true,
+      },
+    });
+
+    expect(callCount).toBe(2);
+    const spec = await readFile(join(specDir, 'product-spec.md'), 'utf8');
+    expect(spec).toBe('# Regenerated product spec');
+  });
+
+  it('overwrites product-spec.md without prompting when --force is passed', async () => {
+    const specDir = join(dir, '.draftwise', 'specs', 'collab-albums');
+    await mkdir(specDir, { recursive: true });
+    await writeFile(
+      join(specDir, 'product-spec.md'),
+      '# Old',
+      'utf8',
+    );
+
+    let callCount = 0;
+    let promptCalls = 0;
+
+    await newCommand(['--force', 'add', 'collab', 'albums'], {
+      cwd: dir,
+      log: () => {},
+      scan: async () => SAMPLE_SCAN,
+      loadConfig: async () => ({
+        mode: 'api',
+        provider: 'claude',
+        apiKeyEnv: 'ANTHROPIC_API_KEY',
+        model: '',
+      }),
+      complete: async () => {
+        callCount++;
+        if (callCount === 1) return JSON.stringify(SAMPLE_PLAN);
+        return '# Regenerated';
+      },
+      prompts: {
+        ...fakePrompts({
+          answers: ['', ''],
+          decisions: ['declined'],
+        }),
+        confirmOverwrite: async () => {
+          promptCalls++;
+          return false;
+        },
+      },
+    });
+
+    expect(promptCalls).toBe(0);
+    expect(callCount).toBe(2);
+    const spec = await readFile(join(specDir, 'product-spec.md'), 'utf8');
+    expect(spec).toBe('# Regenerated');
   });
 
   it('greenfield api mode: skips scanner, reads overview, calls greenfield prompts', async () => {
