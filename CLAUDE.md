@@ -106,6 +106,8 @@ scan:
 
 **Conversation, not form-filling.** `draftwise new` should walk the user through questions, not present a blank form. The conversation is the value — it surfaces gaps the user wouldn't have noticed in a template.
 
+**Opinionated about how the AI talks.** Draftwise injects a shared `CORE_PRINCIPLES` block into every conversational / drafting prompt: no filler, redirect drift, push back on weak ideas (don't repackage them as agreement), extend existing architecture before adding new pieces, flag bad assumptions and uncertain claims, offer the counter-case on strategic decisions. Source of truth: `src/ai/prompts/principles.js`. Change behavior there, not in each command's prompt.
+
 **Single repo, single feature spec at a time.** No cross-spec dependency tracking. No multi-repo. Keep scope tight.
 
 ---

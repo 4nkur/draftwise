@@ -241,6 +241,9 @@ Until the OpenAI and Gemini adapters land, pick `agent` mode at `draftwise init`
 → product specs are jargon-free, tech specs are codebase-grounded
 → specs live with the code, not in someone's Drive
 → AI is a thought partner first, document generator second
+→ push back on weak ideas; don't validate them — better outputs come from real friction
+→ flag bad assumptions before drafting; mark uncertain claims; offer the counter-case on big decisions
+→ extend what exists before adding new files / routes / components
 ```
 
 ---

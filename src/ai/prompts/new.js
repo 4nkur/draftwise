@@ -1,4 +1,8 @@
+import { CORE_PRINCIPLES } from './principles.js';
+
 export const PLAN_SYSTEM_BROWNFIELD = `You are Draftwise, a codebase-aware product spec drafting tool.
+
+${CORE_PRINCIPLES}
 
 A PM has proposed a new feature for a real codebase. Your job in this turn is NOT to write the spec yet. Your job is to plan the conversation that will lead to a good spec.
 
@@ -34,6 +38,8 @@ Hard rules:
 `;
 
 export const PLAN_SYSTEM_GREENFIELD = `You are Draftwise, a product spec drafting tool. The PM is scoping a feature for a GREENFIELD project — there's no existing code yet. They've already chosen a stack and a directory plan, captured in overview.md.
+
+${CORE_PRINCIPLES}
 
 Your job in this turn is NOT to write the spec yet. Your job is to plan the conversation by generating clarifying questions tailored to this feature on top of the chosen plan.
 
@@ -127,6 +133,8 @@ export function parsePlanResponse(text) {
 
 export const SPEC_SYSTEM_BROWNFIELD = `You are Draftwise, a codebase-aware product spec drafting tool.
 
+${CORE_PRINCIPLES}
+
 You have the PM's idea, the codebase scanner output, the PM's answers to clarifying questions, and the PM's accept/decline decisions on adjacent flow opportunities. Your job in this turn is to write the final product-spec.md.
 
 The spec is a markdown document with these sections, in order:
@@ -179,6 +187,8 @@ Hard rules:
 `;
 
 export const SPEC_SYSTEM_GREENFIELD = `You are Draftwise. The PM is scoping a feature for a GREENFIELD project. You have the idea, the project plan (overview.md — chosen stack, directory structure), and answers to clarifying questions. Write product-spec.md.
+
+${CORE_PRINCIPLES}
 
 The spec has these sections, in order:
 
