@@ -6,7 +6,12 @@ Each released version is tagged in git (`v0.0.1`, `v0.1.0`, etc.) and includes t
 
 ## [Unreleased]
 
+### Added
+- **CI workflow.** `.github/workflows/ci.yml` runs `npm ci`, `npm run lint`, and `npm test` on every PR and on pushes to `main`, against Node 20 and Node 22. Manual test-runs before merge are no longer the only safety net. — Ankur (#TBD)
+- **Cache schema version.** `.draftwise/.cache/scan.json` now carries a `cacheVersion` field; mismatched versions are treated as a cache-miss instead of returning stale-shape data. Bump `CACHE_VERSION` in `src/utils/scan-cache.js` whenever scan output shape changes. — Ankur (#TBD)
+
 ### Changed
+- **Bump Anthropic SDK retry budget from 2 to 4.** The SDK already retries on 429 / 5xx / network errors; we just give it a more generous default than ours used. Less hand-holding needed for transient blips. — Ankur (#TBD)
 - **Parallelize per-file reads in scanner detectors.** The eight detector loops (Express/Fastify routes, Mongoose, Drizzle, FastAPI, Flask, Django routes, SQLAlchemy, Django models) used to read files sequentially — fine for small repos, painful on monorepos. Now use a 50-way bounded `mapConcurrent` from new `src/utils/concurrency.js`. Same matches, faster on big trees. — Ankur (#TBD)
 - **Bump default Claude `max_tokens` to 16384 and expose `ai.max_tokens` in config.** The previous 8192 truncated overviews and tech specs on richly-scanned repos. Default raised; users can override via config (or set lower to cap costs). — Ankur (#TBD)
 - **Extract shared `pathExists` and `compactScan` helpers.** The audit's two duplication smells — `pathExists` defined identically in 10 files, `compactScan` defined identically in 4 — now live in `src/utils/fs.js` and `src/utils/scan-projection.js` respectively. Pure refactor; no behavior change. The 14 consumer files import the shared versions and drop their local definitions (and the `access` import that only existed for `pathExists`). Going forward, any tuning to the prompt-sized scan projection happens in one place. Closes audit P2 #1 and #2. — Ankur (#TBD)

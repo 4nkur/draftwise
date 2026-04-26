@@ -6,8 +6,12 @@ const DEFAULT_MODEL = 'claude-sonnet-4-6';
 // Override per-config via ai.max_tokens.
 const DEFAULT_MAX_TOKENS = 16384;
 
+// SDK's default is 2 retries on 429 / 5xx / network errors. 4 covers
+// most transient issues without making rate-limit waits feel hung.
+const MAX_RETRIES = 4;
+
 export async function complete({ apiKey, model, system, prompt, maxTokens }) {
-  const client = new Anthropic({ apiKey });
+  const client = new Anthropic({ apiKey, maxRetries: MAX_RETRIES });
   const response = await client.messages.create({
     model: model || DEFAULT_MODEL,
     max_tokens: maxTokens || DEFAULT_MAX_TOKENS,

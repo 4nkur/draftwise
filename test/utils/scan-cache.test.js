@@ -121,6 +121,32 @@ describe('cachedScan', () => {
     expect(calls).toBe(3);
   });
 
+  it('treats a cache from an older schema version as a miss', async () => {
+    await seedRepo(dir);
+    let calls = 0;
+    const fakeScan = async () => {
+      calls++;
+      return { files: ['src/a.js'], frameworks: [], routes: [], components: [], models: [], packageMeta: {} };
+    };
+
+    // Run once to populate a real cache, then mutate cacheVersion to 0
+    // (simulating a cache written by an older draftwise build).
+    await cachedScan(dir, { scan: fakeScan });
+    const cacheFile = join(dir, '.draftwise', '.cache', 'scan.json');
+    const stale = JSON.parse(await readFile(cacheFile, 'utf8'));
+    stale.cacheVersion = 0;
+    await writeFile(cacheFile, JSON.stringify(stale), 'utf8');
+
+    // The next call should miss (calls increments) and rewrite with v1.
+    const before = calls;
+    const result = await cachedScan(dir, { scan: fakeScan });
+    expect(calls).toBe(before + 1);
+    expect(result.fromCache).toBe(false);
+
+    const refreshed = JSON.parse(await readFile(cacheFile, 'utf8'));
+    expect(refreshed.cacheVersion).toBe(1);
+  });
+
   it('survives a corrupt cache file by re-scanning', async () => {
     await seedRepo(dir);
     await mkdir(join(dir, '.draftwise', '.cache'), { recursive: true });

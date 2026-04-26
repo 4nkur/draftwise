@@ -2,10 +2,12 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock @anthropic-ai/sdk before importing claude.js — vi.mock is hoisted.
 const createMock = vi.fn();
+const constructorOpts = [];
 vi.mock('@anthropic-ai/sdk', () => {
   // The SDK's default export is a class; new-ing it must work.
   class FakeAnthropic {
-    constructor() {
+    constructor(opts) {
+      constructorOpts.push(opts);
       this.messages = { create: createMock };
     }
   }
@@ -17,6 +19,7 @@ const { complete } = await import('../../../src/ai/providers/claude.js');
 describe('ai/providers/claude — complete()', () => {
   beforeEach(() => {
     createMock.mockReset();
+    constructorOpts.length = 0;
   });
 
   it('returns concatenated text from a single text block', async () => {
@@ -123,6 +126,14 @@ describe('ai/providers/claude — complete()', () => {
       maxTokens: 4096,
     });
     expect(createMock.mock.calls.at(-1)[0].max_tokens).toBe(4096);
+  });
+
+  it('configures the SDK with a generous retry budget for transient failures', async () => {
+    createMock.mockResolvedValue({ content: [{ type: 'text', text: 'ok' }] });
+    await complete({ apiKey: 'sk', model: '', system: 's', prompt: 'p' });
+    expect(constructorOpts.at(-1)).toEqual(
+      expect.objectContaining({ apiKey: 'sk', maxRetries: 4 }),
+    );
   });
 
   it('propagates SDK errors so callers can handle them', async () => {
