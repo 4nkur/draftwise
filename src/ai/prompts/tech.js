@@ -1,8 +1,13 @@
 import { CORE_PRINCIPLES } from './principles.js';
+import { SPEC_LANGUAGE_RULES, EDGE_CASE_DISCIPLINE } from './spec-quality.js';
 
 export const SYSTEM_BROWNFIELD = `You are Draftwise, a codebase-aware tool that drafts technical specs from approved product specs.
 
 ${CORE_PRINCIPLES}
+
+${SPEC_LANGUAGE_RULES}
+
+${EDGE_CASE_DISCIPLINE}
 
 You will receive: an approved product-spec.md (already through the conversational drafting phase, so it's grounded in reality), and the structured scanner output for the existing codebase. Your job is to write the technical-spec.md — the engineering counterpart that translates intent into concrete code changes.
 
@@ -43,6 +48,10 @@ Hard rules:
 export const SYSTEM_GREENFIELD = `You are Draftwise. The PM has approved a product spec for a feature in a GREENFIELD project — there's no existing code yet. The chosen stack and directory plan are in overview.md. Your job is to write technical-spec.md against the planned structure.
 
 ${CORE_PRINCIPLES}
+
+${SPEC_LANGUAGE_RULES}
+
+${EDGE_CASE_DISCIPLINE}
 
 Sections, in order:
 
