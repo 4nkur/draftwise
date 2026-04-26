@@ -1,5 +1,10 @@
 import { readdir, readFile, access } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
+import { mapConcurrent } from '../utils/concurrency.js';
+
+// Cap concurrent file reads. Far below typical fd limits and high enough
+// to give a meaningful speedup over sequential reads on big repos.
+const READ_CONCURRENCY = 50;
 
 export const IGNORE_DIRS = new Set([
   'node_modules',
@@ -455,28 +460,33 @@ const TEST_FILE_RE = /(?:^|\/)(?:test|tests|__tests__|spec|specs)\/|\.(?:test|sp
 
 async function detectFrameworkRoutes(root, files, out) {
   // Negative lookbehind for @ avoids matching Python decorators like @app.get("/x").
-  const RE = /(?<!@)\b(?:app|router|fastify|koa|server)\s*\.\s*(get|post|put|patch|delete|all)\s*\(\s*['"`]([^'"`]+)['"`]/gi;
   const candidates = files.filter(
     (f) => /\.(?:[mc]?[jt]s)$/.test(f) && !TEST_FILE_RE.test(f),
   );
-  for (const file of candidates) {
+  const RE_SRC = /(?<!@)\b(?:app|router|fastify|koa|server)\s*\.\s*(get|post|put|patch|delete|all)\s*\(\s*['"`]([^'"`]+)['"`]/gi
+    .source;
+  const perFile = await mapConcurrent(candidates, READ_CONCURRENCY, async (file) => {
     let content;
     try {
       content = await readFile(join(root, file), 'utf8');
     } catch {
-      continue;
+      return [];
     }
-    if (content.length > 200_000) continue;
+    if (content.length > 200_000) return [];
+    const matches = [];
+    const re = new RegExp(RE_SRC, 'gi');
     let m;
-    while ((m = RE.exec(content)) !== null) {
-      out.push({
+    while ((m = re.exec(content)) !== null) {
+      matches.push({
         method: m[1].toUpperCase(),
         path: m[2],
         file,
         source: 'http-call',
       });
     }
-  }
+    return matches;
+  });
+  for (const matches of perFile) out.push(...matches);
 }
 
 async function detectModels(root, files, orms) {
@@ -531,44 +541,50 @@ async function parsePrismaSchema(root) {
 }
 
 async function parseMongoose(root, files) {
-  const out = [];
-  const RE_MODEL = /mongoose\.model\s*\(\s*['"`](\w+)['"`]/g;
-  for (const file of files.filter(
+  const candidates = files.filter(
     (f) => /\.(?:[mc]?[jt]s)$/.test(f) && !TEST_FILE_RE.test(f),
-  )) {
+  );
+  const RE_MODEL_SRC = /mongoose\.model\s*\(\s*['"`](\w+)['"`]/g.source;
+  const perFile = await mapConcurrent(candidates, READ_CONCURRENCY, async (file) => {
     let content;
     try {
       content = await readFile(join(root, file), 'utf8');
     } catch {
-      continue;
+      return [];
     }
-    if (!content.includes('mongoose.model')) continue;
+    if (!content.includes('mongoose.model')) return [];
+    const matches = [];
+    const re = new RegExp(RE_MODEL_SRC, 'g');
     let m;
-    while ((m = RE_MODEL.exec(content)) !== null) {
-      out.push({ name: m[1], file, fields: [], source: 'mongoose' });
+    while ((m = re.exec(content)) !== null) {
+      matches.push({ name: m[1], file, fields: [], source: 'mongoose' });
     }
-  }
-  return out;
+    return matches;
+  });
+  return perFile.flat();
 }
 
 async function parseDrizzle(root, files) {
-  const out = [];
-  const RE = /(?:pgTable|sqliteTable|mysqlTable)\s*\(\s*['"`](\w+)['"`]/g;
-  for (const file of files.filter(
+  const candidates = files.filter(
     (f) => /\.(?:[mc]?[jt]s)$/.test(f) && !TEST_FILE_RE.test(f),
-  )) {
+  );
+  const RE_SRC = /(?:pgTable|sqliteTable|mysqlTable)\s*\(\s*['"`](\w+)['"`]/g.source;
+  const perFile = await mapConcurrent(candidates, READ_CONCURRENCY, async (file) => {
     let content;
     try {
       content = await readFile(join(root, file), 'utf8');
     } catch {
-      continue;
+      return [];
     }
+    const matches = [];
+    const re = new RegExp(RE_SRC, 'g');
     let m;
-    while ((m = RE.exec(content)) !== null) {
-      out.push({ name: m[1], file, fields: [], source: 'drizzle' });
+    while ((m = re.exec(content)) !== null) {
+      matches.push({ name: m[1], file, fields: [], source: 'drizzle' });
     }
-  }
-  return out;
+    return matches;
+  });
+  return perFile.flat();
 }
 
 // ----- Python route detection ---------------------------------------------
@@ -579,168 +595,211 @@ function pythonCandidates(files) {
 
 async function detectFastapiRoutes(root, files, out) {
   // Matches @app.get("/path"), @router.post("/path"), @api.delete(...)
-  const RE = /@(?:\w+)\.(get|post|put|patch|delete|options|head)\s*\(\s*(?:path\s*=\s*)?['"]([^'"]+)['"]/gi;
-  for (const file of pythonCandidates(files)) {
-    let content;
-    try {
-      content = await readFile(join(root, file), 'utf8');
-    } catch {
-      continue;
-    }
-    if (content.length > 200_000) continue;
-    if (!/@\w+\.(get|post|put|patch|delete|options|head)\s*\(/i.test(content)) continue;
-    let m;
-    while ((m = RE.exec(content)) !== null) {
-      out.push({
-        method: m[1].toUpperCase(),
-        path: m[2],
-        file,
-        source: 'fastapi',
-      });
-    }
-  }
+  const RE_SRC = /@(?:\w+)\.(get|post|put|patch|delete|options|head)\s*\(\s*(?:path\s*=\s*)?['"]([^'"]+)['"]/gi
+    .source;
+  const QUICK_CHECK = /@\w+\.(get|post|put|patch|delete|options|head)\s*\(/i;
+  const perFile = await mapConcurrent(
+    pythonCandidates(files),
+    READ_CONCURRENCY,
+    async (file) => {
+      let content;
+      try {
+        content = await readFile(join(root, file), 'utf8');
+      } catch {
+        return [];
+      }
+      if (content.length > 200_000) return [];
+      if (!QUICK_CHECK.test(content)) return [];
+      const matches = [];
+      const re = new RegExp(RE_SRC, 'gi');
+      let m;
+      while ((m = re.exec(content)) !== null) {
+        matches.push({
+          method: m[1].toUpperCase(),
+          path: m[2],
+          file,
+          source: 'fastapi',
+        });
+      }
+      return matches;
+    },
+  );
+  for (const matches of perFile) out.push(...matches);
 }
 
 async function detectFlaskRoutes(root, files, out) {
-  const ROUTE_RE = /@(?:\w+)\.route\s*\(\s*['"]([^'"]+)['"](?:\s*,\s*methods\s*=\s*\[([^\]]+)\])?/g;
-  const SHORT_RE = /@(?:\w+)\.(get|post|put|patch|delete)\s*\(\s*['"]([^'"]+)['"]/gi;
-  for (const file of pythonCandidates(files)) {
-    let content;
-    try {
-      content = await readFile(join(root, file), 'utf8');
-    } catch {
-      continue;
-    }
-    if (content.length > 200_000) continue;
-    if (!/@\w+\.(route|get|post|put|patch|delete)\s*\(/i.test(content)) continue;
-
-    let m;
-    while ((m = ROUTE_RE.exec(content)) !== null) {
-      const methods = m[2]
-        ? m[2].split(',').map((s) => s.trim().replace(/['"]/g, '').toUpperCase()).filter(Boolean)
-        : ['GET'];
-      for (const method of methods) {
-        out.push({ method, path: m[1], file, source: 'flask' });
+  const ROUTE_RE_SRC = /@(?:\w+)\.route\s*\(\s*['"]([^'"]+)['"](?:\s*,\s*methods\s*=\s*\[([^\]]+)\])?/g
+    .source;
+  const SHORT_RE_SRC = /@(?:\w+)\.(get|post|put|patch|delete)\s*\(\s*['"]([^'"]+)['"]/gi
+    .source;
+  const QUICK_CHECK = /@\w+\.(route|get|post|put|patch|delete)\s*\(/i;
+  const perFile = await mapConcurrent(
+    pythonCandidates(files),
+    READ_CONCURRENCY,
+    async (file) => {
+      let content;
+      try {
+        content = await readFile(join(root, file), 'utf8');
+      } catch {
+        return [];
       }
-    }
-    while ((m = SHORT_RE.exec(content)) !== null) {
-      out.push({
-        method: m[1].toUpperCase(),
-        path: m[2],
-        file,
-        source: 'flask',
-      });
-    }
-  }
+      if (content.length > 200_000) return [];
+      if (!QUICK_CHECK.test(content)) return [];
+      const matches = [];
+      const routeRe = new RegExp(ROUTE_RE_SRC, 'g');
+      let m;
+      while ((m = routeRe.exec(content)) !== null) {
+        const methods = m[2]
+          ? m[2]
+              .split(',')
+              .map((s) => s.trim().replace(/['"]/g, '').toUpperCase())
+              .filter(Boolean)
+          : ['GET'];
+        for (const method of methods) {
+          matches.push({ method, path: m[1], file, source: 'flask' });
+        }
+      }
+      const shortRe = new RegExp(SHORT_RE_SRC, 'gi');
+      while ((m = shortRe.exec(content)) !== null) {
+        matches.push({
+          method: m[1].toUpperCase(),
+          path: m[2],
+          file,
+          source: 'flask',
+        });
+      }
+      return matches;
+    },
+  );
+  for (const matches of perFile) out.push(...matches);
 }
 
 async function detectDjangoRoutes(root, files, out) {
   // Django defines routes in urls.py via path("foo/", view) or re_path(r"^foo$", view).
   // We pull the literal URL string; the view-name is best-effort.
-  const PATH_RE = /\b(?:re_path|path)\s*\(\s*(?:r?['"])([^'"]+)['"]/g;
-  for (const file of pythonCandidates(files)) {
-    if (!/(?:^|\/)urls\.py$/.test(file)) continue;
+  const PATH_RE_SRC = /\b(?:re_path|path)\s*\(\s*(?:r?['"])([^'"]+)['"]/g.source;
+  const candidates = pythonCandidates(files).filter((f) =>
+    /(?:^|\/)urls\.py$/.test(f),
+  );
+  const perFile = await mapConcurrent(candidates, READ_CONCURRENCY, async (file) => {
     let content;
     try {
       content = await readFile(join(root, file), 'utf8');
     } catch {
-      continue;
+      return [];
     }
-    if (content.length > 200_000) continue;
+    if (content.length > 200_000) return [];
+    const matches = [];
+    const re = new RegExp(PATH_RE_SRC, 'g');
     let m;
-    while ((m = PATH_RE.exec(content)) !== null) {
-      out.push({
+    while ((m = re.exec(content)) !== null) {
+      matches.push({
         method: 'ANY',
         path: m[1].startsWith('/') ? m[1] : '/' + m[1],
         file,
         source: 'django',
       });
     }
-  }
+    return matches;
+  });
+  for (const matches of perFile) out.push(...matches);
 }
 
 // ----- Python model detection ---------------------------------------------
 
 async function parseSqlalchemy(root, files) {
-  const out = [];
-  // class Foo(Base): ... or class Foo(db.Model): ...
-  const CLASS_RE = /^class\s+(\w+)\s*\(([^)]*)\)\s*:/gm;
-  const COLUMN_RE = /^\s{4,}(\w+)\s*(?::\s*[^=]+)?=\s*(?:mapped_column|Column)\s*\(/gm;
+  const CLASS_RE_SRC = /^class\s+(\w+)\s*\(([^)]*)\)\s*:/gm.source;
+  const COLUMN_RE_SRC = /^\s{4,}(\w+)\s*(?::\s*[^=]+)?=\s*(?:mapped_column|Column)\s*\(/gm
+    .source;
   const TABLE_RE = /__tablename__\s*=\s*['"]([^'"]+)['"]/;
-  for (const file of pythonCandidates(files)) {
-    let content;
-    try {
-      content = await readFile(join(root, file), 'utf8');
-    } catch {
-      continue;
-    }
-    if (content.length > 200_000) continue;
-    if (!/sqlalchemy|declarative_base|DeclarativeBase|Mapped|db\.Model/.test(content)) continue;
-    let m;
-    while ((m = CLASS_RE.exec(content)) !== null) {
-      const baseList = m[2];
-      const isModel = /\bBase\b|\bDeclarativeBase\b|db\.Model|\bModel\b/.test(baseList);
-      if (!isModel) continue;
-      // find the class body (rough — until next top-level "class " or end of file)
-      const start = m.index + m[0].length;
-      const remainder = content.slice(start);
-      const next = remainder.search(/^class\s+\w+\s*\(/m);
-      const body = next >= 0 ? remainder.slice(0, next) : remainder;
-      const fields = [];
-      let f;
-      const localCol = new RegExp(COLUMN_RE.source, 'gm');
-      while ((f = localCol.exec(body)) !== null) {
-        if (!fields.includes(f[1])) fields.push(f[1]);
-        if (fields.length >= 10) break;
+  const QUICK_CHECK = /sqlalchemy|declarative_base|DeclarativeBase|Mapped|db\.Model/;
+  const perFile = await mapConcurrent(
+    pythonCandidates(files),
+    READ_CONCURRENCY,
+    async (file) => {
+      let content;
+      try {
+        content = await readFile(join(root, file), 'utf8');
+      } catch {
+        return [];
       }
-      const tableMatch = body.match(TABLE_RE);
-      out.push({
-        name: m[1],
-        file,
-        fields,
-        tableName: tableMatch ? tableMatch[1] : undefined,
-        source: 'sqlalchemy',
-      });
-    }
-  }
-  return out;
+      if (content.length > 200_000) return [];
+      if (!QUICK_CHECK.test(content)) return [];
+      const matches = [];
+      const classRe = new RegExp(CLASS_RE_SRC, 'gm');
+      let m;
+      while ((m = classRe.exec(content)) !== null) {
+        const baseList = m[2];
+        const isModel = /\bBase\b|\bDeclarativeBase\b|db\.Model|\bModel\b/.test(
+          baseList,
+        );
+        if (!isModel) continue;
+        // find the class body (rough — until next top-level "class " or end of file)
+        const start = m.index + m[0].length;
+        const remainder = content.slice(start);
+        const next = remainder.search(/^class\s+\w+\s*\(/m);
+        const body = next >= 0 ? remainder.slice(0, next) : remainder;
+        const fields = [];
+        const localCol = new RegExp(COLUMN_RE_SRC, 'gm');
+        let f;
+        while ((f = localCol.exec(body)) !== null) {
+          if (!fields.includes(f[1])) fields.push(f[1]);
+          if (fields.length >= 10) break;
+        }
+        const tableMatch = body.match(TABLE_RE);
+        matches.push({
+          name: m[1],
+          file,
+          fields,
+          tableName: tableMatch ? tableMatch[1] : undefined,
+          source: 'sqlalchemy',
+        });
+      }
+      return matches;
+    },
+  );
+  return perFile.flat();
 }
 
 async function parseDjangoModels(root, files) {
-  const out = [];
-  const CLASS_RE = /^class\s+(\w+)\s*\(([^)]*)\)\s*:/gm;
-  const FIELD_RE = /^\s{4,}(\w+)\s*=\s*models\.\w+/gm;
-  for (const file of pythonCandidates(files)) {
-    if (!/(?:^|\/)models(?:\.py|\/)/.test(file)) continue;
+  const CLASS_RE_SRC = /^class\s+(\w+)\s*\(([^)]*)\)\s*:/gm.source;
+  const FIELD_RE_SRC = /^\s{4,}(\w+)\s*=\s*models\.\w+/gm.source;
+  const candidates = pythonCandidates(files).filter((f) =>
+    /(?:^|\/)models(?:\.py|\/)/.test(f),
+  );
+  const perFile = await mapConcurrent(candidates, READ_CONCURRENCY, async (file) => {
     let content;
     try {
       content = await readFile(join(root, file), 'utf8');
     } catch {
-      continue;
+      return [];
     }
-    if (content.length > 200_000) continue;
-    if (!/models\.Model/.test(content)) continue;
+    if (content.length > 200_000) return [];
+    if (!/models\.Model/.test(content)) return [];
+    const matches = [];
+    const classRe = new RegExp(CLASS_RE_SRC, 'gm');
     let m;
-    while ((m = CLASS_RE.exec(content)) !== null) {
+    while ((m = classRe.exec(content)) !== null) {
       if (!/models\.Model/.test(m[2])) continue;
       const start = m.index + m[0].length;
       const remainder = content.slice(start);
       const next = remainder.search(/^class\s+\w+\s*\(/m);
       const body = next >= 0 ? remainder.slice(0, next) : remainder;
       const fields = [];
+      const localField = new RegExp(FIELD_RE_SRC, 'gm');
       let f;
-      const localField = new RegExp(FIELD_RE.source, 'gm');
       while ((f = localField.exec(body)) !== null) {
         if (!fields.includes(f[1])) fields.push(f[1]);
         if (fields.length >= 10) break;
       }
-      out.push({
+      matches.push({
         name: m[1],
         file,
         fields,
         source: 'django',
       });
     }
-  }
-  return out;
+    return matches;
+  });
+  return perFile.flat();
 }

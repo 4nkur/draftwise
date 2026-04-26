@@ -83,6 +83,7 @@ export default async function explainCommand(args = [], deps = {}) {
     provider: config.provider,
     apiKeyEnv: config.apiKeyEnv,
     model: config.model,
+    maxTokens: config.maxTokens,
     system: SYSTEM,
     prompt: buildPrompt({
       flow,

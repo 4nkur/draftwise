@@ -83,6 +83,7 @@ ai:
   provider: claude | openai | gemini  # only if mode: api
   api_key_env: ANTHROPIC_API_KEY      # only if mode: api
   model: ""                            # optional override
+  max_tokens: 16384                    # optional; default 16384. Bumped from 8192 because synthesis calls were truncating on big repos.
 project:
   state: greenfield | brownfield      # set by `draftwise init`; controls prompt routing
   stack: "Next.js + Postgres + Prisma" # greenfield only; the stack the PM picked at init

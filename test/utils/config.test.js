@@ -28,8 +28,10 @@ describe('loadConfig', () => {
       provider: undefined,
       apiKeyEnv: undefined,
       model: '',
+      maxTokens: undefined,
       projectState: 'brownfield',
       stack: undefined,
+      scanMaxFiles: undefined,
     });
   });
 
@@ -82,6 +84,26 @@ describe('loadConfig', () => {
     );
     const config = await loadConfig(dir);
     expect(config.scanMaxFiles).toBe(250);
+  });
+
+  it('parses ai.max_tokens when set', async () => {
+    await writeFile(
+      join(dir, '.draftwise', 'config.yaml'),
+      'ai:\n  mode: agent\n  max_tokens: 32000\n',
+      'utf8',
+    );
+    const config = await loadConfig(dir);
+    expect(config.maxTokens).toBe(32000);
+  });
+
+  it('leaves maxTokens undefined when not set (adapter falls back to default)', async () => {
+    await writeFile(
+      join(dir, '.draftwise', 'config.yaml'),
+      'ai:\n  mode: agent\n',
+      'utf8',
+    );
+    const config = await loadConfig(dir);
+    expect(config.maxTokens).toBeUndefined();
   });
 
   it('reads api mode config with provider and api_key_env', async () => {

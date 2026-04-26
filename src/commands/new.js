@@ -128,6 +128,7 @@ export default async function newCommand(args = [], deps = {}) {
     provider: config.provider,
     apiKeyEnv: config.apiKeyEnv,
     model: config.model,
+    maxTokens: config.maxTokens,
     system: selectPlanSystem(config.projectState),
     prompt: buildPlanPrompt({
       idea,
@@ -191,6 +192,7 @@ export default async function newCommand(args = [], deps = {}) {
     provider: config.provider,
     apiKeyEnv: config.apiKeyEnv,
     model: config.model,
+    maxTokens: config.maxTokens,
     system: selectSpecSystem(config.projectState),
     prompt: buildSpecPrompt({
       idea,

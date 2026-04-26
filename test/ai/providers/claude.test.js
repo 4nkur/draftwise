@@ -107,6 +107,24 @@ describe('ai/providers/claude — complete()', () => {
     expect(call.max_tokens).toBeGreaterThan(0);
   });
 
+  it('uses 16384 as the default max_tokens (synthesis-friendly)', async () => {
+    createMock.mockResolvedValue({ content: [{ type: 'text', text: 'ok' }] });
+    await complete({ apiKey: 'sk', model: '', system: 's', prompt: 'p' });
+    expect(createMock.mock.calls.at(-1)[0].max_tokens).toBe(16384);
+  });
+
+  it('respects an explicit maxTokens override', async () => {
+    createMock.mockResolvedValue({ content: [{ type: 'text', text: 'ok' }] });
+    await complete({
+      apiKey: 'sk',
+      model: '',
+      system: 's',
+      prompt: 'p',
+      maxTokens: 4096,
+    });
+    expect(createMock.mock.calls.at(-1)[0].max_tokens).toBe(4096);
+  });
+
   it('propagates SDK errors so callers can handle them', async () => {
     createMock.mockRejectedValue(new Error('429 Too Many Requests'));
     await expect(

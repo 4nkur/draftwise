@@ -99,6 +99,7 @@ export default async function scanCommand(_args = [], deps = {}) {
     provider: config.provider,
     apiKeyEnv: config.apiKeyEnv,
     model: config.model,
+    maxTokens: config.maxTokens,
     system: SYSTEM,
     prompt: buildPrompt({ scan: scanForPrompt, packageMeta: result.packageMeta }),
   });

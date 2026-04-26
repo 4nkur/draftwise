@@ -14,7 +14,14 @@ function notImplemented(name) {
   };
 }
 
-export async function complete({ provider, apiKeyEnv, model, system, prompt }) {
+export async function complete({
+  provider,
+  apiKeyEnv,
+  model,
+  system,
+  prompt,
+  maxTokens,
+}) {
   const adapter = ADAPTERS[provider];
   if (!adapter) {
     throw new Error(`Unknown AI provider "${provider}".`);
@@ -25,5 +32,5 @@ export async function complete({ provider, apiKeyEnv, model, system, prompt }) {
       `Environment variable ${apiKeyEnv} is not set. Export it before running this command.`,
     );
   }
-  return adapter({ apiKey, model, system, prompt });
+  return adapter({ apiKey, model, system, prompt, maxTokens });
 }

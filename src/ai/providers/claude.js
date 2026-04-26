@@ -1,13 +1,16 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 const DEFAULT_MODEL = 'claude-sonnet-4-6';
-const MAX_TOKENS = 8192;
+// Bumped from the previous 8192 — synthesis calls (overview, tech spec,
+// task breakdown) on richly-scanned repos were getting truncated.
+// Override per-config via ai.max_tokens.
+const DEFAULT_MAX_TOKENS = 16384;
 
-export async function complete({ apiKey, model, system, prompt }) {
+export async function complete({ apiKey, model, system, prompt, maxTokens }) {
   const client = new Anthropic({ apiKey });
   const response = await client.messages.create({
     model: model || DEFAULT_MODEL,
-    max_tokens: MAX_TOKENS,
+    max_tokens: maxTokens || DEFAULT_MAX_TOKENS,
     system,
     messages: [{ role: 'user', content: prompt }],
   });

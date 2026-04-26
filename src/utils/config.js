@@ -57,11 +57,17 @@ export async function loadConfig(cwd = process.cwd()) {
     scanMaxFiles = Math.max(1, Math.floor(scan.max_files));
   }
 
+  let maxTokens;
+  if (typeof ai.max_tokens === 'number' && Number.isFinite(ai.max_tokens)) {
+    maxTokens = Math.max(1, Math.floor(ai.max_tokens));
+  }
+
   return {
     mode: ai.mode,
     provider: ai.provider,
     apiKeyEnv: ai.api_key_env,
     model: ai.model || '',
+    maxTokens,
     projectState,
     stack: project.stack,
     scanMaxFiles,
