@@ -6,6 +6,9 @@ Each released version is tagged in git (`v0.0.1`, `v0.1.0`, etc.) and includes t
 
 ## [Unreleased]
 
+### Changed
+- **Clarify pass over CLI copy.** The init AI-config prompts now read as questions instead of bare labels (`'AI mode'` → `'How should Draftwise call the AI?'`, `'Which provider?'` → `'Which AI provider?'`, `'Environment variable holding the X API key'` → `'Which environment variable holds your X API key?'`). The greenfield Q&A and `new` clarifying-question prompts drop the stiff `Your answer (or press enter to skip):` suffix in favor of a `Why:` line and a `(press enter to skip)` hint. The `new` adjacent-opportunity prompt drops the redundant `Decision:` line — inquirer's choice list already speaks for itself. `Synthesizing product-spec.md` → `Drafting product-spec.md`, matching Draftwise's own vocabulary. `draftwise show` without a feature now leads its error with `Missing feature name.`, matching the pattern in `explain` and `new`. The `tech` HELP drops `inquirer picker` jargon for `prompts you to pick`. — Ankur (#TBD)
+
 ### Added
 - **Dependabot config** (`.github/dependabot.yml`) — weekly npm bumps + monthly GitHub Actions bumps. Dev tooling grouped so eslint / prettier / vitest land in a single PR. — Ankur (#TBD)
 - **Streaming wiring assertions in `scan`, `new`, `tech`, `tasks` tests.** Each api-mode test now verifies `typeof captured.onToken === 'function'`, so a refactor that drops streaming silently can't slip through. — Ankur (#TBD)

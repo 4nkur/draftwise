@@ -20,7 +20,7 @@ export const HELP = `draftwise tech [<feature>] — draft technical-spec.md from
 Usage:
   draftwise tech                 # auto-pick if exactly one product spec exists
   draftwise tech <feature-slug>  # target a specific feature
-  draftwise tech                 # multi-spec → inquirer picker
+  draftwise tech                 # multiple specs → prompts you to pick
 
 Reads the product spec, writes technical-spec.md grounded in the
 real codebase (brownfield) or the planned directory structure

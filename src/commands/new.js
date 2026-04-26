@@ -39,11 +39,11 @@ the project plan (greenfield). Never invents files.
 const DEFAULT_PROMPTS = {
   askQuestion: ({ index, total, text, why }) =>
     input({
-      message: `Q${index + 1}/${total} — ${text}\n  (why: ${why})\n  Your answer (or press enter to skip):`,
+      message: `Q${index + 1}/${total} — ${text}\n  Why: ${why}\n  (press enter to skip)`,
     }),
   decideOpportunity: ({ index, total, flow, suggestion, rationale }) =>
     select({
-      message: `Opportunity ${index + 1}/${total} — adjacent change in "${flow}"\n  Suggestion: ${suggestion}\n  Why: ${rationale}\n  Decision:`,
+      message: `Opportunity ${index + 1}/${total} — adjacent change in "${flow}"\n  Suggestion: ${suggestion}\n  Why: ${rationale}`,
       choices: [
         { name: 'Accept — include in this spec', value: 'accepted' },
         { name: 'Decline — keep it out', value: 'declined' },
@@ -205,7 +205,7 @@ export default async function newCommand(args = [], deps = {}) {
   }
 
   log('');
-  log(`Synthesizing product-spec.md (${config.provider})...`);
+  log(`Drafting product-spec.md (${config.provider})...`);
   log('');
   const spec = await complete({
     provider: config.provider,
