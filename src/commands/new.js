@@ -1,4 +1,4 @@
-import { writeFile, mkdir, access } from 'node:fs/promises';
+import { writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { input, select } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
@@ -6,6 +6,8 @@ import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { readOverview as defaultReadOverview } from '../utils/overview.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
+import { pathExists } from '../utils/fs.js';
+import { compactScan } from '../utils/scan-projection.js';
 import {
   selectPlanSystem,
   selectSpecSystem,
@@ -32,27 +34,6 @@ const DEFAULT_PROMPTS = {
       default: 'declined',
     }),
 };
-
-async function pathExists(p) {
-  try {
-    await access(p);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function compactScan(result) {
-  return {
-    frameworks: result.frameworks,
-    orms: result.orms,
-    routes: result.routes,
-    components: result.components.slice(0, 50),
-    models: result.models,
-    fileCount: result.files.length,
-    sampleFiles: result.files.slice(0, 30),
-  };
-}
 
 export default async function newCommand(args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();

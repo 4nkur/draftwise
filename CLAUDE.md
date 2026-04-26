@@ -42,7 +42,7 @@ src/core/scanner.js       → codebase scanning (frameworks, routes, components,
 src/ai/provider.js        → routes complete() calls to the right provider adapter
 src/ai/providers/         → claude.js wired; openai.js + gemini.js stubbed
 src/ai/prompts/           → one prompt module per command. Each exports brownfield + greenfield SYSTEM constants, a selectSystem(projectState) helper, a buildPrompt() that branches on projectState, and an agent-mode instruction
-src/utils/                → config.js (yaml loader; returns projectState/stack/scanMaxFiles), specs.js (list .draftwise/specs/), slug.js, overview.js (read .draftwise/overview.md for greenfield context), scan-cache.js (fingerprinted scan cache, drop-in for scan()), flow-filter.js (narrow scan to flow-relevant items), scan-warnings.js (truncation + missing-framework messages)
+src/utils/                → config.js (yaml loader; returns projectState/stack/scanMaxFiles), specs.js (list .draftwise/specs/), slug.js, overview.js (read .draftwise/overview.md for greenfield context), scan-cache.js (fingerprinted scan cache, drop-in for scan()), flow-filter.js (narrow scan to flow-relevant items), scan-warnings.js (truncation + missing-framework messages), fs.js (shared pathExists), scan-projection.js (shared compactScan that trims a raw scan into a prompt-sized projection)
 test/                     → vitest, mirrors src structure
 ```
 

@@ -1,14 +1,6 @@
-import { readdir, access } from 'node:fs/promises';
+import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-
-async function pathExists(p) {
-  try {
-    await access(p);
-    return true;
-  } catch {
-    return false;
-  }
-}
+import { pathExists } from './fs.js';
 
 export async function listSpecs(cwd) {
   const specsDir = join(cwd, '.draftwise', 'specs');

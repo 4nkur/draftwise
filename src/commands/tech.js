@@ -1,4 +1,4 @@
-import { readFile, writeFile, access } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { select } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
@@ -7,6 +7,8 @@ import { complete as defaultComplete } from '../ai/provider.js';
 import { listSpecs as defaultListSpecs } from '../utils/specs.js';
 import { readOverview as defaultReadOverview } from '../utils/overview.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
+import { pathExists } from '../utils/fs.js';
+import { compactScan } from '../utils/scan-projection.js';
 import {
   selectSystem,
   buildPrompt,
@@ -25,27 +27,6 @@ const DEFAULT_PROMPTS = {
       })),
     }),
 };
-
-async function pathExists(p) {
-  try {
-    await access(p);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function compactScan(result) {
-  return {
-    frameworks: result.frameworks,
-    orms: result.orms,
-    routes: result.routes,
-    components: result.components.slice(0, 50),
-    models: result.models,
-    fileCount: result.files.length,
-    sampleFiles: result.files.slice(0, 30),
-  };
-}
 
 export default async function techCommand(args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();

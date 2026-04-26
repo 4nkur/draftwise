@@ -6,6 +6,9 @@ Each released version is tagged in git (`v0.0.1`, `v0.1.0`, etc.) and includes t
 
 ## [Unreleased]
 
+### Changed
+- **Extract shared `pathExists` and `compactScan` helpers.** The audit's two duplication smells — `pathExists` defined identically in 10 files, `compactScan` defined identically in 4 — now live in `src/utils/fs.js` and `src/utils/scan-projection.js` respectively. Pure refactor; no behavior change. The 14 consumer files import the shared versions and drop their local definitions (and the `access` import that only existed for `pathExists`). Going forward, any tuning to the prompt-sized scan projection happens in one place. Closes audit P2 #1 and #2. — Ankur (#TBD)
+
 ### Added
 - **Shared collaboration principles in every drafting / conversational AI prompt.** New `src/ai/prompts/principles.js` exports a `CORE_PRINCIPLES` string injected at the top of `init` greenfield's QUESTIONS_SYSTEM and STACKS_SYSTEM, all four `new` system prompts (PLAN/SPEC × brownfield/greenfield), and both `tech` and `tasks` system prompts (brownfield + greenfield). The eight rules: no filler, redirect drift, push back on weak ideas (don't repackage them as agreement), extend before adding, right over easy, flag bad assumptions, verify before asserting, offer the counter-case on strategic decisions. Single source of truth — behavior changes once, propagates everywhere. — Ankur (#TBD)
 - **`eslint.config.js`.** ESLint v10 flat config with sensible defaults for an ESM Node CLI. `npm run lint` now actually works — the project's own `lint` script was broken before this. Closes the audit's P0 finding. — Ankur (#TBD)

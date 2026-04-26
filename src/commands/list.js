@@ -1,15 +1,7 @@
-import { readFile, access } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { listSpecs as defaultListSpecs } from '../utils/specs.js';
-
-async function pathExists(p) {
-  try {
-    await access(p);
-    return true;
-  } catch {
-    return false;
-  }
-}
+import { pathExists } from '../utils/fs.js';
 
 async function readTitle(file) {
   try {
