@@ -10,7 +10,9 @@
       "Bash(npm install *)",
       "Bash(git pull *)",
       "Bash(node *)",
-      "Bash(git fetch *)"
+      "Bash(git fetch *)",
+      "Skill(schedule)",
+      "Bash(npm run *)"
     ]
   }
 }
