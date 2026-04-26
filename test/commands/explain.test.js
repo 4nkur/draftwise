@@ -111,14 +111,14 @@ describe('draftwise explain', () => {
     expect(captured.system).toContain('Draftwise');
     expect(captured.prompt).toContain('"login"');
     expect(captured.prompt).toContain('Express');
+    // explain wires onToken so the walkthrough streams to stdout live.
+    expect(typeof captured.onToken).toBe('function');
 
     const saved = await readFile(
       join(dir, '.draftwise', 'flows', 'login.md'),
       'utf8',
     );
     expect(saved).toContain('# Flow: login');
-
-    expect(logs.join('\n')).toContain('# Flow: login');
   });
 
   it('short-circuits in greenfield mode with a friendly message', async () => {

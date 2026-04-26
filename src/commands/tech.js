@@ -155,6 +155,7 @@ export default async function techCommand(args = [], deps = {}) {
   }
 
   log(`API mode — calling ${config.provider}...`);
+  log('');
   const techSpec = await complete({
     provider: config.provider,
     apiKeyEnv: config.apiKeyEnv,
@@ -168,7 +169,9 @@ export default async function techCommand(args = [], deps = {}) {
       projectState: config.projectState,
       overview,
     }),
+    onToken: (chunk) => process.stdout.write(chunk),
   });
+  log('');
 
   await writeFile(target.technicalSpec, techSpec, 'utf8');
   log('');

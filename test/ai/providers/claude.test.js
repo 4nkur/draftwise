@@ -2,13 +2,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock @anthropic-ai/sdk before importing claude.js — vi.mock is hoisted.
 const createMock = vi.fn();
+const streamMock = vi.fn();
 const constructorOpts = [];
 vi.mock('@anthropic-ai/sdk', () => {
   // The SDK's default export is a class; new-ing it must work.
   class FakeAnthropic {
     constructor(opts) {
       constructorOpts.push(opts);
-      this.messages = { create: createMock };
+      this.messages = { create: createMock, stream: streamMock };
     }
   }
   return { default: FakeAnthropic };
@@ -19,6 +20,7 @@ const { complete } = await import('../../../src/ai/providers/claude.js');
 describe('ai/providers/claude — complete()', () => {
   beforeEach(() => {
     createMock.mockReset();
+    streamMock.mockReset();
     constructorOpts.length = 0;
   });
 
@@ -141,5 +143,91 @@ describe('ai/providers/claude — complete()', () => {
     await expect(
       complete({ apiKey: 'sk', model: '', system: 's', prompt: 'p' }),
     ).rejects.toThrow(/429 Too Many Requests/);
+  });
+
+  describe('streaming via onToken', () => {
+    function fakeStream(events) {
+      return {
+        async *[Symbol.asyncIterator]() {
+          for (const e of events) yield e;
+        },
+      };
+    }
+
+    it('emits each text_delta to onToken and returns the accumulated string', async () => {
+      streamMock.mockReturnValue(
+        fakeStream([
+          { type: 'message_start' },
+          { type: 'content_block_start' },
+          { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Hello ' } },
+          { type: 'content_block_delta', delta: { type: 'text_delta', text: 'world.' } },
+          { type: 'content_block_stop' },
+          { type: 'message_stop' },
+        ]),
+      );
+
+      const tokens = [];
+      const result = await complete({
+        apiKey: 'sk',
+        model: '',
+        system: 's',
+        prompt: 'p',
+        onToken: (chunk) => tokens.push(chunk),
+      });
+
+      expect(tokens).toEqual(['Hello ', 'world.']);
+      expect(result).toBe('Hello world.');
+      expect(createMock).not.toHaveBeenCalled();
+    });
+
+    it('ignores non-text-delta events while streaming', async () => {
+      streamMock.mockReturnValue(
+        fakeStream([
+          { type: 'content_block_delta', delta: { type: 'text_delta', text: 'A' } },
+          { type: 'content_block_delta', delta: { type: 'input_json_delta', partial_json: '{}' } },
+          { type: 'content_block_delta', delta: { type: 'text_delta', text: 'B' } },
+          { type: 'message_stop' },
+        ]),
+      );
+
+      const tokens = [];
+      const result = await complete({
+        apiKey: 'sk',
+        model: '',
+        system: 's',
+        prompt: 'p',
+        onToken: (chunk) => tokens.push(chunk),
+      });
+
+      expect(tokens).toEqual(['A', 'B']);
+      expect(result).toBe('AB');
+    });
+
+    it('throws when the stream never emitted any text', async () => {
+      streamMock.mockReturnValue(fakeStream([{ type: 'message_stop' }]));
+      await expect(
+        complete({
+          apiKey: 'sk',
+          model: '',
+          system: 's',
+          prompt: 'p',
+          onToken: () => {},
+        }),
+      ).rejects.toThrow(/empty response/);
+    });
+
+    it('falls back to non-streaming when no onToken is given', async () => {
+      createMock.mockResolvedValue({
+        content: [{ type: 'text', text: 'whole thing' }],
+      });
+      const result = await complete({
+        apiKey: 'sk',
+        model: '',
+        system: 's',
+        prompt: 'p',
+      });
+      expect(result).toBe('whole thing');
+      expect(streamMock).not.toHaveBeenCalled();
+    });
   });
 });

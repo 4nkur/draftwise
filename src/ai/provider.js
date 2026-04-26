@@ -21,6 +21,7 @@ export async function complete({
   system,
   prompt,
   maxTokens,
+  onToken,
 }) {
   const adapter = ADAPTERS[provider];
   if (!adapter) {
@@ -32,5 +33,5 @@ export async function complete({
       `Environment variable ${apiKeyEnv} is not set. Export it before running this command.`,
     );
   }
-  return adapter({ apiKey, model, system, prompt, maxTokens });
+  return adapter({ apiKey, model, system, prompt, maxTokens, onToken });
 }

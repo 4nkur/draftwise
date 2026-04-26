@@ -7,6 +7,7 @@ Each released version is tagged in git (`v0.0.1`, `v0.1.0`, etc.) and includes t
 ## [Unreleased]
 
 ### Added
+- **Live token streaming for synthesis calls.** `scan`, `explain`, `new` (spec phase), `tech`, and `tasks` now stream the model's output to stdout token-by-token via the Anthropic SDK's `messages.stream()` API. The 10–30s "Synthesizing..." pause is replaced with live output you can read as it generates. JSON / plan calls (init questions, init stacks, new plan) keep the non-streaming path because rendering JSON token-by-token would be worse UX. — Ankur (#TBD)
 - **`--version` / `-v` flag** on the CLI, prints the installed package version. — Ankur (#TBD)
 - **Per-command `--help` / `-h`.** Each command now exports a `HELP` string with usage and examples; the router shows it when `--help` follows the command name. The "coming soon" placeholder is gone. — Ankur (#TBD)
 - **`.prettierrc`** — explicit Prettier defaults (singleQuote, trailingComma all, semi, printWidth 80, eol lf). Matches the existing code shape; makes formatting reproducible across machines. — Ankur (#TBD)
