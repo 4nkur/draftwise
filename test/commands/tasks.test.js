@@ -244,6 +244,106 @@ describe('draftwise tasks', () => {
     expect(tasks).toContain('Scaffold project');
   });
 
+  it('prompts before overwriting an existing tasks.md, and bails if user declines', async () => {
+    const specDir = await seedSpec(dir, 'collab-albums');
+    await writeFile(
+      join(specDir, 'tasks.md'),
+      '# Hand-edited tasks\n',
+      'utf8',
+    );
+
+    let promptCalls = 0;
+    let completeCalled = false;
+
+    await tasksCommand([], {
+      cwd: dir,
+      log: (m) => logs.push(m),
+      scan: async () => SAMPLE_SCAN,
+      loadConfig: async () => ({
+        mode: 'api',
+        provider: 'claude',
+        apiKeyEnv: 'ANTHROPIC_API_KEY',
+        model: '',
+      }),
+      complete: async () => {
+        completeCalled = true;
+        return '# Regenerated tasks';
+      },
+      prompts: {
+        confirmOverwrite: async () => {
+          promptCalls++;
+          return false;
+        },
+      },
+    });
+
+    expect(promptCalls).toBe(1);
+    expect(completeCalled).toBe(false);
+    expect(logs.join('\n')).toContain('Cancelled');
+
+    const tasks = await readFile(join(specDir, 'tasks.md'), 'utf8');
+    expect(tasks).toBe('# Hand-edited tasks\n');
+  });
+
+  it('overwrites tasks.md without prompting when --force is passed', async () => {
+    const specDir = await seedSpec(dir, 'collab-albums');
+    await writeFile(
+      join(specDir, 'tasks.md'),
+      '# Hand-edited tasks\n',
+      'utf8',
+    );
+
+    let promptCalls = 0;
+
+    await tasksCommand(['--force'], {
+      cwd: dir,
+      log: () => {},
+      scan: async () => SAMPLE_SCAN,
+      loadConfig: async () => ({
+        mode: 'api',
+        provider: 'claude',
+        apiKeyEnv: 'ANTHROPIC_API_KEY',
+        model: '',
+      }),
+      complete: async () => '# Regenerated tasks',
+      prompts: {
+        confirmOverwrite: async () => {
+          promptCalls++;
+          return false;
+        },
+      },
+    });
+
+    expect(promptCalls).toBe(0);
+    const tasks = await readFile(join(specDir, 'tasks.md'), 'utf8');
+    expect(tasks).toBe('# Regenerated tasks');
+  });
+
+  it('agent mode does not trigger the overwrite prompt for tasks.md', async () => {
+    const specDir = await seedSpec(dir, 'collab-albums');
+    await writeFile(join(specDir, 'tasks.md'), '# Old', 'utf8');
+
+    let promptCalls = 0;
+
+    await tasksCommand([], {
+      cwd: dir,
+      log: () => {},
+      scan: async () => SAMPLE_SCAN,
+      loadConfig: async () => ({ mode: 'agent' }),
+      complete: async () => '',
+      prompts: {
+        confirmOverwrite: async () => {
+          promptCalls++;
+          return false;
+        },
+      },
+    });
+
+    expect(promptCalls).toBe(0);
+    const tasks = await readFile(join(specDir, 'tasks.md'), 'utf8');
+    expect(tasks).toBe('# Old');
+  });
+
   it('greenfield agent mode: dumps PROJECT PLAN instead of SCANNER OUTPUT', async () => {
     await seedSpec(dir, 'collab-albums', { technical: '# Tech' });
 

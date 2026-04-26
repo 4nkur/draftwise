@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { select } from '@inquirer/prompts';
+import { select, confirm } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
@@ -15,16 +15,21 @@ import {
   buildAgentInstruction,
 } from '../ai/prompts/tasks.js';
 
-export const HELP = `draftwise tasks [<feature>] — break technical spec into ordered work
+export const HELP = `draftwise tasks [<feature>] [--force] — break technical spec into ordered work
 
 Usage:
   draftwise tasks                 # auto-pick if exactly one tech spec exists
   draftwise tasks <feature-slug>  # target a specific feature
 
+Flags:
+  --force                         # skip the overwrite confirmation prompt
+
 Generates tasks.md: numbered tasks with Goal / Files / Depends on /
 Parallel with / Acceptance, ordered so each task's dependencies
 appear before it. In greenfield, the first 1-3 tasks are project
-scaffolding (run setup commands, install deps).
+scaffolding (run setup commands, install deps). If tasks.md already
+exists for the chosen feature, you'll be asked to confirm before
+it's overwritten — pass --force to skip the prompt.
 `;
 
 const DEFAULT_PROMPTS = {
@@ -32,11 +37,14 @@ const DEFAULT_PROMPTS = {
     select({
       message: 'Which feature do you want a task breakdown for?',
       choices: specs.map((s) => ({
-        name: s.hasTasks
-          ? `${s.slug}  (tasks.md exists — will overwrite)`
-          : s.slug,
+        name: s.hasTasks ? `${s.slug}  (tasks.md exists)` : s.slug,
         value: s.slug,
       })),
+    }),
+  confirmOverwrite: ({ slug, file }) =>
+    confirm({
+      message: `${slug}/${file} already exists. Overwrite?`,
+      default: false,
     }),
 };
 
@@ -57,7 +65,9 @@ export default async function tasksCommand(args = [], deps = {}) {
 
   const config = await loadConfig(cwd);
   const isGreenfield = config.projectState === 'greenfield';
-  const requestedSlug = args[0];
+  const force = args.includes('--force') || args.includes('-f');
+  const positional = args.filter((a) => a !== '--force' && a !== '-f');
+  const requestedSlug = positional[0];
 
   const specs = (await listSpecs(cwd)).filter((s) => s.hasTechnicalSpec);
   if (specs.length === 0) {
@@ -88,6 +98,26 @@ export default async function tasksCommand(args = [], deps = {}) {
     throw new Error(
       `${target.slug}/technical-spec.md is empty. Run \`draftwise tech\` to populate it.`,
     );
+  }
+
+  // Confirm before clobbering a hand-edited tasks.md.
+  // Run before the scan so a cancel doesn't waste the scan time.
+  // Agent mode is exempt — the host agent does the write, not Draftwise.
+  if (
+    !force &&
+    config.mode !== 'agent' &&
+    (await pathExists(target.tasks))
+  ) {
+    const proceed = await prompts.confirmOverwrite({
+      slug: target.slug,
+      file: 'tasks.md',
+    });
+    if (!proceed) {
+      log(
+        'Cancelled. No changes written. (Pass --force to skip this prompt.)',
+      );
+      return;
+    }
   }
 
   let scanForPrompt;

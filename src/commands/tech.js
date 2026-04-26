@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { select } from '@inquirer/prompts';
+import { select, confirm } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
@@ -15,17 +15,21 @@ import {
   buildAgentInstruction,
 } from '../ai/prompts/tech.js';
 
-export const HELP = `draftwise tech [<feature>] — draft technical-spec.md from a product spec
+export const HELP = `draftwise tech [<feature>] [--force] — draft technical-spec.md from a product spec
 
 Usage:
   draftwise tech                 # auto-pick if exactly one product spec exists
   draftwise tech <feature-slug>  # target a specific feature
   draftwise tech                 # multiple specs → prompts you to pick
 
+Flags:
+  --force                        # skip the overwrite confirmation prompt
+
 Reads the product spec, writes technical-spec.md grounded in the
 real codebase (brownfield) or the planned directory structure
-(greenfield, with "(new)" markers). Existing technical-spec.md
-gets overwritten — flagged in the picker.
+(greenfield, with "(new)" markers). If technical-spec.md already
+exists for the chosen feature, you'll be asked to confirm before
+it's overwritten — pass --force to skip the prompt.
 `;
 
 const DEFAULT_PROMPTS = {
@@ -34,10 +38,15 @@ const DEFAULT_PROMPTS = {
       message: 'Which feature spec do you want a technical spec for?',
       choices: specs.map((s) => ({
         name: s.hasTechnicalSpec
-          ? `${s.slug}  (technical-spec.md exists — will overwrite)`
+          ? `${s.slug}  (technical-spec.md exists)`
           : s.slug,
         value: s.slug,
       })),
+    }),
+  confirmOverwrite: ({ slug, file }) =>
+    confirm({
+      message: `${slug}/${file} already exists. Overwrite?`,
+      default: false,
     }),
 };
 
@@ -58,7 +67,9 @@ export default async function techCommand(args = [], deps = {}) {
 
   const config = await loadConfig(cwd);
   const isGreenfield = config.projectState === 'greenfield';
-  const requestedSlug = args[0];
+  const force = args.includes('--force') || args.includes('-f');
+  const positional = args.filter((a) => a !== '--force' && a !== '-f');
+  const requestedSlug = positional[0];
 
   const specs = (await listSpecs(cwd)).filter((s) => s.hasProductSpec);
   if (specs.length === 0) {
@@ -89,6 +100,26 @@ export default async function techCommand(args = [], deps = {}) {
     throw new Error(
       `${target.slug}/product-spec.md is empty. Run \`draftwise new\` to populate it.`,
     );
+  }
+
+  // Confirm before clobbering a hand-edited technical-spec.md.
+  // Run before the scan so a cancel doesn't waste the scan time.
+  // Agent mode is exempt — the host agent does the write, not Draftwise.
+  if (
+    !force &&
+    config.mode !== 'agent' &&
+    (await pathExists(target.technicalSpec))
+  ) {
+    const proceed = await prompts.confirmOverwrite({
+      slug: target.slug,
+      file: 'technical-spec.md',
+    });
+    if (!proceed) {
+      log(
+        'Cancelled. No changes written. (Pass --force to skip this prompt.)',
+      );
+      return;
+    }
   }
 
   let scanForPrompt;

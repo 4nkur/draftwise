@@ -238,6 +238,149 @@ describe('draftwise tech', () => {
     expect(tech).toContain('# Tech');
   });
 
+  it('prompts before overwriting an existing technical-spec.md, and bails if user declines', async () => {
+    const specDir = await seedSpec(dir, 'collab-albums');
+    await writeFile(
+      join(specDir, 'technical-spec.md'),
+      '# Hand-edited tech spec\n',
+      'utf8',
+    );
+
+    let promptCalls = 0;
+    let completeCalled = false;
+
+    await techCommand([], {
+      cwd: dir,
+      log: (m) => logs.push(m),
+      scan: async () => SAMPLE_SCAN,
+      loadConfig: async () => ({
+        mode: 'api',
+        provider: 'claude',
+        apiKeyEnv: 'ANTHROPIC_API_KEY',
+        model: '',
+      }),
+      complete: async () => {
+        completeCalled = true;
+        return '# Regenerated tech';
+      },
+      prompts: {
+        confirmOverwrite: async () => {
+          promptCalls++;
+          return false;
+        },
+      },
+    });
+
+    expect(promptCalls).toBe(1);
+    expect(completeCalled).toBe(false);
+    expect(logs.join('\n')).toContain('Cancelled');
+
+    // The hand-edited spec must remain on disk untouched.
+    const tech = await readFile(
+      join(specDir, 'technical-spec.md'),
+      'utf8',
+    );
+    expect(tech).toBe('# Hand-edited tech spec\n');
+  });
+
+  it('overwrites without prompting when --force is passed', async () => {
+    const specDir = await seedSpec(dir, 'collab-albums');
+    await writeFile(
+      join(specDir, 'technical-spec.md'),
+      '# Hand-edited tech spec\n',
+      'utf8',
+    );
+
+    let promptCalls = 0;
+
+    await techCommand(['--force'], {
+      cwd: dir,
+      log: () => {},
+      scan: async () => SAMPLE_SCAN,
+      loadConfig: async () => ({
+        mode: 'api',
+        provider: 'claude',
+        apiKeyEnv: 'ANTHROPIC_API_KEY',
+        model: '',
+      }),
+      complete: async () => '# Regenerated tech',
+      prompts: {
+        confirmOverwrite: async () => {
+          promptCalls++;
+          return false;
+        },
+      },
+    });
+
+    expect(promptCalls).toBe(0);
+
+    const tech = await readFile(
+      join(specDir, 'technical-spec.md'),
+      'utf8',
+    );
+    expect(tech).toBe('# Regenerated tech');
+  });
+
+  it('--force works in any arg position (before or after the slug)', async () => {
+    await seedSpec(dir, 'alpha');
+    const betaDir = await seedSpec(dir, 'beta');
+    await writeFile(
+      join(betaDir, 'technical-spec.md'),
+      'old',
+      'utf8',
+    );
+
+    await techCommand(['--force', 'beta'], {
+      cwd: dir,
+      log: () => {},
+      scan: async () => SAMPLE_SCAN,
+      loadConfig: async () => ({
+        mode: 'api',
+        provider: 'claude',
+        apiKeyEnv: 'ANTHROPIC_API_KEY',
+        model: '',
+      }),
+      complete: async () => '# new',
+    });
+
+    const tech = await readFile(join(betaDir, 'technical-spec.md'), 'utf8');
+    expect(tech).toBe('# new');
+  });
+
+  it('agent mode does not trigger the overwrite prompt (host agent writes the file)', async () => {
+    const specDir = await seedSpec(dir, 'collab-albums', '# Product');
+    await writeFile(
+      join(specDir, 'technical-spec.md'),
+      '# Old',
+      'utf8',
+    );
+
+    let promptCalls = 0;
+
+    await techCommand([], {
+      cwd: dir,
+      log: () => {},
+      scan: async () => SAMPLE_SCAN,
+      loadConfig: async () => ({ mode: 'agent' }),
+      complete: async () => '',
+      prompts: {
+        confirmOverwrite: async () => {
+          promptCalls++;
+          return false;
+        },
+      },
+    });
+
+    expect(promptCalls).toBe(0);
+    // Existing file should still be on disk — agent mode never writes from
+    // the CLI; the host agent will handle it.
+    const tech = await readFile(
+      join(specDir, 'technical-spec.md'),
+      'utf8',
+    );
+    expect(tech).toBe('# Old');
+  });
+
   it('greenfield agent mode: dumps PROJECT PLAN instead of SCANNER OUTPUT', async () => {
     await seedSpec(dir, 'collab-albums', '# Product');
 
