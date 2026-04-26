@@ -32,7 +32,7 @@ function summarize(scan) {
 
 export default async function scanCommand(_args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
-  const log = deps.log ?? ((msg) => console.log(msg));
+  const log = deps.log ?? ((msg) => console.error(msg));
   const scan = deps.scan ?? defaultScan;
   const loadConfig = deps.loadConfig ?? defaultLoadConfig;
   const complete = deps.complete ?? defaultComplete;

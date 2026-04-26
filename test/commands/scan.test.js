@@ -82,6 +82,8 @@ describe('draftwise scan', () => {
     expect(captured.provider).toBe('claude');
     expect(captured.system).toContain('Draftwise');
     expect(captured.prompt).toContain('Next.js');
+    // scan streams the overview live to stdout while it generates.
+    expect(typeof captured.onToken).toBe('function');
 
     const overview = await readFile(join(dir, '.draftwise', 'overview.md'), 'utf8');
     expect(overview).toContain('# Overview');

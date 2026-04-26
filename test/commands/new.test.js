@@ -145,6 +145,9 @@ describe('draftwise new', () => {
     expect(captured[1].system).toContain('product-spec.md');
     expect(captured[1].prompt).toContain('Anyone in the album');
     expect(captured[1].prompt).toContain('"decision": "accepted"');
+    // The synthesis call (#1) streams; the plan call (#0) does not.
+    expect(typeof captured[1].onToken).toBe('function');
+    expect(captured[0].onToken).toBeUndefined();
 
     const spec = await readFile(
       join(dir, '.draftwise', 'specs', 'collab-albums', 'product-spec.md'),

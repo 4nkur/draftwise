@@ -55,7 +55,7 @@ function placeholderFor(path, purpose) {
 
 export default async function scaffoldCommand(_args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
-  const log = deps.log ?? ((msg) => console.log(msg));
+  const log = deps.log ?? ((msg) => console.error(msg));
   const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };
 
   const draftwiseDir = join(cwd, '.draftwise');

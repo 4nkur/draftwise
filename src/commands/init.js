@@ -387,7 +387,9 @@ async function runGreenfield({
 
 export default async function init(_args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
-  const log = deps.log ?? ((msg) => console.log(msg));
+  // Informational output goes to stderr so streaming content + saved-spec
+  // markdown stays on stdout — `draftwise scan > foo.md` works as expected.
+  const log = deps.log ?? ((msg) => console.error(msg));
   const scan = deps.scan ?? defaultScan;
   const complete = deps.complete ?? defaultComplete;
   const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };

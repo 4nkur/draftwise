@@ -61,6 +61,8 @@ The single most important module is `src/core/scanner.js` — it parses the user
 - **`@inquirer/prompts`** for interactive prompts (init's mode select, new's Q&A loop, tech/tasks spec picker)
 - **AI SDKs:** `@anthropic-ai/sdk` is wired up for Mode 2 (api). `openai` and `@google/generative-ai` are stubbed in `src/ai/provider.js` and throw a clear "not yet wired up" error — install + implement when needed. Agent mode (Mode 1) ships scanner data + an instruction string for the host agent to consume; no SDK call.
 
+**On dependency pinning:** `@anthropic-ai/sdk` is pinned to an exact version because it's a 0.x package — semver doesn't promise that 0.91 → 0.92 stays non-breaking. `@inquirer/prompts` and `yaml` use caret ranges because they're stable 1.x+ packages where minor bumps follow semver. Dependabot (`.github/dependabot.yml`) opens PRs for both kinds; the asymmetry is intentional, not an oversight.
+
 No TypeScript for v1 — keep it simple. May migrate later if the codebase grows.
 
 ---

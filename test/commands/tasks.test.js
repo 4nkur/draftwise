@@ -96,6 +96,8 @@ describe('draftwise tasks', () => {
     expect(logs.join('\n')).toContain('Using the only technical spec: collab-albums');
     expect(captured.system).toContain('tasks.md');
     expect(captured.prompt).toContain('# Tech');
+    // tasks streams the synthesis live to stdout.
+    expect(typeof captured.onToken).toBe('function');
 
     const tasks = await readFile(
       join(dir, '.draftwise', 'specs', 'collab-albums', 'tasks.md'),

@@ -31,6 +31,8 @@ const TYPE_TO_FILENAME = {
 
 export default async function showCommand(args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
+  // Spec content IS the output of `show` — keep it on stdout so piping works
+  // (`draftwise show <feature> > spec.md`).
   const log = deps.log ?? ((msg) => console.log(msg));
   const listSpecs = deps.listSpecs ?? defaultListSpecs;
 

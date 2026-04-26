@@ -26,7 +26,7 @@ mode. Brownfield only — greenfield short-circuits with a hint.
 
 export default async function explainCommand(args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
-  const log = deps.log ?? ((msg) => console.log(msg));
+  const log = deps.log ?? ((msg) => console.error(msg));
   const scan = deps.scan ?? defaultScan;
   const loadConfig = deps.loadConfig ?? defaultLoadConfig;
   const complete = deps.complete ?? defaultComplete;

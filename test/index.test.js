@@ -73,3 +73,53 @@ describe('draftwise CLI router', () => {
     expect(errs.join('\n')).toContain('Unknown command: bogus');
   });
 });
+
+describe('HELP consistency between top-level and per-command', () => {
+  // Each command's HELP starts with "draftwise <cmd> — <one-liner>".
+  // The top-level HELP listing should describe each command in a way that
+  // doesn't drift from that one-liner. This catches accidental drift —
+  // not full string equality, just that meaningful keywords from the
+  // per-command summary appear in the top-level listing.
+  const cases = [
+    { cmd: 'init', mod: '../src/commands/init.js', mustInclude: ['greenfield', 'brownfield'] },
+    { cmd: 'scaffold', mod: '../src/commands/scaffold.js', mustInclude: ['greenfield'] },
+    { cmd: 'scan', mod: '../src/commands/scan.js', mustInclude: ['overview'] },
+    { cmd: 'explain', mod: '../src/commands/explain.js', mustInclude: ['flow'] },
+    { cmd: 'new', mod: '../src/commands/new.js', mustInclude: ['idea', 'product-spec'] },
+    { cmd: 'tech', mod: '../src/commands/tech.js', mustInclude: ['technical-spec'] },
+    { cmd: 'tasks', mod: '../src/commands/tasks.js', mustInclude: ['tasks.md', 'technical spec'] },
+    { cmd: 'list', mod: '../src/commands/list.js', mustInclude: ['specs'] },
+    { cmd: 'show', mod: '../src/commands/show.js', mustInclude: ['spec'] },
+  ];
+
+  for (const { cmd, mod, mustInclude } of cases) {
+    it(`${cmd}: per-command HELP starts with the right header`, async () => {
+      const m = await import(mod);
+      expect(typeof m.HELP).toBe('string');
+      expect(m.HELP.split('\n')[0]).toContain(`draftwise ${cmd}`);
+    });
+
+    it(`${cmd}: per-command HELP and top-level HELP agree on key concepts`, async () => {
+      const m = await import(mod);
+      const helpModule = await import('../src/index.js');
+      // Trigger top-level HELP capture.
+      const captured = [];
+      const originalLog = console.log;
+      console.log = (...args) => captured.push(args.join(' '));
+      try {
+        await helpModule.default([]);
+      } finally {
+        console.log = originalLog;
+      }
+      const topLevelHelp = captured.join('\n');
+      const perCommandHelp = m.HELP;
+
+      // Each "must include" keyword should appear in BOTH descriptions
+      // — drifting one without the other will trip this.
+      for (const keyword of mustInclude) {
+        expect(perCommandHelp.toLowerCase()).toContain(keyword.toLowerCase());
+        expect(topLevelHelp.toLowerCase()).toContain(keyword.toLowerCase());
+      }
+    });
+  }
+});
