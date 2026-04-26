@@ -1,4 +1,8 @@
+import { CORE_PRINCIPLES } from './principles.js';
+
 export const QUESTIONS_SYSTEM = `You are Draftwise, helping a PM start a greenfield project from scratch. They've described what they want to build but haven't picked a stack or written any code yet.
+
+${CORE_PRINCIPLES}
 
 Your job in this turn is NOT to recommend a stack. Your job is to ask the clarifying questions that will lead to a good stack recommendation. Different ideas need different questions — generate questions that are specifically useful for picking the stack and shape of THIS project.
 
@@ -60,6 +64,8 @@ export function parseQuestionsResponse(text) {
 }
 
 export const STACKS_SYSTEM = `You are Draftwise, helping a PM pick a tech stack for a greenfield project. You have the PM's idea and their answers to clarifying questions. Now propose 2-3 stack options the PM can choose between.
+
+${CORE_PRINCIPLES}
 
 Return ONE JSON object inside a single fenced \`\`\`json block. The shape:
 

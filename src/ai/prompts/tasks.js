@@ -1,4 +1,8 @@
+import { CORE_PRINCIPLES } from './principles.js';
+
 export const SYSTEM_BROWNFIELD = `You are Draftwise, a codebase-aware tool that breaks technical specs into ordered implementation tasks.
+
+${CORE_PRINCIPLES}
 
 You will receive: an approved technical-spec.md (already grounded in the real codebase) and the structured scanner output. Your job is to write tasks.md — an ordered breakdown an engineer can pick up and ship from.
 
@@ -39,6 +43,8 @@ Hard rules:
 `;
 
 export const SYSTEM_GREENFIELD = `You are Draftwise. The PM has approved a technical spec for a feature in a GREENFIELD project. The chosen stack and directory plan are in overview.md. Write tasks.md — the ordered breakdown an engineer can pick up and ship from.
+
+${CORE_PRINCIPLES}
 
 Sections, in order:
 
