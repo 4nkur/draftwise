@@ -3,6 +3,18 @@ import { join } from 'node:path';
 import { listSpecs as defaultListSpecs } from '../utils/specs.js';
 import { pathExists } from '../utils/fs.js';
 
+export const HELP = `draftwise show <feature> [type] — print a spec to terminal
+
+Usage:
+  draftwise show <feature>             # default type: product
+  draftwise show <feature> tech
+  draftwise show <feature> tasks
+
+Type must be one of: product, tech, tasks. Errors with a hint if
+the requested type hasn't been generated yet (e.g., asking for
+tech before \`draftwise tech\` has run).
+`;
+
 const VALID_TYPES = ['product', 'tech', 'tasks'];
 
 const TYPE_TO_FILE = {

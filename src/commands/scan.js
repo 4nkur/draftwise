@@ -7,6 +7,18 @@ import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { pathExists } from '../utils/fs.js';
 import { SYSTEM, buildPrompt, AGENT_INSTRUCTION } from '../ai/prompts/scan.js';
 
+export const HELP = `draftwise scan — refresh the codebase overview (brownfield)
+
+Usage:
+  draftwise scan
+
+Re-runs the scanner. In api mode, calls your AI provider to write
+a narrated overview to .draftwise/overview.md. In agent mode,
+prints scanner data + an instruction for the host coding agent.
+In a greenfield project, prints a friendly hint and exits — the
+plan from \`draftwise init\` is already in overview.md.
+`;
+
 function summarize(scan) {
   return {
     files: scan.files.length,

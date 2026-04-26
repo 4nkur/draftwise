@@ -7,10 +7,14 @@ Each released version is tagged in git (`v0.0.1`, `v0.1.0`, etc.) and includes t
 ## [Unreleased]
 
 ### Added
+- **`--version` / `-v` flag** on the CLI, prints the installed package version. — Ankur (#TBD)
+- **Per-command `--help` / `-h`.** Each command now exports a `HELP` string with usage and examples; the router shows it when `--help` follows the command name. The "coming soon" placeholder is gone. — Ankur (#TBD)
+- **`.prettierrc`** — explicit Prettier defaults (singleQuote, trailingComma all, semi, printWidth 80, eol lf). Matches the existing code shape; makes formatting reproducible across machines. — Ankur (#TBD)
 - **CI workflow.** `.github/workflows/ci.yml` runs `npm ci`, `npm run lint`, and `npm test` on every PR and on pushes to `main`, against Node 20 and Node 22. Manual test-runs before merge are no longer the only safety net. — Ankur (#TBD)
 - **Cache schema version.** `.draftwise/.cache/scan.json` now carries a `cacheVersion` field; mismatched versions are treated as a cache-miss instead of returning stale-shape data. Bump `CACHE_VERSION` in `src/utils/scan-cache.js` whenever scan output shape changes. — Ankur (#TBD)
 
 ### Changed
+- **Pin `@anthropic-ai/sdk` to exact version (was `^0.91.1`).** A 0.x caret allows minor bumps that the SDK's own semver doesn't promise to keep non-breaking; pinning exact removes the risk of a quiet `npm install` upgrading us into a breakage. Bump manually when ready. — Ankur (#TBD)
 - **Bump Anthropic SDK retry budget from 2 to 4.** The SDK already retries on 429 / 5xx / network errors; we just give it a more generous default than ours used. Less hand-holding needed for transient blips. — Ankur (#TBD)
 - **Parallelize per-file reads in scanner detectors.** The eight detector loops (Express/Fastify routes, Mongoose, Drizzle, FastAPI, Flask, Django routes, SQLAlchemy, Django models) used to read files sequentially — fine for small repos, painful on monorepos. Now use a 50-way bounded `mapConcurrent` from new `src/utils/concurrency.js`. Same matches, faster on big trees. — Ankur (#TBD)
 - **Bump default Claude `max_tokens` to 16384 and expose `ai.max_tokens` in config.** The previous 8192 truncated overviews and tech specs on richly-scanned repos. Default raised; users can override via config (or set lower to cap costs). — Ankur (#TBD)

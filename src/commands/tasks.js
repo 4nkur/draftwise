@@ -15,6 +15,18 @@ import {
   buildAgentInstruction,
 } from '../ai/prompts/tasks.js';
 
+export const HELP = `draftwise tasks [<feature>] — break technical spec into ordered work
+
+Usage:
+  draftwise tasks                 # auto-pick if exactly one tech spec exists
+  draftwise tasks <feature-slug>  # target a specific feature
+
+Generates tasks.md: numbered tasks with Goal / Files / Depends on /
+Parallel with / Acceptance, ordered so each task's dependencies
+appear before it. In greenfield, the first 1-3 tasks are project
+scaffolding (run setup commands, install deps).
+`;
+
 const DEFAULT_PROMPTS = {
   pickSpec: ({ specs }) =>
     select({

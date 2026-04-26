@@ -18,6 +18,24 @@ import {
 } from '../ai/prompts/new.js';
 import { slugify } from '../utils/slug.js';
 
+export const HELP = `draftwise new "<idea>" — conversational product-spec drafting
+
+Usage:
+  draftwise new "<your feature idea>"
+  draftwise new "add collaborative albums"
+  draftwise new "let users mute notifications"
+
+Three phases:
+  1. AI plans the conversation — clarifying questions tailored to
+     your repo (or your greenfield plan), affected flows, and
+     adjacent opportunities.
+  2. You walk through questions and accept/decline opportunities.
+  3. AI synthesizes a product-spec.md under .draftwise/specs/<slug>/.
+
+Hard rule: every claim grounds in scanner output (brownfield) or
+the project plan (greenfield). Never invents files.
+`;
+
 const DEFAULT_PROMPTS = {
   askQuestion: ({ index, total, text, why }) =>
     input({

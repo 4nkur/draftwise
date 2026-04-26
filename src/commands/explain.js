@@ -10,6 +10,20 @@ import { compactScan } from '../utils/scan-projection.js';
 import { SYSTEM, buildPrompt, buildAgentInstruction } from '../ai/prompts/explain.js';
 import { slugify } from '../utils/slug.js';
 
+export const HELP = `draftwise explain <flow> — trace a flow through the codebase
+
+Usage:
+  draftwise explain "<flow name>"
+  draftwise explain checkout
+  draftwise explain "user signup"
+
+Walks the flow end-to-end: entry points, services, data writes,
+side effects, edge cases the code handles. The scan is filtered
+to flow-keyword-relevant files so the model focuses on what
+matters. Saves a snapshot to .draftwise/flows/<slug>.md in api
+mode. Brownfield only — greenfield short-circuits with a hint.
+`;
+
 export default async function explainCommand(args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
   const log = deps.log ?? ((msg) => console.log(msg));
