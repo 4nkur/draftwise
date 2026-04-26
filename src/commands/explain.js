@@ -93,6 +93,7 @@ export default async function explainCommand(args = [], deps = {}) {
   }
 
   log(`API mode — calling ${config.provider}...`);
+  log('');
   const walkthrough = await complete({
     provider: config.provider,
     apiKeyEnv: config.apiKeyEnv,
@@ -104,10 +105,8 @@ export default async function explainCommand(args = [], deps = {}) {
       scan: scanForPrompt,
       packageMeta: result.packageMeta,
     }),
+    onToken: (chunk) => process.stdout.write(chunk),
   });
-
-  log('');
-  log(walkthrough);
   log('');
 
   const flowsDir = join(draftwiseDir, 'flows');

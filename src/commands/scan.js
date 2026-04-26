@@ -107,6 +107,7 @@ export default async function scanCommand(_args = [], deps = {}) {
   }
 
   log(`API mode — calling ${config.provider}...`);
+  log('');
   const overview = await complete({
     provider: config.provider,
     apiKeyEnv: config.apiKeyEnv,
@@ -114,7 +115,9 @@ export default async function scanCommand(_args = [], deps = {}) {
     maxTokens: config.maxTokens,
     system: SYSTEM,
     prompt: buildPrompt({ scan: scanForPrompt, packageMeta: result.packageMeta }),
+    onToken: (chunk) => process.stdout.write(chunk),
   });
+  log('');
 
   await writeFile(join(draftwiseDir, 'overview.md'), overview, 'utf8');
   log('');

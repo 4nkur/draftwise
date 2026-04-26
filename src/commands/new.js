@@ -206,6 +206,7 @@ export default async function newCommand(args = [], deps = {}) {
 
   log('');
   log(`Synthesizing product-spec.md (${config.provider})...`);
+  log('');
   const spec = await complete({
     provider: config.provider,
     apiKeyEnv: config.apiKeyEnv,
@@ -222,7 +223,9 @@ export default async function newCommand(args = [], deps = {}) {
       projectState: config.projectState,
       overview,
     }),
+    onToken: (chunk) => process.stdout.write(chunk),
   });
+  log('');
 
   const slug = slugify(plan.featureSlug);
   const specDir = join(draftwiseDir, 'specs', slug);
