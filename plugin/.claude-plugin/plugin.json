@@ -1,0 +1,12 @@
+{
+  "name": "draftwise",
+  "description": "Slash-command wrappers for the draftwise CLI. Drives spec drafting in chat — `/draftwise init`, `/draftwise new`, `/draftwise tech`, `/draftwise tasks`, `/draftwise scan`, `/draftwise explain`, plus list / show / scaffold. Requires the `draft` CLI installed via `npm i -g draftwise`.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Ankur Goyal",
+    "email": "04.ankur@gmail.com"
+  },
+  "homepage": "https://github.com/4nkur/draftwise",
+  "repository": "https://github.com/4nkur/draftwise",
+  "skills": "./skills/"
+}
