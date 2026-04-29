@@ -48,7 +48,12 @@ test/                     → vitest, mirrors src structure
 plugin/                   → plugin source tree shipped via the marketplace
 ```
 
-**Claude Code plugin.** Distributed separately from the npm package — `.claude-plugin/marketplace.json` at repo root declares a single `draftwise` plugin with `source: ./plugin`. Inside `plugin/` is `.claude-plugin/plugin.json` (the install manifest) and `skills/draft/SKILL.md` plus `skills/draft/reference/<verb>.md` per CLI verb. **Plugin name is `draftwise` (matches npm package + brand); skill name is `draftwise` (matches CLI binary), so the user-facing slash form is `/draftwise <verb>`** — same word in chat and terminal. Pattern follows impeccable's distribution model: one skill routes to per-verb references that drive the conversation in chat and shell out to the npm-installed `draftwise` CLI. Users install via `/plugin marketplace add 4nkur/draftwise` in Claude Code, then `/plugin install draftwise`. The plugin is *not* shipped on npm — `package.json` `files` excludes the plugin directories. References include pre-flight checks (e.g. `new` warns if `overview.md` is stale, `tech` nudges to skim the product spec first) and tone shaping for how to ask the user about ambiguous flag values; they explicitly inherit `src/ai/prompts/principles.js`'s collaboration standards so the chat-driven conversation matches what the CLI's api-mode synthesis enforces.
+**Claude Code skill — two install paths.** `.claude-plugin/marketplace.json` at repo root declares a single `draftwise` plugin with `source: ./plugin`. Inside `plugin/` is `.claude-plugin/plugin.json` (the install manifest) and `skills/draftwise/SKILL.md` plus `skills/draftwise/reference/<verb>.md` per CLI verb. The same SKILL.md ships through two install paths with different slash-command shapes:
+
+- **Marketplace plugin** (`/plugin marketplace add 4nkur/draftwise` then `/plugin install draftwise`): Claude Code namespaces all plugin skills as `<plugin>:<skill>`, so the chat form is `/draftwise:draftwise <verb>`. The namespace prefix is mandatory for plugin-installed skills regardless of `/plugin install` scope (user / project / project-this-user) — see [anthropics/claude-code#15882](https://github.com/anthropics/claude-code/issues/15882) (closed: not planned).
+- **Standalone skill** (`draftwise install-skill`): writes `~/.claude/skills/draftwise/SKILL.md` (or `<cwd>/.claude/skills/draftwise/` with `--scope=project`) directly. No plugin manifest sits alongside it, so Claude Code reads it as a user/project skill — bare `/draftwise <verb>`, matching the CLI binary. Same pattern impeccable uses for its bare verbs at user level.
+
+Pattern follows impeccable's distribution model: one skill routes to per-verb references that drive the conversation in chat and shell out to the npm-installed `draftwise` CLI. The two install paths are independent and may coexist (you'll see both `/draftwise:draftwise <verb>` and `/draftwise <verb>` listed). `package.json` `files` ships `plugin/skills/` (so the standalone install can copy from `node_modules/draftwise/plugin/skills/draftwise/`) but excludes `plugin/.claude-plugin/`. References include pre-flight checks (e.g. `new` warns if `overview.md` is stale, `tech` nudges to skim the product spec first) and tone shaping for how to ask the user about ambiguous flag values; they explicitly inherit `src/ai/prompts/principles.js`'s collaboration standards so the chat-driven conversation matches what the CLI's api-mode synthesis enforces.
 
 The single most important module is `src/core/scanner.js` — it parses the user's codebase and produces a structured representation everything else builds on. Get that right and the rest follows.
 
@@ -137,6 +142,8 @@ draftwise tech [<feature>] [--force]    → drafts technical-spec.md from approv
 draftwise tasks [<feature>] [--force]   → ordered tasks.md from technical spec
 draftwise list                          → list all specs in .draftwise/specs/
 draftwise show <feature> [type]         → display a spec (type: product | tech | tasks; default: product)
+draftwise install-skill [--scope=...] [--force]   → install Draftwise as a standalone Claude Code skill (bare /draftwise <verb>)
+draftwise uninstall-skill [--scope=...]           → remove a standalone skill install
 ```
 
 Each command is a separate file under `src/commands/` with a single `export default async function(args, deps = {}) {}`. The `deps` object is the dependency-injection seam used by tests — `cwd`, `log`, `scan`, `loadConfig`, `complete`, and per-command prompt overrides.

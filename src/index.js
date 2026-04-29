@@ -14,6 +14,8 @@ const COMMANDS = {
   list: () => import('./commands/list.js'),
   show: () => import('./commands/show.js'),
   scaffold: () => import('./commands/scaffold.js'),
+  'install-skill': () => import('./commands/install-skill.js'),
+  'uninstall-skill': () => import('./commands/uninstall-skill.js'),
 };
 
 const HELP = `draftwise — codebase-aware spec drafting
@@ -31,6 +33,8 @@ Commands:
   tasks [<feature>]             Generate ordered tasks.md from technical spec
   list                          List all specs in .draftwise/specs/
   show <feature> [type]         Show a spec (type: product | tech | tasks; default: product)
+  install-skill                 Install Draftwise as a standalone Claude Code skill (bare /draftwise <verb>)
+  uninstall-skill               Remove a standalone skill install
 
 Flags:
   -h, --help                    Show this help (or per-command help when after a command)
