@@ -16,11 +16,11 @@ import {
   buildAgentInstruction,
 } from '../ai/prompts/tasks.js';
 
-export const HELP = `draftwise tasks [<feature>] [--force] — break technical spec into ordered work
+export const HELP = `draft tasks [<feature>] [--force] — break technical spec into ordered work
 
 Usage:
-  draftwise tasks                 # auto-pick if exactly one tech spec exists
-  draftwise tasks <feature-slug>  # target a specific feature
+  draft tasks                 # auto-pick if exactly one tech spec exists
+  draft tasks <feature-slug>  # target a specific feature
 
 Flags:
   --force                         # skip the overwrite confirmation prompt
@@ -61,7 +61,7 @@ export default async function tasksCommand(args = [], deps = {}) {
 
   const draftwiseDir = join(cwd, '.draftwise');
   if (!(await pathExists(draftwiseDir))) {
-    throw new Error('.draftwise/ not found. Run `draftwise init` first.');
+    throw new Error('.draftwise/ not found. Run `draft init` first.');
   }
 
   const config = await loadConfig(cwd);
@@ -73,7 +73,7 @@ export default async function tasksCommand(args = [], deps = {}) {
   const specs = (await listSpecs(cwd)).filter((s) => s.hasTechnicalSpec);
   if (specs.length === 0) {
     throw new Error(
-      'No technical specs found in .draftwise/specs/. Run `draftwise tech` first.',
+      'No technical specs found in .draftwise/specs/. Run `draft tech` first.',
     );
   }
 
@@ -97,7 +97,7 @@ export default async function tasksCommand(args = [], deps = {}) {
   const technicalSpec = await readFile(target.technicalSpec, 'utf8');
   if (!technicalSpec.trim()) {
     throw new Error(
-      `${target.slug}/technical-spec.md is empty. Run \`draftwise tech\` to populate it.`,
+      `${target.slug}/technical-spec.md is empty. Run \`draft tech\` to populate it.`,
     );
   }
 
@@ -130,7 +130,7 @@ export default async function tasksCommand(args = [], deps = {}) {
     overview = await readOverview(cwd);
     if (!overview.trim()) {
       throw new Error(
-        'Greenfield project but .draftwise/overview.md is missing or empty. Re-run `draftwise init` to generate the plan.',
+        'Greenfield project but .draftwise/overview.md is missing or empty. Re-run `draft init` to generate the plan.',
       );
     }
     scanForPrompt = null;
@@ -140,7 +140,7 @@ export default async function tasksCommand(args = [], deps = {}) {
     const result = await scan(cwd, { maxFiles: config.scanMaxFiles });
     if (!result.files || result.files.length === 0) {
       throw new Error(
-        `No source files found under ${cwd}. Run \`draftwise tasks\` from your repo root.`,
+        `No source files found under ${cwd}. Run \`draft tasks\` from your repo root.`,
       );
     }
     for (const warning of describeScanWarnings(result)) {

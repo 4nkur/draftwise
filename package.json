@@ -22,7 +22,7 @@
   },
   "homepage": "https://github.com/4nkur/draftwise#readme",
   "bin": {
-    "draftwise": "bin/draftwise.js"
+    "draft": "bin/draft.js"
   },
   "engines": {
     "node": ">=20.0.0"

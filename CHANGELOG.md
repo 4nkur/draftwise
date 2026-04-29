@@ -6,6 +6,10 @@ Each released version is tagged in git (`v0.0.1`, `v0.1.0`, etc.) and includes t
 
 ## [Unreleased]
 
+### Changed
+
+- **CLI binary renamed: `draftwise` → `draft`. (Breaking — next release will be `0.2.0`.)** The npm package name stays `draftwise`, so installation is unchanged (`npm i -g draftwise`). Only the executable on `PATH` changes — every command becomes `draft <subcommand>` instead of `draftwise <subcommand>`. Motivation: the longer name was friction PMs paid on every invocation, and `draft` is unambiguous in shell context (the npm package `draft` is taken, but it's a stale 0.x library and we're not racing for that name; the only realistic shell collision is Microsoft's effectively-abandoned `draft.sh` Kubernetes tool). Touches: `package.json` `bin` field, `bin/draftwise.js` → `bin/draft.js`, every HELP string and console message in `src/`, README, CLAUDE.md, `.gitattributes`, and the test suite. The `.draftwise/` directory name, `DRAFTWISE_DEBUG` env var, and `Draftwise` brand name are unchanged. — Ankur
+
 ## [0.1.5] — 2026-04-26 — Ankur
 
 The "shipped quality" release. Specs read sharper, hand-edits are safer, and the toolchain has CI, lint, cache versioning, and prompt-quality rules that actually do work.

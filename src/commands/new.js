@@ -19,12 +19,12 @@ import {
 } from '../ai/prompts/new.js';
 import { slugify } from '../utils/slug.js';
 
-export const HELP = `draftwise new "<idea>" [--force] — conversational product-spec drafting
+export const HELP = `draft new "<idea>" [--force] — conversational product-spec drafting
 
 Usage:
-  draftwise new "<your feature idea>"
-  draftwise new "add collaborative albums"
-  draftwise new "let users mute notifications"
+  draft new "<your feature idea>"
+  draft new "add collaborative albums"
+  draft new "let users mute notifications"
 
 Flags:
   --force                       # skip the overwrite confirmation prompt
@@ -78,12 +78,12 @@ export default async function newCommand(args = [], deps = {}) {
   const positional = args.filter((a) => a !== '--force' && a !== '-f');
   const idea = positional.join(' ').trim();
   if (!idea) {
-    throw new Error('Missing idea. Usage: draftwise new "<your feature idea>"');
+    throw new Error('Missing idea. Usage: draft new "<your feature idea>"');
   }
 
   const draftwiseDir = join(cwd, '.draftwise');
   if (!(await pathExists(draftwiseDir))) {
-    throw new Error('.draftwise/ not found. Run `draftwise init` first.');
+    throw new Error('.draftwise/ not found. Run `draft init` first.');
   }
 
   const config = await loadConfig(cwd);
@@ -100,7 +100,7 @@ export default async function newCommand(args = [], deps = {}) {
     overview = await readOverview(cwd);
     if (!overview.trim()) {
       throw new Error(
-        'Greenfield project but .draftwise/overview.md is missing or empty. Re-run `draftwise init` to generate the plan, or switch the config to brownfield once code exists.',
+        'Greenfield project but .draftwise/overview.md is missing or empty. Re-run `draft init` to generate the plan, or switch the config to brownfield once code exists.',
       );
     }
     scanForPrompt = null;
@@ -110,7 +110,7 @@ export default async function newCommand(args = [], deps = {}) {
     const result = await scan(cwd, { maxFiles: config.scanMaxFiles });
     if (!result.files || result.files.length === 0) {
       throw new Error(
-        `No source files found under ${cwd}. Run \`draftwise new\` from your repo root.`,
+        `No source files found under ${cwd}. Run \`draft new\` from your repo root.`,
       );
     }
     for (const warning of describeScanWarnings(result)) {
@@ -269,6 +269,6 @@ export default async function newCommand(args = [], deps = {}) {
   log('');
   log(`Wrote .draftwise/specs/${slug}/product-spec.md`);
   log(
-    'Next: review, refine, then run `draftwise tech` to generate the technical spec.',
+    'Next: review, refine, then run `draft tech` to generate the technical spec.',
   );
 }

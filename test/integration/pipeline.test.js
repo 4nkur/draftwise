@@ -148,7 +148,7 @@ describe('integration: pipeline (brownfield, agent mode)', () => {
       },
     });
 
-    // Agent mode doesn't write specs from inside draftwise — the host
+    // Agent mode doesn't write specs from inside draft — the host
     // coding agent does. Simulate that step by seeding spec files at
     // the same paths the agent would.
     const featureDir = join(dir, '.draftwise', 'specs', 'mute-notifications');

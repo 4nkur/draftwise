@@ -8,16 +8,16 @@ import { pathExists } from '../utils/fs.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import { SYSTEM, buildPrompt, AGENT_INSTRUCTION } from '../ai/prompts/scan.js';
 
-export const HELP = `draftwise scan — refresh the codebase overview (brownfield)
+export const HELP = `draft scan — refresh the codebase overview (brownfield)
 
 Usage:
-  draftwise scan
+  draft scan
 
 Re-runs the scanner. In api mode, calls your AI provider to write
 a narrated overview to .draftwise/overview.md. In agent mode,
 prints scanner data + an instruction for the host coding agent.
 In a greenfield project, prints a friendly hint and exits — the
-plan from \`draftwise init\` is already in overview.md.
+plan from \`draft init\` is already in overview.md.
 `;
 
 function summarize(scan) {
@@ -41,20 +41,20 @@ export default async function scanCommand(_args = [], deps = {}) {
   const draftwiseDir = join(cwd, '.draftwise');
   if (!(await pathExists(draftwiseDir))) {
     throw new Error(
-      '.draftwise/ not found. Run `draftwise init` first.',
+      '.draftwise/ not found. Run `draft init` first.',
     );
   }
 
   const config = await loadConfig(cwd);
 
   if (config.projectState === 'greenfield') {
-    log('No code yet — `draftwise scan` works on existing codebases.');
+    log('No code yet — `draft scan` works on existing codebases.');
     log(
       'Once you have some code on disk, run scan to refresh .draftwise/overview.md from the actual code.',
     );
     log('');
     log('In the meantime, the greenfield plan is in .draftwise/overview.md and');
-    log('`draftwise new "<feature idea>"` is the next step toward a spec.');
+    log('`draft new "<feature idea>"` is the next step toward a spec.');
     return;
   }
 
@@ -63,7 +63,7 @@ export default async function scanCommand(_args = [], deps = {}) {
 
   if (!result.files || result.files.length === 0) {
     throw new Error(
-      `No source files found under ${cwd}. Run \`draftwise scan\` from your repo root.`,
+      `No source files found under ${cwd}. Run \`draft scan\` from your repo root.`,
     );
   }
 
@@ -126,6 +126,6 @@ export default async function scanCommand(_args = [], deps = {}) {
   log('Wrote .draftwise/overview.md');
   log('');
   log(
-    'Next: review the overview, then `draftwise new "<feature idea>"` to draft your first spec — or `draftwise explain <flow>` to trace a specific area.',
+    'Next: review the overview, then `draft new "<feature idea>"` to draft your first spec — or `draft explain <flow>` to trace a specific area.',
   );
 }

@@ -12,7 +12,7 @@ async function seedSpec(dir, slug, files) {
   }
 }
 
-describe('draftwise show', () => {
+describe('draft show', () => {
   let dir;
   let logs;
 
@@ -29,14 +29,14 @@ describe('draftwise show', () => {
   it('errors if no slug was given', async () => {
     await expect(
       showCommand([], { cwd: dir, log: () => {} }),
-    ).rejects.toThrow(/Usage: draftwise show/);
+    ).rejects.toThrow(/Usage: draft show/);
   });
 
   it('errors if .draftwise/ is missing', async () => {
     await rm(join(dir, '.draftwise'), { recursive: true });
     await expect(
       showCommand(['collab-albums'], { cwd: dir, log: () => {} }),
-    ).rejects.toThrow(/Run `draftwise init` first/);
+    ).rejects.toThrow(/Run `draft init` first/);
   });
 
   it('errors when type is invalid', async () => {

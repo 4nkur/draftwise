@@ -48,7 +48,7 @@ function fakePrompts(answer) {
 const greenfieldConfig = async () => ({ projectState: 'greenfield' });
 const brownfieldConfig = async () => ({ projectState: 'brownfield' });
 
-describe('draftwise scaffold', () => {
+describe('draft scaffold', () => {
   let dir;
   let logs;
 
@@ -64,7 +64,7 @@ describe('draftwise scaffold', () => {
   it('errors if .draftwise/ is missing', async () => {
     await expect(
       scaffoldCommand([], { cwd: dir, log: () => {} }),
-    ).rejects.toThrow(/Run `draftwise init` first/);
+    ).rejects.toThrow(/Run `draft init` first/);
   });
 
   it('errors if scaffold.json is missing', async () => {

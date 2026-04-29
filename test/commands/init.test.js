@@ -72,7 +72,7 @@ const SAMPLE_STACKS = {
   ],
 };
 
-describe('draftwise init', () => {
+describe('draft init', () => {
   let dir;
 
   beforeEach(async () => {

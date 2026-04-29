@@ -3,16 +3,16 @@ import { join } from 'node:path';
 import { listSpecs as defaultListSpecs } from '../utils/specs.js';
 import { pathExists } from '../utils/fs.js';
 
-export const HELP = `draftwise show <feature> [type] — print a spec to terminal
+export const HELP = `draft show <feature> [type] — print a spec to terminal
 
 Usage:
-  draftwise show <feature>             # default type: product
-  draftwise show <feature> tech
-  draftwise show <feature> tasks
+  draft show <feature>             # default type: product
+  draft show <feature> tech
+  draft show <feature> tasks
 
 Type must be one of: product, tech, tasks. Errors with a hint if
 the requested type hasn't been generated yet (e.g., asking for
-tech before \`draftwise tech\` has run).
+tech before \`draft tech\` has run).
 `;
 
 const VALID_TYPES = ['product', 'tech', 'tasks'];
@@ -32,7 +32,7 @@ const TYPE_TO_FILENAME = {
 export default async function showCommand(args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
   // Spec content IS the output of `show` — keep it on stdout so piping works
-  // (`draftwise show <feature> > spec.md`).
+  // (`draft show <feature> > spec.md`).
   const log = deps.log ?? ((msg) => console.log(msg));
   const listSpecs = deps.listSpecs ?? defaultListSpecs;
 
@@ -41,7 +41,7 @@ export default async function showCommand(args = [], deps = {}) {
 
   if (!slug) {
     throw new Error(
-      'Missing feature name. Usage: draftwise show <feature> [product|tech|tasks]  (default type: product)',
+      'Missing feature name. Usage: draft show <feature> [product|tech|tasks]  (default type: product)',
     );
   }
   if (!VALID_TYPES.includes(type)) {
@@ -52,7 +52,7 @@ export default async function showCommand(args = [], deps = {}) {
 
   const draftwiseDir = join(cwd, '.draftwise');
   if (!(await pathExists(draftwiseDir))) {
-    throw new Error('.draftwise/ not found. Run `draftwise init` first.');
+    throw new Error('.draftwise/ not found. Run `draft init` first.');
   }
 
   const specs = await listSpecs(cwd);
@@ -67,7 +67,7 @@ export default async function showCommand(args = [], deps = {}) {
   const filePath = target[TYPE_TO_FILE[type]];
   if (!(await pathExists(filePath))) {
     throw new Error(
-      `${TYPE_TO_FILENAME[type]} not found for "${slug}". Run \`draftwise ${type === 'product' ? 'new' : type}\` to generate it.`,
+      `${TYPE_TO_FILENAME[type]} not found for "${slug}". Run \`draft ${type === 'product' ? 'new' : type}\` to generate it.`,
     );
   }
 

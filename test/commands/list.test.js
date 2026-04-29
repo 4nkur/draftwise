@@ -12,7 +12,7 @@ async function seedSpec(dir, slug, files) {
   }
 }
 
-describe('draftwise list', () => {
+describe('draft list', () => {
   let dir;
   let logs;
 
@@ -30,7 +30,7 @@ describe('draftwise list', () => {
     await rm(join(dir, '.draftwise'), { recursive: true });
     await expect(
       listCommand([], { cwd: dir, log: () => {} }),
-    ).rejects.toThrow(/Run `draftwise init` first/);
+    ).rejects.toThrow(/Run `draft init` first/);
   });
 
   it('shows a friendly message when there are no specs', async () => {

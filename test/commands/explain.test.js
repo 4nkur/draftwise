@@ -15,7 +15,7 @@ const SAMPLE_SCAN = {
   models: [],
 };
 
-describe('draftwise explain', () => {
+describe('draft explain', () => {
   let dir;
   let logs;
 
@@ -51,7 +51,7 @@ describe('draftwise explain', () => {
         loadConfig: async () => ({ mode: 'agent' }),
         complete: async () => '',
       }),
-    ).rejects.toThrow(/Run `draftwise init` first/);
+    ).rejects.toThrow(/Run `draft init` first/);
   });
 
   it('joins multi-word flow args before slugifying', async () => {

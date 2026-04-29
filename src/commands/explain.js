@@ -11,12 +11,12 @@ import { compactScan } from '../utils/scan-projection.js';
 import { SYSTEM, buildPrompt, buildAgentInstruction } from '../ai/prompts/explain.js';
 import { slugify } from '../utils/slug.js';
 
-export const HELP = `draftwise explain <flow> — trace a flow through the codebase
+export const HELP = `draft explain <flow> — trace a flow through the codebase
 
 Usage:
-  draftwise explain "<flow name>"
-  draftwise explain checkout
-  draftwise explain "user signup"
+  draft explain "<flow name>"
+  draft explain checkout
+  draft explain "user signup"
 
 Walks the flow end-to-end: entry points, services, data writes,
 side effects, edge cases the code handles. The scan is filtered
@@ -35,21 +35,21 @@ export default async function explainCommand(args = [], deps = {}) {
   const flow = args.join(' ').trim();
   if (!flow) {
     throw new Error(
-      'Missing flow name. Usage: draftwise explain "<flow name>"  (e.g. draftwise explain checkout)',
+      'Missing flow name. Usage: draft explain "<flow name>"  (e.g. draft explain checkout)',
     );
   }
 
   const draftwiseDir = join(cwd, '.draftwise');
   if (!(await pathExists(draftwiseDir))) {
-    throw new Error('.draftwise/ not found. Run `draftwise init` first.');
+    throw new Error('.draftwise/ not found. Run `draft init` first.');
   }
 
   const config = await loadConfig(cwd);
 
   if (config.projectState === 'greenfield') {
-    log(`No code yet — \`draftwise explain\` traces flows that exist in the codebase.`);
+    log(`No code yet — \`draft explain\` traces flows that exist in the codebase.`);
     log(
-      'Once you have implemented this flow, come back and run `draftwise explain <flow>`.',
+      'Once you have implemented this flow, come back and run `draft explain <flow>`.',
     );
     return;
   }
@@ -64,7 +64,7 @@ export default async function explainCommand(args = [], deps = {}) {
 
   if (!result.files || result.files.length === 0) {
     throw new Error(
-      `No source files found under ${cwd}. Run \`draftwise explain\` from your repo root.`,
+      `No source files found under ${cwd}. Run \`draft explain\` from your repo root.`,
     );
   }
 
