@@ -5,6 +5,7 @@ import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { pathExists } from '../utils/fs.js';
+import { compactScan } from '../utils/scan-projection.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import { SYSTEM, buildPrompt, AGENT_INSTRUCTION } from '../ai/prompts/scan.js';
 
@@ -78,15 +79,7 @@ export default async function scanCommand(_args = [], deps = {}) {
   }
   log('');
 
-  const scanForPrompt = {
-    frameworks: result.frameworks,
-    orms: result.orms,
-    routes: result.routes,
-    components: result.components.slice(0, 50),
-    models: result.models,
-    fileCount: result.files.length,
-    sampleFiles: result.files.slice(0, 30),
-  };
+  const scanForPrompt = compactScan(result);
 
   if (config.mode === 'agent') {
     log('Agent mode — handing scanner data off to your coding agent.');

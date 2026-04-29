@@ -24,6 +24,10 @@ Each released version is tagged in git (`v0.0.1`, `v0.1.0`, etc.) and includes t
 
 - **Two user-visible error messages referenced a non-existent `draft` binary instead of `draftwise`.** `src/commands/show.js` printed `Run \`draft new\` to generate it.` when a missing spec type was requested; `src/ai/provider.js` printed `or run draft inside a coding agent.` when the OpenAI / Gemini stub adapter was hit. Both now spell the binary correctly. Caught during a pre-publish audit; relics from an earlier rename when the package was briefly called `draft`. — Ankur
 
+### Changed
+
+- **`draftwise scan` reuses the shared `compactScan` projection helper.** `src/commands/scan.js` was building its own scan-for-prompt object inline (frameworks / orms / routes / components.slice(0, 50) / models / fileCount / sampleFiles.slice(0, 30)) — a byte-identical copy of the projection that `src/utils/scan-projection.js` already exposes and that the four sibling commands (`new`, `tech`, `tasks`, `explain`) all import. The inline literal predates the helper's extraction and was missed when the others switched over. Behavior unchanged; one source of truth for projection caps means a future tuning pass touches every command identically. — Ankur
+
 ### Removed
 
 - **Dead backwards-compat aliases on the prompt modules.** `src/ai/prompts/new.js` exported `PLAN_SYSTEM` / `SPEC_SYSTEM` and `src/ai/prompts/{tech,tasks}.js` each exported a top-level `SYSTEM` — three aliases marked "Backwards compatibility — keep the old names alive" that never had real callers. Verified by grep across `src/` and `test/`: every consumer either uses the explicit `_BROWNFIELD` / `_GREENFIELD` constants or the `selectSystem` / `selectPlanSystem` / `selectSpecSystem` helpers. The package hasn't shipped a version where these were the canonical names, so there's no compat to preserve. Pre-publish hygiene: shrink the public API surface before users import what we don't intend to support. `scan.js` and `explain.js` keep their `SYSTEM` exports — those are primary, not aliases, and are imported by the matching command files. — Ankur
