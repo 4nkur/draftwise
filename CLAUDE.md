@@ -58,7 +58,7 @@ The single most important module is `src/core/scanner.js` — it parses the user
 - **eslint + prettier** for code style
 - **YAML** for config (`yaml` package)
 - **Markdown** for all spec documents
-- **`@inquirer/prompts`** for interactive prompts (init's mode select, new's Q&A loop, tech/tasks spec picker)
+- **`@inquirer/prompts`** for interactive prompts (init's mode select, new's Q&A loop, tech/tasks spec picker) — strictly the TTY-only convenience layer; flags drive the canonical input path (see "How input works" below).
 - **AI SDKs:** `@anthropic-ai/sdk` is wired up for Mode 2 (api). `openai` and `@google/generative-ai` are stubbed in `src/ai/provider.js` and throw a clear "not yet wired up" error — install + implement when needed. Agent mode (Mode 1) ships scanner data + an instruction string for the host agent to consume; no SDK call.
 
 **On dependency pinning:** `@anthropic-ai/sdk` is pinned to an exact version because it's a 0.x package — semver doesn't promise that 0.91 → 0.92 stays non-breaking. `@inquirer/prompts` and `yaml` use caret ranges because they're stable 1.x+ packages where minor bumps follow semver. Dependabot (`.github/dependabot.yml`) opens PRs for both kinds; the asymmetry is intentional, not an oversight.
@@ -108,6 +108,8 @@ scan:
 **Prompts are authoritative.** Each command's section structure lives in its prompt module under `src/ai/prompts/<command>.js` (a `SYSTEM` constant plus a `buildPrompt` function plus an agent-mode instruction). Don't hardcode structure inside command files — change the prompt instead.
 
 **Conversation, not form-filling.** `draft new` should walk the user through questions, not present a blank form. The conversation is the value — it surfaces gaps the user wouldn't have noticed in a template.
+
+**Flags drive input; inquirer is a TTY-only fallback.** Every command takes its full input set as flags (`--mode`, `--ai-mode`, `--idea`, `--answers @file.json`, `--force`, `--yes`, etc.) parsed via Node's built-in `util.parseArgs`. When stdin is a TTY and a required value is missing, inquirer fires to fill it in — that's the only place inquirer lives. When stdin is not a TTY (CI, coding-agent shell), missing required values error with a specific usage hint instead of hanging on a prompt. Mode 1 (slash-command wrappers, issue #42) drives the conversation up in the host agent's chat and re-invokes the CLI with flags; the CLI itself becomes a non-conversational executor. TTY-detection helper in `src/utils/tty.js`; tests opt into either path via `deps.isInteractive`.
 
 **Don't clobber hand-edits silently.** Specs are work product — PMs review and refine them after generation. Re-running `new`, `tech`, or `tasks` against an existing file (same slug, same target) prompts to confirm overwrite; `--force` skips the prompt for scripted use. Agent mode is exempt because the host coding agent does the write, not Draftwise. `scan` is also exempt — refreshing `overview.md` IS its purpose. The check is positioned *before* the synthesis API call (after the plan call in `new`, after target selection in `tech` / `tasks`) so a cancel doesn't burn tokens or waste user-typed answers.
 

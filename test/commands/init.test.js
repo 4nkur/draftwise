@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, readFile, access, mkdir } from 'node:fs/promises';
+import { mkdtemp, rm, readFile, access, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import init from '../../src/commands/init.js';
@@ -7,6 +7,9 @@ import init from '../../src/commands/init.js';
 function fakeScan(files) {
   return async (root) => ({ root, files });
 }
+
+const interactiveTrue = () => true;
+const interactiveFalse = () => false;
 
 function makeBrownfieldPrompts({ mode, provider, apiKeyEnv } = {}) {
   return {
@@ -91,17 +94,19 @@ describe('draft init', () => {
         cwd: dir,
         log: () => {},
         prompts: makeBrownfieldPrompts({ mode: 'agent' }),
+        isInteractive: interactiveTrue,
         scan: fakeScan(['src/foo.js']),
       }),
     ).rejects.toThrow(/already exists/);
   });
 
-  describe('brownfield path', () => {
+  describe('brownfield path (interactive)', () => {
     it('creates .draftwise/ skeleton in agent mode and saves project state', async () => {
       await init([], {
         cwd: dir,
         log: () => {},
         prompts: makeBrownfieldPrompts({ mode: 'agent' }),
+        isInteractive: interactiveTrue,
         scan: fakeScan(['src/foo.js', 'src/bar.ts']),
       });
 
@@ -129,6 +134,7 @@ describe('draft init', () => {
           mode: 'api',
           provider: 'claude',
         }),
+        isInteractive: interactiveTrue,
         scan: fakeScan(['src/foo.js']),
       });
 
@@ -151,6 +157,7 @@ describe('draft init', () => {
           provider: 'openai',
           apiKeyEnv: 'WORK_OPENAI_KEY',
         }),
+        isInteractive: interactiveTrue,
         scan: fakeScan(['src/foo.js']),
       });
 
@@ -168,13 +175,14 @@ describe('draft init', () => {
           cwd: dir,
           log: () => {},
           prompts: makeBrownfieldPrompts({ mode: 'agent' }),
+          isInteractive: interactiveTrue,
           scan: fakeScan([]),
         }),
       ).rejects.toThrow(/No source files/);
     });
   });
 
-  describe('greenfield path', () => {
+  describe('greenfield path (interactive)', () => {
     it('agent mode prints the conversation instruction and writes a placeholder', async () => {
       const logs = [];
       await init([], {
@@ -184,6 +192,7 @@ describe('draft init', () => {
           mode: 'agent',
           idea: 'a recipe sharing app for home cooks',
         }),
+        isInteractive: interactiveTrue,
         scan: fakeScan([]),
         complete: async () => {
           throw new Error('should not be called in agent mode');
@@ -227,6 +236,7 @@ describe('draft init', () => {
           answers: ['Public', 'Web-first'],
           pickedStack: 'Next.js + Postgres + Prisma',
         }),
+        isInteractive: interactiveTrue,
         scan: fakeScan([]),
         complete: async (req) => {
           callCount++;
@@ -283,11 +293,317 @@ describe('draft init', () => {
           mode: 'agent',
           idea: 'a brand new idea',
         }),
+        isInteractive: interactiveTrue,
         scan: fakeScan([]),
         complete: async () => '',
       });
 
       await access(join(dir, '.draftwise', 'overview.md'));
+    });
+  });
+
+  describe('non-TTY (flags-driven)', () => {
+    function noPrompts() {
+      const fail = () => {
+        throw new Error('inquirer prompt fired in non-TTY test');
+      };
+      return {
+        promptProjectState: fail,
+        promptMode: fail,
+        promptProvider: fail,
+        promptApiKeyEnv: fail,
+        promptIdea: fail,
+        askGreenfieldQuestion: fail,
+        pickStack: fail,
+      };
+    }
+
+    it('brownfield + agent runs end-to-end with flags only', async () => {
+      await init(['--mode=brownfield', '--ai-mode=agent'], {
+        cwd: dir,
+        log: () => {},
+        isInteractive: interactiveFalse,
+        prompts: noPrompts(),
+        scan: fakeScan(['src/foo.js']),
+      });
+
+      const config = await readFile(
+        join(dir, '.draftwise', 'config.yaml'),
+        'utf8',
+      );
+      expect(config).toContain('mode: agent');
+      expect(config).toContain('state: brownfield');
+    });
+
+    it('brownfield + api with custom env var, no inquirer fired', async () => {
+      await init(
+        [
+          '--mode=brownfield',
+          '--ai-mode=api',
+          '--provider=claude',
+          '--api-key-env=MY_ANTHROPIC_KEY',
+        ],
+        {
+          cwd: dir,
+          log: () => {},
+          isInteractive: interactiveFalse,
+          prompts: noPrompts(),
+          scan: fakeScan(['src/foo.js']),
+        },
+      );
+
+      const config = await readFile(
+        join(dir, '.draftwise', 'config.yaml'),
+        'utf8',
+      );
+      expect(config).toContain('api_key_env: MY_ANTHROPIC_KEY');
+    });
+
+    it('api mode without --api-key-env defaults to provider standard env var', async () => {
+      await init(
+        ['--mode=brownfield', '--ai-mode=api', '--provider=claude'],
+        {
+          cwd: dir,
+          log: () => {},
+          isInteractive: interactiveFalse,
+          prompts: noPrompts(),
+          scan: fakeScan(['src/foo.js']),
+        },
+      );
+
+      const config = await readFile(
+        join(dir, '.draftwise', 'config.yaml'),
+        'utf8',
+      );
+      expect(config).toContain('api_key_env: ANTHROPIC_API_KEY');
+    });
+
+    it('greenfield + agent + --idea writes the placeholder plan', async () => {
+      await init(
+        ['--mode=greenfield', '--ai-mode=agent', '--idea=A new idea'],
+        {
+          cwd: dir,
+          log: () => {},
+          isInteractive: interactiveFalse,
+          prompts: noPrompts(),
+          scan: fakeScan([]),
+          complete: async () => {
+            throw new Error('should not be called in agent mode');
+          },
+        },
+      );
+
+      const overview = await readFile(
+        join(dir, '.draftwise', 'overview.md'),
+        'utf8',
+      );
+      expect(overview).toContain('A new idea');
+    });
+
+    it('greenfield + api + --idea + --stack runs end-to-end with no prompts', async () => {
+      let callCount = 0;
+      await init(
+        [
+          '--mode=greenfield',
+          '--ai-mode=api',
+          '--provider=claude',
+          '--idea=a recipe sharing app',
+          '--stack=Next.js + Postgres + Prisma',
+        ],
+        {
+          cwd: dir,
+          log: () => {},
+          isInteractive: interactiveFalse,
+          prompts: noPrompts(),
+          scan: fakeScan([]),
+          complete: async () => {
+            callCount++;
+            if (callCount === 1) {
+              return '```json\n' + JSON.stringify(SAMPLE_QUESTIONS) + '\n```';
+            }
+            return '```json\n' + JSON.stringify(SAMPLE_STACKS) + '\n```';
+          },
+        },
+      );
+
+      const config = await readFile(
+        join(dir, '.draftwise', 'config.yaml'),
+        'utf8',
+      );
+      expect(config).toContain('Next.js + Postgres + Prisma');
+    });
+
+    it('greenfield + api with --answers @file populates the model prompt', async () => {
+      const answersPath = join(dir, 'answers.json');
+      await writeFile(
+        answersPath,
+        JSON.stringify(['Private', 'Mobile-first']),
+        'utf8',
+      );
+
+      const captured = [];
+      let callCount = 0;
+      await init(
+        [
+          '--mode=greenfield',
+          '--ai-mode=api',
+          '--provider=claude',
+          '--idea=a fitness app',
+          `--answers=@${answersPath}`,
+        ],
+        {
+          cwd: dir,
+          log: () => {},
+          isInteractive: interactiveFalse,
+          prompts: noPrompts(),
+          scan: fakeScan([]),
+          complete: async (req) => {
+            captured.push(req);
+            callCount++;
+            if (callCount === 1) {
+              return '```json\n' + JSON.stringify(SAMPLE_QUESTIONS) + '\n```';
+            }
+            return '```json\n' + JSON.stringify(SAMPLE_STACKS) + '\n```';
+          },
+        },
+      );
+
+      // Stack-options call should include the supplied answers
+      expect(captured[1].prompt).toContain('Private');
+      expect(captured[1].prompt).toContain('Mobile-first');
+    });
+
+    it('greenfield + api without --stack picks the first option', async () => {
+      let callCount = 0;
+      await init(
+        [
+          '--mode=greenfield',
+          '--ai-mode=api',
+          '--provider=claude',
+          '--idea=a thing',
+        ],
+        {
+          cwd: dir,
+          log: () => {},
+          isInteractive: interactiveFalse,
+          prompts: noPrompts(),
+          scan: fakeScan([]),
+          complete: async () => {
+            callCount++;
+            if (callCount === 1) {
+              return '```json\n' + JSON.stringify(SAMPLE_QUESTIONS) + '\n```';
+            }
+            return '```json\n' + JSON.stringify(SAMPLE_STACKS) + '\n```';
+          },
+        },
+      );
+
+      const config = await readFile(
+        join(dir, '.draftwise', 'config.yaml'),
+        'utf8',
+      );
+      expect(config).toContain('Next.js + Postgres + Prisma');
+    });
+
+    it('errors with --mode hint when not interactive and --mode missing', async () => {
+      await expect(
+        init([], {
+          cwd: dir,
+          log: () => {},
+          isInteractive: interactiveFalse,
+          prompts: noPrompts(),
+          scan: fakeScan(['src/foo.js']),
+        }),
+      ).rejects.toThrow(/Missing --mode flag/);
+    });
+
+    it('errors with --ai-mode hint when not interactive and --ai-mode missing', async () => {
+      await expect(
+        init(['--mode=brownfield'], {
+          cwd: dir,
+          log: () => {},
+          isInteractive: interactiveFalse,
+          prompts: noPrompts(),
+          scan: fakeScan(['src/foo.js']),
+        }),
+      ).rejects.toThrow(/Missing --ai-mode flag/);
+    });
+
+    it('errors with --provider hint when api + non-TTY + no --provider', async () => {
+      await expect(
+        init(['--mode=brownfield', '--ai-mode=api'], {
+          cwd: dir,
+          log: () => {},
+          isInteractive: interactiveFalse,
+          prompts: noPrompts(),
+          scan: fakeScan(['src/foo.js']),
+        }),
+      ).rejects.toThrow(/Missing --provider flag/);
+    });
+
+    it('errors with --idea hint when greenfield + non-TTY + no --idea', async () => {
+      await expect(
+        init(['--mode=greenfield', '--ai-mode=agent'], {
+          cwd: dir,
+          log: () => {},
+          isInteractive: interactiveFalse,
+          prompts: noPrompts(),
+          scan: fakeScan([]),
+        }),
+      ).rejects.toThrow(/--idea/);
+    });
+
+    it('rejects --mode with an invalid value', async () => {
+      await expect(
+        init(['--mode=halffield', '--ai-mode=agent'], {
+          cwd: dir,
+          log: () => {},
+          isInteractive: interactiveFalse,
+          prompts: noPrompts(),
+          scan: fakeScan([]),
+        }),
+      ).rejects.toThrow(/Invalid --mode value/);
+    });
+
+    it('rejects unknown flags via parseArgs strict mode', async () => {
+      await expect(
+        init(['--mode=brownfield', '--ai-mode=agent', '--bogus=yes'], {
+          cwd: dir,
+          log: () => {},
+          isInteractive: interactiveFalse,
+          prompts: noPrompts(),
+          scan: fakeScan(['src/foo.js']),
+        }),
+      ).rejects.toThrow(/Invalid arguments to draft init/);
+    });
+
+    it('rejects --stack that does not match any proposed option', async () => {
+      let callCount = 0;
+      await expect(
+        init(
+          [
+            '--mode=greenfield',
+            '--ai-mode=api',
+            '--provider=claude',
+            '--idea=a thing',
+            '--stack=NotARealStack',
+          ],
+          {
+            cwd: dir,
+            log: () => {},
+            isInteractive: interactiveFalse,
+            prompts: noPrompts(),
+            scan: fakeScan([]),
+            complete: async () => {
+              callCount++;
+              if (callCount === 1) {
+                return '```json\n' + JSON.stringify(SAMPLE_QUESTIONS) + '\n```';
+              }
+              return '```json\n' + JSON.stringify(SAMPLE_STACKS) + '\n```';
+            },
+          },
+        ),
+      ).rejects.toThrow(/--stack "NotARealStack" doesn't match/);
     });
   });
 });

@@ -420,4 +420,131 @@ describe('draft new', () => {
       }),
     ).rejects.toThrow(/overview\.md is missing or empty/);
   });
+
+  describe('non-TTY (flags-driven)', () => {
+    function noPrompts() {
+      const fail = () => {
+        throw new Error('inquirer prompt fired in non-TTY test');
+      };
+      return {
+        askQuestion: fail,
+        decideOpportunity: fail,
+        confirmOverwrite: fail,
+      };
+    }
+
+    it('runs end-to-end with --answers, no prompts fired', async () => {
+      let callCount = 0;
+      const captured = [];
+      await newCommand(
+        [
+          'add',
+          'collab',
+          'albums',
+          '--answers',
+          JSON.stringify(['Anyone in the album', 'Yes']),
+        ],
+        {
+          cwd: dir,
+          log: () => {},
+          isInteractive: () => false,
+          prompts: noPrompts(),
+          scan: async () => SAMPLE_SCAN,
+          loadConfig: async () => ({
+            mode: 'api',
+            provider: 'claude',
+            apiKeyEnv: 'ANTHROPIC_API_KEY',
+            model: '',
+          }),
+          complete: async (req) => {
+            callCount++;
+            captured.push(req);
+            if (callCount === 1) return JSON.stringify(SAMPLE_PLAN);
+            return '# Spec body\n';
+          },
+        },
+      );
+
+      expect(callCount).toBe(2);
+      expect(captured[1].prompt).toContain('Anyone in the album');
+      // Adjacent opportunity declined automatically in non-TTY
+      expect(captured[1].prompt).toContain('"decision": "declined"');
+    });
+
+    it('runs without --answers, leaves questions blank and declines opportunities', async () => {
+      let callCount = 0;
+      const captured = [];
+      await newCommand(['idea'], {
+        cwd: dir,
+        log: () => {},
+        isInteractive: () => false,
+        prompts: noPrompts(),
+        scan: async () => SAMPLE_SCAN,
+        loadConfig: async () => ({
+          mode: 'api',
+          provider: 'claude',
+          apiKeyEnv: 'ANTHROPIC_API_KEY',
+          model: '',
+        }),
+        complete: async (req) => {
+          callCount++;
+          captured.push(req);
+          if (callCount === 1) return JSON.stringify(SAMPLE_PLAN);
+          return '# Spec\n';
+        },
+      });
+
+      expect(callCount).toBe(2);
+      expect(captured[1].prompt).toContain('"decision": "declined"');
+    });
+
+    it('errors when product-spec.md exists in non-TTY without --force', async () => {
+      const specDir = join(dir, '.draftwise', 'specs', 'collab-albums');
+      await mkdir(specDir, { recursive: true });
+      await writeFile(join(specDir, 'product-spec.md'), '# existing\n', 'utf8');
+
+      let callCount = 0;
+      await expect(
+        newCommand(['add', 'collab', 'albums'], {
+          cwd: dir,
+          log: () => {},
+          isInteractive: () => false,
+          prompts: noPrompts(),
+          scan: async () => SAMPLE_SCAN,
+          loadConfig: async () => ({
+            mode: 'api',
+            provider: 'claude',
+            apiKeyEnv: 'ANTHROPIC_API_KEY',
+            model: '',
+          }),
+          complete: async () => {
+            callCount++;
+            return JSON.stringify(SAMPLE_PLAN);
+          },
+        }),
+      ).rejects.toThrow(/already exists\. Pass --force/);
+
+      // Plan ran but synthesis didn't.
+      expect(callCount).toBe(1);
+    });
+
+    it('rejects --answers with bad JSON', async () => {
+      await expect(
+        newCommand(['idea', '--answers=not-json{'], {
+          cwd: dir,
+          log: () => {},
+          isInteractive: () => false,
+          prompts: noPrompts(),
+          scan: async () => SAMPLE_SCAN,
+          loadConfig: async () => ({
+            mode: 'api',
+            provider: 'claude',
+            apiKeyEnv: 'ANTHROPIC_API_KEY',
+            model: '',
+          }),
+          complete: async () => JSON.stringify(SAMPLE_PLAN),
+        }),
+      ).rejects.toThrow(/--answers must be a JSON array/);
+    });
+  });
 });

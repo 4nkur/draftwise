@@ -1,5 +1,6 @@
-import { writeFile, mkdir } from 'node:fs/promises';
+import { writeFile, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { parseArgs } from 'node:util';
 import { input, select, confirm } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
@@ -8,6 +9,7 @@ import { readOverview as defaultReadOverview } from '../utils/overview.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { pathExists } from '../utils/fs.js';
 import { compactScan } from '../utils/scan-projection.js';
+import { isInteractive as defaultIsInteractive } from '../utils/tty.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import {
   selectPlanSystem,
@@ -24,10 +26,17 @@ export const HELP = `draft new "<idea>" [--force] — conversational product-spe
 Usage:
   draft new "<your feature idea>"
   draft new "add collaborative albums"
-  draft new "let users mute notifications"
+  draft new "let users mute notifications" --force
 
 Flags:
-  --force                       # skip the overwrite confirmation prompt
+  --force, -f                  Skip the overwrite confirmation prompt.
+  --answers <json|@file>       JSON array of answers to clarifying questions
+                               (e.g. \`["public", "yes, async"]\`), or
+                               @path/to/answers.json. Used in non-TTY shells
+                               (CI, coding-agent wrappers) where inquirer can't
+                               run; if absent and non-TTY, all questions are
+                               treated as unanswered and adjacent opportunities
+                               are declined.
 
 Three phases:
   1. AI plans the conversation — clarifying questions tailored to
@@ -38,10 +47,17 @@ Three phases:
 
 If product-spec.md already exists for the resolved slug (a re-run
 on the same idea, for instance), you'll be asked to confirm before
-it's overwritten — pass --force to skip the prompt. Hard rule:
-every claim grounds in scanner output (brownfield) or the project
-plan (greenfield). Never invents files.
+it's overwritten — pass --force to skip the prompt. In non-TTY
+without --force, the command errors instead of overwriting.
+
+Hard rule: every claim grounds in scanner output (brownfield) or
+the project plan (greenfield). Never invents files.
 `;
+
+const ARG_OPTIONS = {
+  force: { type: 'boolean', short: 'f' },
+  answers: { type: 'string' },
+};
 
 const DEFAULT_PROMPTS = {
   askQuestion: ({ index, total, text, why }) =>
@@ -65,6 +81,36 @@ const DEFAULT_PROMPTS = {
     }),
 };
 
+async function loadAnswersFlag(value) {
+  if (!value) return null;
+  let raw;
+  if (value.startsWith('@')) {
+    try {
+      raw = await readFile(value.slice(1), 'utf8');
+    } catch (err) {
+      throw new Error(
+        `Could not read --answers file ${value.slice(1)}: ${err.message}`,
+        { cause: err },
+      );
+    }
+  } else {
+    raw = value;
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(
+      `--answers must be a JSON array (or @path-to-json-file). ${err.message}`,
+      { cause: err },
+    );
+  }
+  if (!Array.isArray(parsed) || !parsed.every((a) => typeof a === 'string')) {
+    throw new Error('--answers must be a JSON array of strings.');
+  }
+  return parsed;
+}
+
 export default async function newCommand(args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
   const log = deps.log ?? ((msg) => console.error(msg));
@@ -72,11 +118,25 @@ export default async function newCommand(args = [], deps = {}) {
   const loadConfig = deps.loadConfig ?? defaultLoadConfig;
   const complete = deps.complete ?? defaultComplete;
   const readOverview = deps.readOverview ?? defaultReadOverview;
+  const isInteractive = deps.isInteractive ?? defaultIsInteractive;
   const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };
 
-  const force = args.includes('--force') || args.includes('-f');
-  const positional = args.filter((a) => a !== '--force' && a !== '-f');
-  const idea = positional.join(' ').trim();
+  let parsed;
+  try {
+    parsed = parseArgs({
+      args,
+      options: ARG_OPTIONS,
+      allowPositionals: true,
+      strict: true,
+    });
+  } catch (err) {
+    throw new Error(`Invalid arguments to draft new: ${err.message}`, {
+      cause: err,
+    });
+  }
+  const force = Boolean(parsed.values.force);
+  const answersFlag = await loadAnswersFlag(parsed.values.answers);
+  const idea = parsed.positionals.join(' ').trim();
   if (!idea) {
     throw new Error('Missing idea. Usage: draft new "<your feature idea>"');
   }
@@ -176,23 +236,29 @@ export default async function newCommand(args = [], deps = {}) {
   log('');
   log(`Feature: ${plan.featureTitle} (slug: ${plan.featureSlug})`);
 
-  // Confirm before clobbering an existing product-spec.md (re-running on the
-  // same idea, slug collision, etc.). Done before the Q&A loop so a cancel
-  // doesn't waste the user's time on questions whose answers get thrown away.
+  // Confirm before clobbering an existing product-spec.md. Done before the Q&A
+  // loop so a cancel doesn't waste the user's time on questions whose answers
+  // get thrown away.
   const slug = slugify(plan.featureSlug);
   const specDir = join(draftwiseDir, 'specs', slug);
   const productSpecPath = join(specDir, 'product-spec.md');
   if (!force && (await pathExists(productSpecPath))) {
-    log('');
-    const proceed = await prompts.confirmOverwrite({
-      slug,
-      file: 'product-spec.md',
-    });
-    if (!proceed) {
-      log(
-        'Cancelled. No changes written. (Pass --force to skip this prompt.)',
+    if (isInteractive()) {
+      log('');
+      const proceed = await prompts.confirmOverwrite({
+        slug,
+        file: 'product-spec.md',
+      });
+      if (!proceed) {
+        log(
+          'Cancelled. No changes written. (Pass --force to skip this prompt.)',
+        );
+        return;
+      }
+    } else {
+      throw new Error(
+        `${slug}/product-spec.md already exists. Pass --force to overwrite (or delete the file first).`,
       );
-      return;
     }
   }
 
@@ -208,36 +274,55 @@ export default async function newCommand(args = [], deps = {}) {
   log(`Walking through ${plan.clarifyingQuestions.length} clarifying questions:`);
   log('');
 
-  const answers = [];
-  for (let i = 0; i < plan.clarifyingQuestions.length; i++) {
-    const q = plan.clarifyingQuestions[i];
-    const answer = await prompts.askQuestion({
-      index: i,
-      total: plan.clarifyingQuestions.length,
-      text: q.text,
-      why: q.why,
-    });
-    answers.push(answer);
+  let answers;
+  if (answersFlag) {
+    answers = answersFlag.slice(0, plan.clarifyingQuestions.length);
+    while (answers.length < plan.clarifyingQuestions.length) answers.push('');
+  } else if (isInteractive()) {
+    answers = [];
+    for (let i = 0; i < plan.clarifyingQuestions.length; i++) {
+      const q = plan.clarifyingQuestions[i];
+      const answer = await prompts.askQuestion({
+        index: i,
+        total: plan.clarifyingQuestions.length,
+        text: q.text,
+        why: q.why,
+      });
+      answers.push(answer);
+    }
+  } else {
+    // Non-TTY without --answers: model gets no answers. The spec will lean on
+    // the AI's best guess. Pass --answers next time for a richer draft.
+    answers = plan.clarifyingQuestions.map(() => '');
+    log('(non-interactive: no --answers supplied — questions left blank.)');
   }
 
-  const opportunityDecisions = [];
+  let opportunityDecisions;
   if (plan.adjacentOpportunities.length > 0) {
-    log('');
-    log(
-      `Pitching ${plan.adjacentOpportunities.length} adjacent opportunities:`,
-    );
-    log('');
-    for (let i = 0; i < plan.adjacentOpportunities.length; i++) {
-      const o = plan.adjacentOpportunities[i];
-      const decision = await prompts.decideOpportunity({
-        index: i,
-        total: plan.adjacentOpportunities.length,
-        flow: o.flow,
-        suggestion: o.suggestion,
-        rationale: o.rationale,
-      });
-      opportunityDecisions.push(decision);
+    if (isInteractive()) {
+      log('');
+      log(
+        `Pitching ${plan.adjacentOpportunities.length} adjacent opportunities:`,
+      );
+      log('');
+      opportunityDecisions = [];
+      for (let i = 0; i < plan.adjacentOpportunities.length; i++) {
+        const o = plan.adjacentOpportunities[i];
+        const decision = await prompts.decideOpportunity({
+          index: i,
+          total: plan.adjacentOpportunities.length,
+          flow: o.flow,
+          suggestion: o.suggestion,
+          rationale: o.rationale,
+        });
+        opportunityDecisions.push(decision);
+      }
+    } else {
+      // Non-TTY: decline all. The spec stays focused on the original idea.
+      opportunityDecisions = plan.adjacentOpportunities.map(() => 'declined');
     }
+  } else {
+    opportunityDecisions = [];
   }
 
   log('');

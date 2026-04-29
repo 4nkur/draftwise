@@ -369,4 +369,63 @@ describe('draft tasks', () => {
     expect(out).toContain('PROJECT PLAN');
     expect(out).not.toContain('SCANNER OUTPUT');
   });
+
+  describe('non-TTY (flags-driven)', () => {
+    function noPrompts() {
+      const fail = () => {
+        throw new Error('inquirer prompt fired in non-TTY test');
+      };
+      return { pickSpec: fail, confirmOverwrite: fail };
+    }
+
+    it('errors when multiple specs exist and no slug arg, instead of prompting', async () => {
+      await seedSpec(dir, 'collab-albums', { technical: '# T1' });
+      await seedSpec(dir, 'photo-uploads', { technical: '# T2' });
+
+      await expect(
+        tasksCommand([], {
+          cwd: dir,
+          log: () => {},
+          isInteractive: () => false,
+          prompts: noPrompts(),
+          scan: async () => SAMPLE_SCAN,
+          loadConfig: async () => ({
+            mode: 'api',
+            provider: 'claude',
+            apiKeyEnv: 'ANTHROPIC_API_KEY',
+            model: '',
+          }),
+          complete: async () => '# Tasks',
+        }),
+      ).rejects.toThrow(
+        /Multiple technical specs.*Available:.*collab-albums/,
+      );
+    });
+
+    it('errors when tasks.md exists in non-TTY without --force', async () => {
+      const specDir = await seedSpec(dir, 'collab-albums', { technical: '# T' });
+      const tasksPath = join(specDir, 'tasks.md');
+      await writeFile(tasksPath, '# Hand-edited tasks\n', 'utf8');
+
+      await expect(
+        tasksCommand([], {
+          cwd: dir,
+          log: () => {},
+          isInteractive: () => false,
+          prompts: noPrompts(),
+          scan: async () => SAMPLE_SCAN,
+          loadConfig: async () => ({
+            mode: 'api',
+            provider: 'claude',
+            apiKeyEnv: 'ANTHROPIC_API_KEY',
+            model: '',
+          }),
+          complete: async () => '# Regenerated',
+        }),
+      ).rejects.toThrow(/already exists\. Pass --force/);
+
+      const preserved = await readFile(tasksPath, 'utf8');
+      expect(preserved).toBe('# Hand-edited tasks\n');
+    });
+  });
 });

@@ -1,20 +1,33 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, dirname, resolve, sep } from 'node:path';
+import { parseArgs } from 'node:util';
 import { confirm } from '@inquirer/prompts';
 import { pathExists } from '../utils/fs.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
+import { isInteractive as defaultIsInteractive } from '../utils/tty.js';
 
 export const HELP = `draft scaffold — create initial files from a greenfield plan
 
 Usage:
-  draft scaffold
+  draft scaffold              # interactive — confirms before writing (TTY only)
+  draft scaffold --yes        # skip the confirmation, just write the files
+
+Flags:
+  --yes, -y                   # Skip the confirmation prompt.
 
 Reads .draftwise/scaffold.json (written by \`draft init\` in
 greenfield mode), confirms before writing, then creates each
 initial_files entry with placeholder content. Skips files that
 already exist. Refuses paths that escape the project root. Does
 NOT run setup commands — they're printed for manual execution.
+
+In non-TTY (CI, coding-agent shell), --yes is required; without it
+the command errors instead of hanging on the inquirer prompt.
 `;
+
+const ARG_OPTIONS = {
+  yes: { type: 'boolean', short: 'y' },
+};
 
 const DEFAULT_PROMPTS = {
   confirmScaffold: ({ stack, fileCount }) =>
@@ -54,11 +67,27 @@ function placeholderFor(path, purpose) {
   }
 }
 
-export default async function scaffoldCommand(_args = [], deps = {}) {
+export default async function scaffoldCommand(args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
   const log = deps.log ?? ((msg) => console.error(msg));
   const loadConfig = deps.loadConfig ?? defaultLoadConfig;
+  const isInteractive = deps.isInteractive ?? defaultIsInteractive;
   const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };
+
+  let parsed;
+  try {
+    parsed = parseArgs({
+      args,
+      options: ARG_OPTIONS,
+      allowPositionals: true,
+      strict: true,
+    });
+  } catch (err) {
+    throw new Error(`Invalid arguments to draft scaffold: ${err.message}`, {
+      cause: err,
+    });
+  }
+  const skipConfirm = Boolean(parsed.values.yes);
 
   const draftwiseDir = join(cwd, '.draftwise');
   if (!(await pathExists(draftwiseDir))) {
@@ -109,10 +138,19 @@ export default async function scaffoldCommand(_args = [], deps = {}) {
   }
   log('');
 
-  const proceed = await prompts.confirmScaffold({
-    stack: plan.stack ?? 'project',
-    fileCount: initialFiles.length,
-  });
+  let proceed;
+  if (skipConfirm) {
+    proceed = true;
+  } else if (isInteractive()) {
+    proceed = await prompts.confirmScaffold({
+      stack: plan.stack ?? 'project',
+      fileCount: initialFiles.length,
+    });
+  } else {
+    throw new Error(
+      'draft scaffold needs confirmation before writing files. Pass --yes to confirm, or run in an interactive terminal.',
+    );
+  }
   if (!proceed) {
     log('Aborted. No files were written.');
     return;

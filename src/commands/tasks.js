@@ -1,5 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { parseArgs } from 'node:util';
 import { select, confirm } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
@@ -9,6 +10,7 @@ import { readOverview as defaultReadOverview } from '../utils/overview.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { pathExists } from '../utils/fs.js';
 import { compactScan } from '../utils/scan-projection.js';
+import { isInteractive as defaultIsInteractive } from '../utils/tty.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import {
   selectSystem,
@@ -23,15 +25,24 @@ Usage:
   draft tasks <feature-slug>  # target a specific feature
 
 Flags:
-  --force                         # skip the overwrite confirmation prompt
+  --force, -f                 # Skip the overwrite confirmation prompt.
 
 Generates tasks.md: numbered tasks with Goal / Files / Depends on /
 Parallel with / Acceptance, ordered so each task's dependencies
 appear before it. In greenfield, the first 1-3 tasks are project
 scaffolding (run setup commands, install deps). If tasks.md already
 exists for the chosen feature, you'll be asked to confirm before
-it's overwritten — pass --force to skip the prompt.
+it's overwritten — pass --force to skip the prompt. In non-TTY
+without --force, the command errors instead of overwriting.
+
+Non-TTY (CI, coding-agent shell): when multiple technical specs
+exist and no <feature-slug> is supplied, the command errors with
+the available slugs instead of running the picker.
 `;
+
+const ARG_OPTIONS = {
+  force: { type: 'boolean', short: 'f' },
+};
 
 const DEFAULT_PROMPTS = {
   pickSpec: ({ specs }) =>
@@ -57,6 +68,7 @@ export default async function tasksCommand(args = [], deps = {}) {
   const complete = deps.complete ?? defaultComplete;
   const listSpecs = deps.listSpecs ?? defaultListSpecs;
   const readOverview = deps.readOverview ?? defaultReadOverview;
+  const isInteractive = deps.isInteractive ?? defaultIsInteractive;
   const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };
 
   const draftwiseDir = join(cwd, '.draftwise');
@@ -64,11 +76,24 @@ export default async function tasksCommand(args = [], deps = {}) {
     throw new Error('.draftwise/ not found. Run `draft init` first.');
   }
 
+  let parsed;
+  try {
+    parsed = parseArgs({
+      args,
+      options: ARG_OPTIONS,
+      allowPositionals: true,
+      strict: true,
+    });
+  } catch (err) {
+    throw new Error(`Invalid arguments to draft tasks: ${err.message}`, {
+      cause: err,
+    });
+  }
+  const force = Boolean(parsed.values.force);
+  const requestedSlug = parsed.positionals[0];
+
   const config = await loadConfig(cwd);
   const isGreenfield = config.projectState === 'greenfield';
-  const force = args.includes('--force') || args.includes('-f');
-  const positional = args.filter((a) => a !== '--force' && a !== '-f');
-  const requestedSlug = positional[0];
 
   const specs = (await listSpecs(cwd)).filter((s) => s.hasTechnicalSpec);
   if (specs.length === 0) {
@@ -89,9 +114,14 @@ export default async function tasksCommand(args = [], deps = {}) {
   } else if (specs.length === 1) {
     target = specs[0];
     log(`Using the only technical spec: ${target.slug}`);
-  } else {
+  } else if (isInteractive()) {
     const slug = await prompts.pickSpec({ specs });
     target = specs.find((s) => s.slug === slug);
+  } else {
+    const available = specs.map((s) => s.slug).join(', ');
+    throw new Error(
+      `Multiple technical specs exist. Pass one as a positional argument: draft tasks <slug>. Available: ${available}`,
+    );
   }
 
   const technicalSpec = await readFile(target.technicalSpec, 'utf8');
@@ -101,23 +131,29 @@ export default async function tasksCommand(args = [], deps = {}) {
     );
   }
 
-  // Confirm before clobbering a hand-edited tasks.md.
-  // Run before the scan so a cancel doesn't waste the scan time.
-  // Agent mode is exempt — the host agent does the write, not Draftwise.
+  // Confirm before clobbering a hand-edited tasks.md. Run before the scan so a
+  // cancel doesn't waste the scan time. Agent mode is exempt — the host agent
+  // does the write, not Draftwise.
   if (
     !force &&
     config.mode !== 'agent' &&
     (await pathExists(target.tasks))
   ) {
-    const proceed = await prompts.confirmOverwrite({
-      slug: target.slug,
-      file: 'tasks.md',
-    });
-    if (!proceed) {
-      log(
-        'Cancelled. No changes written. (Pass --force to skip this prompt.)',
+    if (isInteractive()) {
+      const proceed = await prompts.confirmOverwrite({
+        slug: target.slug,
+        file: 'tasks.md',
+      });
+      if (!proceed) {
+        log(
+          'Cancelled. No changes written. (Pass --force to skip this prompt.)',
+        );
+        return;
+      }
+    } else {
+      throw new Error(
+        `${target.slug}/tasks.md already exists. Pass --force to overwrite.`,
       );
-      return;
     }
   }
 
