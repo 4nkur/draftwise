@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { listSpecs as defaultListSpecs } from '../utils/specs.js';
 import { pathExists } from '../utils/fs.js';
+import { requireDraftwiseDir } from '../utils/draftwise-dir.js';
 
 export const HELP = `draftwise show <feature> [type] — print a spec to terminal
 
@@ -50,10 +50,7 @@ export default async function showCommand(args = [], deps = {}) {
     );
   }
 
-  const draftwiseDir = join(cwd, '.draftwise');
-  if (!(await pathExists(draftwiseDir))) {
-    throw new Error('.draftwise/ not found. Run `draftwise init` first.');
-  }
+  await requireDraftwiseDir(cwd);
 
   const specs = await listSpecs(cwd);
   const target = specs.find((s) => s.slug === slug);

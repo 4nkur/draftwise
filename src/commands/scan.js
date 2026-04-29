@@ -4,8 +4,8 @@ import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
-import { pathExists } from '../utils/fs.js';
 import { compactScan } from '../utils/scan-projection.js';
+import { requireDraftwiseDir } from '../utils/draftwise-dir.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import { SYSTEM, buildPrompt, AGENT_INSTRUCTION } from '../ai/prompts/scan.js';
 
@@ -39,12 +39,7 @@ export default async function scanCommand(_args = [], deps = {}) {
   const loadConfig = deps.loadConfig ?? defaultLoadConfig;
   const complete = deps.complete ?? defaultComplete;
 
-  const draftwiseDir = join(cwd, '.draftwise');
-  if (!(await pathExists(draftwiseDir))) {
-    throw new Error(
-      '.draftwise/ not found. Run `draftwise init` first.',
-    );
-  }
+  const draftwiseDir = await requireDraftwiseDir(cwd);
 
   const config = await loadConfig(cwd);
 
