@@ -11,6 +11,9 @@ function fakeScan(files) {
 const interactiveTrue = () => true;
 const interactiveFalse = () => false;
 
+const detectBrownfield = async () => 'brownfield';
+const detectGreenfield = async () => 'greenfield';
+
 function makeBrownfieldPrompts({ mode, provider, apiKeyEnv } = {}) {
   return {
     promptProjectState: async () => 'brownfield',
@@ -107,6 +110,7 @@ describe('draftwise init', () => {
         log: () => {},
         prompts: makeBrownfieldPrompts({ mode: 'agent' }),
         isInteractive: interactiveTrue,
+        detectProjectState: detectBrownfield,
         scan: fakeScan(['src/foo.js', 'src/bar.ts']),
       });
 
@@ -135,6 +139,7 @@ describe('draftwise init', () => {
           provider: 'claude',
         }),
         isInteractive: interactiveTrue,
+        detectProjectState: detectBrownfield,
         scan: fakeScan(['src/foo.js']),
       });
 
@@ -158,6 +163,7 @@ describe('draftwise init', () => {
           apiKeyEnv: 'WORK_OPENAI_KEY',
         }),
         isInteractive: interactiveTrue,
+        detectProjectState: detectBrownfield,
         scan: fakeScan(['src/foo.js']),
       });
 
@@ -169,9 +175,11 @@ describe('draftwise init', () => {
       expect(config).toContain('api_key_env: WORK_OPENAI_KEY');
     });
 
-    it('errors when the repo has no source files', async () => {
+    it('errors when --mode=brownfield is forced but the repo has no source files', async () => {
+      // The user explicitly overrode auto-detection with --mode=brownfield
+      // even though the repo is empty. Brownfield then bails on the scan.
       await expect(
-        init([], {
+        init(['--mode=brownfield'], {
           cwd: dir,
           log: () => {},
           prompts: makeBrownfieldPrompts({ mode: 'agent' }),
@@ -518,12 +526,14 @@ describe('draftwise init', () => {
       const out = logs.join('\n');
       expect(out).toContain('coding agent should pick this up');
       expect(out).toContain('INIT — answer these in chat');
-      expect(out).toContain('Project state');
+      // Project state is auto-detected, not asked: empty dir → greenfield.
+      expect(out).toContain('Detected: new project');
+      // AI mode + provider + idea are still open questions.
       expect(out).toContain('AI mode');
       expect(out).toContain('AI provider');
       expect(out).toContain('What do you want to build');
       expect(out).toContain('INSTRUCTION');
-      expect(out).toContain('draftwise init --mode=');
+      expect(out).toContain('draftwise init --ai-mode=');
 
       // No files written — init bailed before scanning or writing.
       await expect(
@@ -543,9 +553,10 @@ describe('draftwise init', () => {
 
       const out = logs.join('\n');
       // Only --ai-mode is missing — handoff should ask for that and not for
-      // mode/idea (idea is irrelevant once mode=brownfield).
+      // idea (irrelevant once mode=brownfield). Project state was set via
+      // --mode flag, so it's announced in the orienting line, not asked.
       expect(out).toContain('AI mode');
-      expect(out).not.toContain('Project state');
+      expect(out).toContain('Project state set via --mode');
       expect(out).not.toContain('What do you want to build');
     });
 
@@ -561,7 +572,8 @@ describe('draftwise init', () => {
 
       const out = logs.join('\n');
       expect(out).toContain('AI provider');
-      expect(out).not.toContain('Project state');
+      expect(out).toContain('Project state set via --mode');
+      // AI mode question (em-dash form) is not asked — flag was supplied.
       expect(out).not.toContain('AI mode —');
     });
 
@@ -577,7 +589,7 @@ describe('draftwise init', () => {
 
       const out = logs.join('\n');
       expect(out).toContain('What do you want to build');
-      expect(out).not.toContain('Project state');
+      expect(out).toContain('Project state set via --mode');
     });
 
     it('still throws (does NOT handoff) on a .draftwise/ that already exists', async () => {
@@ -644,6 +656,84 @@ describe('draftwise init', () => {
           },
         ),
       ).rejects.toThrow(/--stack "NotARealStack" doesn't match/);
+    });
+  });
+
+  describe('auto-detect project state', () => {
+    it('auto-detects brownfield from on-disk source files when --mode is omitted', async () => {
+      // Seed a real source file so the default detector returns brownfield.
+      await writeFile(join(dir, 'index.ts'), 'export {};', 'utf8');
+
+      const logs = [];
+      await init(['--ai-mode=agent'], {
+        cwd: dir,
+        log: (m) => logs.push(m),
+        // Use the real detector — no detectProjectState injection.
+        prompts: makeBrownfieldPrompts({ mode: 'agent' }),
+        isInteractive: interactiveTrue,
+        scan: fakeScan(['index.ts']),
+      });
+
+      const config = await readFile(
+        join(dir, '.draftwise', 'config.yaml'),
+        'utf8',
+      );
+      expect(config).toContain('state: brownfield');
+      const out = logs.join('\n');
+      expect(out).toContain('Detected: existing codebase');
+      expect(out).toContain('Override with --mode=greenfield');
+    });
+
+    it('auto-detects greenfield when the cwd has no source files', async () => {
+      // Empty dir — no source files anywhere. Real detector returns greenfield.
+      const logs = [];
+      await init(['--ai-mode=agent', '--idea=a thing'], {
+        cwd: dir,
+        log: (m) => logs.push(m),
+        prompts: makeGreenfieldPrompts({
+          mode: 'agent',
+          idea: 'a thing',
+        }),
+        isInteractive: interactiveTrue,
+        scan: fakeScan([]),
+      });
+
+      const config = await readFile(
+        join(dir, '.draftwise', 'config.yaml'),
+        'utf8',
+      );
+      expect(config).toContain('state: greenfield');
+      const out = logs.join('\n');
+      expect(out).toContain('Detected: new project');
+      expect(out).toContain('Override with --mode=brownfield');
+    });
+
+    it('--mode flag wins over filesystem detection', async () => {
+      // Seed source files but force greenfield via flag.
+      await writeFile(join(dir, 'app.py'), 'print(1)', 'utf8');
+
+      const logs = [];
+      await init(
+        ['--mode=greenfield', '--ai-mode=agent', '--idea=a thing'],
+        {
+          cwd: dir,
+          log: (m) => logs.push(m),
+          prompts: makeGreenfieldPrompts({
+            mode: 'agent',
+            idea: 'a thing',
+          }),
+          isInteractive: interactiveTrue,
+          scan: fakeScan(['app.py']),
+        },
+      );
+
+      const config = await readFile(
+        join(dir, '.draftwise', 'config.yaml'),
+        'utf8',
+      );
+      expect(config).toContain('state: greenfield');
+      // No "Detected:" line when the user supplied --mode explicitly.
+      expect(logs.join('\n')).not.toContain('Detected:');
     });
   });
 });

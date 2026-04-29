@@ -111,12 +111,12 @@ draftwise init
 
 Both paths shell out to the same `draftwise` CLI — install Draftwise via npm first. The two paths are independent and may coexist.
 
-`draftwise init` first asks whether you're starting **greenfield** (no code yet) or **brownfield** (existing codebase) and routes accordingly:
+`draftwise init` checks the directory for source files and picks the right path:
 
-- **Greenfield:** describe the idea → answer 4-6 clarifying questions → pick from 2-3 stack options → get a plan with directory structure and setup commands. Optional: `draftwise scaffold` to create the user-written initial files automatically.
-- **Brownfield:** scans the repo and writes an overview of flows, routes, components, and models.
+- **New project (no code yet):** describe the idea → answer 4-6 clarifying questions → pick from 2-3 stack options → get a plan with directory structure and setup commands. Optional: `draftwise scaffold` to create the user-written initial files automatically.
+- **Existing codebase:** scans the repo and writes an overview of flows, routes, components, and models.
 
-Either way, you end up in `.draftwise/` with `overview.md` and `config.yaml`. From there:
+The detection is automatic; pass `--mode=greenfield` or `--mode=brownfield` to override (these stay as the canonical flag values). Either way, you end up in `.draftwise/` with `overview.md` and `config.yaml`. From there:
 
 ```bash
 draftwise scan                    # refresh the codebase overview (brownfield only)

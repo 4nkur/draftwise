@@ -9,6 +9,7 @@ import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { pathExists } from '../utils/fs.js';
 import { isInteractive as defaultIsInteractive } from '../utils/tty.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
+import { detectProjectState as defaultDetectProjectState } from '../utils/project-state.js';
 import {
   QUESTIONS_SYSTEM,
   STACKS_SYSTEM,
@@ -23,13 +24,18 @@ import {
 export const HELP = `draftwise init — set up .draftwise/ for the current project
 
 Usage:
-  draftwise init                                       # interactive (TTY only)
-  draftwise init --mode=brownfield --ai-mode=agent
+  draftwise init                                       # auto-detects + prompts for AI mode
+  draftwise init --ai-mode=agent                       # existing codebase detected → brownfield
   draftwise init --mode=greenfield --ai-mode=api \\
-    --provider=claude --idea="<one-liner>"
+    --provider=claude --idea="<one-liner>"             # explicit override
 
 Flags:
-  --mode <greenfield|brownfield>     Project state.
+  --mode <greenfield|brownfield>     Override the auto-detected project state.
+                                     "greenfield" = no code yet (Draftwise picks a stack
+                                     and proposes initial structure).
+                                     "brownfield" = existing codebase (Draftwise scans).
+                                     Auto-detected from filesystem if omitted: zero
+                                     source files → greenfield; otherwise brownfield.
   --ai-mode <agent|api>              How Draftwise calls the AI.
   --provider <claude|openai|gemini>  AI provider (api mode only).
   --api-key-env <VAR>                Env var holding the API key (api mode only).
@@ -44,14 +50,15 @@ Flags:
                                      greenfield + api when you've pre-collected the
                                      answers (e.g. via a slash-command wrapper).
 
-Asks whether the project is greenfield (no code yet) or brownfield
-(existing codebase) and routes accordingly. Greenfield walks you
-through stack selection with rationale, pros, and cons. Brownfield
-scans the codebase. Refuses to overwrite an existing .draftwise/.
+Detects whether the directory is empty (no code yet — "greenfield")
+or contains an existing codebase ("brownfield") and routes
+accordingly. Greenfield walks you through stack selection with
+rationale, pros, and cons. Brownfield scans the codebase. Refuses to
+overwrite an existing .draftwise/.
 
-Non-TTY (CI, coding-agent shell): every value must be supplied via
-flags. A missing required flag errors with a usage hint instead of
-hanging on a prompt.
+Non-TTY (CI, coding-agent shell): every still-needed value must be
+supplied via flags. A missing required flag errors with a usage hint
+instead of hanging on a prompt.
 `;
 
 const ARG_OPTIONS = {
@@ -104,24 +111,6 @@ a chat and have it generate the plan, then save it back to this file.
 }
 
 const DEFAULT_PROMPTS = {
-  promptProjectState: () =>
-    select({
-      message: 'What stage is your project at?',
-      choices: [
-        {
-          name: 'Greenfield — I have an idea but no code yet',
-          value: 'greenfield',
-          description:
-            'Draftwise will help pick a stack and propose initial structure',
-        },
-        {
-          name: 'Brownfield — I have an existing codebase',
-          value: 'brownfield',
-          description: 'Draftwise will scan the code and produce an overview',
-        },
-      ],
-      default: 'brownfield',
-    }),
   promptMode: () =>
     select({
       message: 'How should Draftwise call the AI?',
@@ -267,12 +256,13 @@ async function resolveValue({
 // True when init can't proceed in non-TTY without asking the user something.
 // Drives the structured-handoff path (see buildInitHandoff) — the host coding
 // agent reads the handoff, asks the user in chat, and re-invokes draftwise init
-// with the collected flags.
-function needsHandoff(flags) {
-  if (!flags.mode) return true;
+// with the collected flags. Project state (mode) is always resolved before
+// this runs — by --mode flag or by filesystem auto-detect — so it's never an
+// open question by the time we get here.
+function needsHandoff(flags, mode) {
   if (!flags['ai-mode']) return true;
   if (flags['ai-mode'] === 'api' && !flags.provider) return true;
-  if (flags.mode === 'greenfield' && !flags.idea) return true;
+  if (mode === 'greenfield' && !flags.idea) return true;
   return false;
 }
 
@@ -280,21 +270,15 @@ function needsHandoff(flags) {
 // Format follows the same AGENT_HANDOFF_PREFIX pattern Draftwise already uses
 // elsewhere — orienting line, fenced section, INSTRUCTION block — so the host
 // agent (Claude Code, Cursor, etc.) recognizes it as a "ask the user, then
-// re-invoke" handoff. Only lists questions for fields that aren't already
-// supplied; conditional questions get a "(only if ...)" marker when the
-// upstream answer isn't known yet.
-function buildInitHandoff(flags) {
-  const askMode = !flags.mode;
+// re-invoke" handoff. Includes the auto-detected project state in the orienting
+// line so the agent can mention it to the user without needing to re-detect.
+// Only lists questions for fields that aren't already supplied.
+function buildInitHandoff(flags, mode, modeSource) {
   const askAiMode = !flags['ai-mode'];
   const askProvider = flags['ai-mode'] !== 'agent' && !flags.provider;
-  const askIdea = flags.mode !== 'brownfield' && !flags.idea;
+  const askIdea = mode === 'greenfield' && !flags.idea;
 
   const rawQuestions = [];
-  if (askMode) {
-    rawQuestions.push(
-      'Project state — **greenfield** (no code yet) or **brownfield** (existing codebase)?',
-    );
-  }
   if (askAiMode) {
     rawQuestions.push(
       'AI mode — **agent** (the host coding agent — Claude Code, Cursor, etc. — handles reasoning) or **api** (Draftwise calls a model directly with your API key)?',
@@ -308,13 +292,20 @@ function buildInitHandoff(flags) {
     );
   }
   if (askIdea) {
-    const conditional =
-      flags.mode === undefined ? ' (only if you picked **greenfield** above)' : '';
     rawQuestions.push(
-      `What do you want to build?${conditional} A sentence or two — the model will ask follow-up questions on stack and structure.`,
+      `What do you want to build? A sentence or two — the model will ask follow-up questions on stack and structure.`,
     );
   }
   const questions = rawQuestions.map((q, i) => `${i + 1}. ${q}`);
+
+  const detectedLabel =
+    mode === 'greenfield'
+      ? 'new project (no source code in this directory yet)'
+      : 'existing codebase (source files already present)';
+  const detectedLine =
+    modeSource === 'detected'
+      ? `Detected: ${detectedLabel}. Override with --mode=${mode === 'greenfield' ? 'brownfield' : 'greenfield'} if wrong.`
+      : `Project state set via --mode: ${detectedLabel}.`;
 
   const lines = [
     AGENT_HANDOFF_PREFIX,
@@ -322,19 +313,23 @@ function buildInitHandoff(flags) {
     '---',
     'INIT — answer these in chat, then re-invoke draftwise init with the matching flags',
     '',
+    detectedLine,
+    '',
     ...questions,
     '',
     'INSTRUCTION',
     'Once you have answers from the user, re-invoke draftwise init with the corresponding flags:',
     '',
-    '  draftwise init --mode=<greenfield|brownfield> --ai-mode=<agent|api>',
-    '             [--provider=<claude|openai|gemini>] [--api-key-env=<VAR>]',
-    '             [--idea="<one-liner>"] [--stack="<name>"] [--answers @path/to/answers.json]',
+    '  draftwise init --ai-mode=<agent|api>',
+    '             [--mode=<greenfield|brownfield>] [--provider=<claude|openai|gemini>]',
+    '             [--api-key-env=<VAR>] [--idea="<one-liner>"] [--stack="<name>"]',
+    '             [--answers @path/to/answers.json]',
     '',
     'Notes:',
+    '- --mode is auto-detected from the filesystem (zero source files → greenfield; otherwise brownfield). Pass it only to override.',
     '- --provider only applies when --ai-mode=api.',
     '- --api-key-env defaults to ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY based on --provider; pass it only to override.',
-    '- --idea is required for --mode=greenfield.',
+    '- --idea is required when the project is greenfield.',
     '- For greenfield + api: --stack and --answers are optional first time. Without them, init picks the first proposed stack and leaves clarifying-question answers blank. Re-invoke with both for a richer plan.',
   ];
   return lines.join('\n');
@@ -598,6 +593,8 @@ export default async function init(args = [], deps = {}) {
   const scan = deps.scan ?? defaultScan;
   const complete = deps.complete ?? defaultComplete;
   const isInteractive = deps.isInteractive ?? defaultIsInteractive;
+  const detectProjectState =
+    deps.detectProjectState ?? defaultDetectProjectState;
   const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };
 
   let parsed;
@@ -623,29 +620,54 @@ export default async function init(args = [], deps = {}) {
     );
   }
 
-  // Non-TTY structured handoff: when stdin isn't interactive and init needs
-  // to ask the user something, print the questions in the AGENT_HANDOFF_PREFIX
-  // format so the host coding agent (Claude Code, Cursor, etc.) can read them
-  // from stderr, ask the user in chat, and re-invoke `draftwise init` with the
-  // collected flags. Falls through to normal flag-or-prompt resolution when
-  // every required value is already supplied.
-  if (!isInteractive() && needsHandoff(flags)) {
-    log(buildInitHandoff(flags));
+  // Resolve project state before anything else — by --mode flag (with
+  // validation) or by walking the filesystem for source files. The user gets
+  // a plain-language line about what was decided either way; "greenfield" /
+  // "brownfield" stays as the canonical flag value + config.yaml field but
+  // doesn't surface in the chat / terminal copy.
+  let projectState;
+  let modeSource;
+  if (flags.mode !== undefined) {
+    if (!VALID_MODES.includes(flags.mode)) {
+      throw new Error(
+        `Invalid --mode value "${flags.mode}". Must be one of: ${VALID_MODES.join(', ')}.`,
+      );
+    }
+    projectState = flags.mode;
+    modeSource = 'flag';
+  } else {
+    projectState = await detectProjectState(cwd);
+    modeSource = 'detected';
+  }
+
+  // Non-TTY structured handoff: when stdin isn't interactive and init still
+  // needs to ask the user something, print the questions in the
+  // AGENT_HANDOFF_PREFIX format so the host coding agent (Claude Code, Cursor,
+  // etc.) can read them from stderr, ask the user in chat, and re-invoke
+  // `draftwise init` with the collected flags. Falls through to normal
+  // flag-or-prompt resolution when every required value is already supplied.
+  if (!isInteractive() && needsHandoff(flags, projectState)) {
+    log(buildInitHandoff(flags, projectState, modeSource));
     return;
   }
 
   log('Welcome to Draftwise. A few quick questions before we set you up.');
   log('');
 
-  const projectState = await resolveValue({
-    flagName: 'mode',
-    flagValue: flags.mode,
-    promptFn: () => prompts.promptProjectState(),
-    isInteractive,
-    validValues: VALID_MODES,
-    missingHint:
-      'Missing --mode flag. Pass --mode=greenfield (no code yet) or --mode=brownfield (existing codebase).',
-  });
+  if (modeSource === 'detected') {
+    if (projectState === 'greenfield') {
+      log(
+        'Detected: new project — no source files yet. Setting up for greenfield init.',
+      );
+      log('  Override with --mode=brownfield if you meant an existing codebase.');
+    } else {
+      log(
+        'Detected: existing codebase — source files already in this directory. Setting up for brownfield init.',
+      );
+      log('  Override with --mode=greenfield to start fresh instead.');
+    }
+    log('');
+  }
 
   const aiMode = await resolveValue({
     flagName: 'ai-mode',
