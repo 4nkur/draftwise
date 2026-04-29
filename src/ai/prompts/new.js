@@ -1,5 +1,6 @@
 import { CORE_PRINCIPLES } from './principles.js';
 import { SPEC_LANGUAGE_RULES } from './spec-quality.js';
+import { extractJsonFromFence } from '../../utils/json-fence.js';
 
 export const PLAN_SYSTEM_BROWNFIELD = `You are Draftwise, a codebase-aware product spec drafting tool.
 
@@ -96,15 +97,6 @@ export function buildPlanPrompt({ idea, scan, packageMeta, projectState, overvie
     '',
     'Return the conversation plan as JSON inside a single fenced ```json block, per the system instructions.',
   ].join('\n');
-}
-
-function extractJsonFromFence(text) {
-  const opener = text.match(/```(?:json)?\s*\n?/);
-  if (!opener) return text.trim();
-  const start = opener.index + opener[0].length;
-  const lastFence = text.lastIndexOf('```');
-  if (lastFence <= start) return text.slice(start).trim();
-  return text.slice(start, lastFence).trim();
 }
 
 export function parsePlanResponse(text) {
