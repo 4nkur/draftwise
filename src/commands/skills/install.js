@@ -7,6 +7,7 @@ import { pathExists } from '../../utils/fs.js';
 import {
   PROVIDER_NAMES,
   PROVIDERS,
+  detectInstalledProviders,
   resolveProviderTarget,
   transformSkillForProvider,
 } from '../../utils/skill-providers.js';
@@ -14,13 +15,16 @@ import {
 export const HELP = `draftwise skills install — install Draftwise as a standalone slash-command skill
 
 Usage:
-  draftwise skills install                       # install for all known harnesses (Claude, Cursor, Gemini)
-  draftwise skills install --provider=claude     # install for one harness
+  draftwise skills install                       # auto-detect harnesses on disk (~/.claude, ~/.cursor, ~/.gemini) and install to those
+  draftwise skills install --provider=all        # install to every known harness regardless of detection
+  draftwise skills install --provider=claude     # install to one harness regardless of detection
   draftwise skills install --scope=project       # install at <cwd>/.<provider>/skills/draftwise/
   draftwise skills install --force               # overwrite existing installs
 
 Flags:
-  --provider <claude|cursor|gemini|all>     Which harness(es) to target. Default: all.
+  --provider <claude|cursor|gemini|all>     Which harness(es) to target. Default: auto-detect
+                                            (install only to harnesses whose provider dir
+                                            exists at the chosen scope).
   --scope    <user|project>                 user → ~/.<provider>/skills/draftwise/
                                             project → <cwd>/.<provider>/skills/draftwise/
                                             Default: user.
@@ -79,14 +83,25 @@ async function copyTreeWithTransform(src, dest, provider) {
   }
 }
 
-function resolveProviderList(flag) {
-  if (!flag || flag === 'all') return PROVIDER_NAMES;
-  if (!PROVIDER_NAMES.includes(flag)) {
+async function resolveProviderList(flag, { scope, cwd, home }) {
+  if (flag === 'all') return PROVIDER_NAMES;
+  if (flag) {
+    if (!PROVIDER_NAMES.includes(flag)) {
+      throw new Error(
+        `Invalid --provider value "${flag}". Use one of: ${PROVIDER_NAMES.join(', ')}, all.`,
+      );
+    }
+    return [flag];
+  }
+  const detected = await detectInstalledProviders({ scope, cwd, home });
+  if (detected.length === 0) {
+    const root = scope === 'project' ? cwd : home;
+    const dirs = PROVIDER_NAMES.map((p) => PROVIDERS[p].providerDir).join(', ');
     throw new Error(
-      `Invalid --provider value "${flag}". Use one of: ${PROVIDER_NAMES.join(', ')}, all.`,
+      `No AI harnesses detected at ${root} (looked for: ${dirs}). Pass --provider=all to install for every known harness, or --provider=<claude|cursor|gemini> to target one explicitly.`,
     );
   }
-  return [flag];
+  return detected;
 }
 
 export default async function skillsInstall(args = [], deps = {}) {
@@ -117,12 +132,24 @@ export default async function skillsInstall(args = [], deps = {}) {
     );
   }
   const force = Boolean(parsed.values.force);
-  const providers = resolveProviderList(parsed.values.provider);
+  const providers = await resolveProviderList(parsed.values.provider, {
+    scope,
+    cwd,
+    home,
+  });
 
   if (!(await pathExists(sourceDir))) {
     throw new Error(
       `Skill source not found at ${sourceDir}. Try reinstalling draftwise: npm i -g draftwise.`,
     );
+  }
+
+  // Tell the user *why* this provider list was chosen when they didn't pass
+  // a flag. Auto-detect picking one harness when three exist on the machine
+  // is otherwise silent and confusing.
+  if (!parsed.values.provider) {
+    const labels = providers.map((p) => PROVIDERS[p].label).join(', ');
+    log(`Detected harness(es): ${labels}. (Use --provider=all to install everywhere, or --provider=<name> to target one.)`);
   }
 
   // Fail fast on conflicts before we write anything: if any target dir exists

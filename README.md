@@ -101,7 +101,7 @@ draftwise init
   ```
   draftwise skills install
   ```
-  Drops a standalone skill into each known harness's skill dir at the user level: `~/.claude/skills/draftwise/`, `~/.cursor/skills/draftwise/`, `~/.gemini/skills/draftwise/`. Slash form is `/draftwise init`, `/draftwise new "<idea>"`, etc. Narrow with `--provider=claude|cursor|gemini` or write at project scope with `--scope=project`. `draftwise skills help` shows what's installed where; `draftwise skills uninstall` removes it.
+  Auto-detects which harnesses you have on this machine (by checking for `~/.claude/`, `~/.cursor/`, `~/.gemini/`) and installs the standalone skill only to those — slash form `/draftwise init`, `/draftwise new "<idea>"`, etc. Pass `--provider=all` to install everywhere regardless of detection, `--provider=claude|cursor|gemini` to target one explicitly, or `--scope=project` to write at `<cwd>/.<provider>/skills/draftwise/` instead of the user-level dir. `draftwise skills help` shows what's installed where (and which harnesses auto-detect would target); `draftwise skills uninstall` removes it.
 - **`/draftwise:draftwise <verb>` via the Claude Code plugin marketplace.** If you prefer Claude Code's `/plugin` workflow:
   ```
   /plugin marketplace add 4nkur/draftwise

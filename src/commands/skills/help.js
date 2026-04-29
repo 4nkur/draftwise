@@ -3,6 +3,7 @@ import { pathExists } from '../../utils/fs.js';
 import {
   PROVIDER_NAMES,
   PROVIDERS,
+  detectInstalledProviders,
   resolveProviderTarget,
 } from '../../utils/skill-providers.js';
 
@@ -13,7 +14,8 @@ Usage:
 
 Walks ~/.<provider>/skills/draftwise/ and <cwd>/.<provider>/skills/draftwise/
 for each known harness (Claude Code, Cursor, Gemini CLI), reports what's
-installed, and points at the matching install / uninstall command.
+installed, and prints the auto-detected harness set that
+\`draftwise skills install\` (with no --provider flag) would target.
 `;
 
 function pad(s, n) {
@@ -38,6 +40,29 @@ export default async function skillsHelp(_args = [], deps = {}) {
       );
     }
   }
+  log('');
+
+  const detectedUser = await detectInstalledProviders({
+    scope: 'user',
+    cwd,
+    home,
+  });
+  const detectedProject = await detectInstalledProviders({
+    scope: 'project',
+    cwd,
+    home,
+  });
+  const labelList = (names) =>
+    names.length === 0 ? 'none' : names.map((n) => PROVIDERS[n].label).join(', ');
+  log(
+    `Detected harnesses (user scope, --scope=user):     ${labelList(detectedUser)}`,
+  );
+  log(
+    `Detected harnesses (project scope, --scope=project): ${labelList(detectedProject)}`,
+  );
+  log(
+    '`draftwise skills install` (no flag) targets the detected set; pass --provider=all to override.',
+  );
   log('');
   log('Install:    draftwise skills install [--provider=<name>] [--scope=<user|project>] [--force]');
   log('Uninstall:  draftwise skills uninstall [--provider=<name>] [--scope=<user|project>]');
