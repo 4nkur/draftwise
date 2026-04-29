@@ -1,4 +1,5 @@
 import { CORE_PRINCIPLES } from './principles.js';
+import { extractJsonFromFence } from '../../utils/json-fence.js';
 
 export const QUESTIONS_SYSTEM = `You are Draftwise, helping a PM start a greenfield project from scratch. They've described what they want to build but haven't picked a stack or written any code yet.
 
@@ -29,18 +30,6 @@ export function buildQuestionsPrompt(idea) {
     '',
     'Generate the clarifying questions per the system instructions.',
   ].join('\n');
-}
-
-function extractJsonFromFence(text) {
-  // Find an opening fence (```json or ```) and match against the LAST fence
-  // in the document, so JSON values that contain nested ``` (e.g. a markdown
-  // directory tree inside a string) don't truncate the capture.
-  const opener = text.match(/```(?:json)?\s*\n?/);
-  if (!opener) return text.trim();
-  const start = opener.index + opener[0].length;
-  const lastFence = text.lastIndexOf('```');
-  if (lastFence <= start) return text.slice(start).trim();
-  return text.slice(start, lastFence).trim();
 }
 
 export function parseQuestionsResponse(text) {
