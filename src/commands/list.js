@@ -3,10 +3,10 @@ import { join } from 'node:path';
 import { listSpecs as defaultListSpecs } from '../utils/specs.js';
 import { pathExists } from '../utils/fs.js';
 
-export const HELP = `draft list — list all specs in .draftwise/specs/
+export const HELP = `draftwise list — list all specs in .draftwise/specs/
 
 Usage:
-  draft list
+  draftwise list
 
 Three columns: slug, status (which artifacts exist —
 product · tech · tasks), and the title from product-spec.md's H1.
@@ -38,18 +38,18 @@ function pad(s, n) {
 export default async function listCommand(_args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
   // The table IS the output of `list` — keep it on stdout so piping works
-  // (`draft list > specs.txt`).
+  // (`draftwise list > specs.txt`).
   const log = deps.log ?? ((msg) => console.log(msg));
   const listSpecs = deps.listSpecs ?? defaultListSpecs;
 
   const draftwiseDir = join(cwd, '.draftwise');
   if (!(await pathExists(draftwiseDir))) {
-    throw new Error('.draftwise/ not found. Run `draft init` first.');
+    throw new Error('.draftwise/ not found. Run `draftwise init` first.');
   }
 
   const specs = await listSpecs(cwd);
   if (specs.length === 0) {
-    log('No specs yet. Run `draft new "<idea>"` to draft one.');
+    log('No specs yet. Run `draftwise new "<idea>"` to draft one.');
     return;
   }
 

@@ -15,7 +15,7 @@ const SAMPLE_SCAN = {
   models: [],
 };
 
-describe('draft scan', () => {
+describe('draftwise scan', () => {
   let dir;
   let logs;
 
@@ -39,7 +39,7 @@ describe('draft scan', () => {
         loadConfig: async () => ({ mode: 'agent' }),
         complete: async () => 'unused',
       }),
-    ).rejects.toThrow(/Run `draft init` first/);
+    ).rejects.toThrow(/Run `draftwise init` first/);
   });
 
   it('in agent mode, prints scanner data and instruction without writing overview.md', async () => {
@@ -94,7 +94,7 @@ describe('draft scan', () => {
     // First-time users need a nudge toward the next command after scan.
     const out = logs.join('\n');
     expect(out).toContain('Next:');
-    expect(out).toContain('draft new');
+    expect(out).toContain('draftwise new');
   });
 
   it('short-circuits in greenfield mode with a friendly message', async () => {

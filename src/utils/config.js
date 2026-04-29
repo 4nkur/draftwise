@@ -12,7 +12,7 @@ export async function loadConfig(cwd = process.cwd()) {
     await access(path);
   } catch {
     throw new Error(
-      '.draftwise/config.yaml not found. Run `draft init` first.',
+      '.draftwise/config.yaml not found. Run `draftwise init` first.',
     );
   }
 

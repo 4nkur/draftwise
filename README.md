@@ -48,12 +48,12 @@ Knowledge about how the product is actually built lives only in code and in peop
 Draftwise meets you where your project is — whether you're staring at a blank directory or trying to make sense of a repo someone else built.
 
 #### 🌱 Starts you on the right stack (greenfield)
-`draft init` in a fresh directory walks you through clarifying questions, then proposes 2-3 stack options with rationale, pros, cons, a directory structure, and the exact setup commands to run. No more "should I use Next or Remix?" tab-shopping.
+`draftwise init` in a fresh directory walks you through clarifying questions, then proposes 2-3 stack options with rationale, pros, cons, a directory structure, and the exact setup commands to run. No more "should I use Next or Remix?" tab-shopping.
 
 #### 🗺️ Explains an existing product back to you (brownfield)
 
 #### 🗺️ Explains your product back to you
-`draft scan` gives you a structured overview of what's in your codebase: major flows, API surface, data model, components, how they connect. New PMs catch up in an afternoon, not three weeks.
+`draftwise scan` gives you a structured overview of what's in your codebase: major flows, API surface, data model, components, how they connect. New PMs catch up in an afternoon, not three weeks.
 
 #### 🔎 Traces the current behavior of any feature
 Ask Draftwise *"how does checkout work today?"* and it walks the actual code — routes hit, services called, data written, side effects triggered. No more pinging engineers to verify how something works.
@@ -74,9 +74,9 @@ Specs and codebase summaries live as markdown files in `.draftwise/`. Version-co
 
 ## Four things you'll actually use this for
 
-**Starting a new project from scratch.** You have an idea but no code yet. `draft init` walks you through what you want to build, asks the questions a sharp engineer would ask, and proposes 2-3 stack options with rationale, pros, cons, directory structure, and setup commands. Pick one and start coding.
+**Starting a new project from scratch.** You have an idea but no code yet. `draftwise init` walks you through what you want to build, asks the questions a sharp engineer would ask, and proposes 2-3 stack options with rationale, pros, cons, directory structure, and setup commands. Pick one and start coding.
 
-**Catching up on a product you didn't build.** New job, new team, new repo. `draft scan` gives you a structured tour of the product as it actually exists — flows, surfaces, data, components. Your first week becomes productive instead of theoretical.
+**Catching up on a product you didn't build.** New job, new team, new repo. `draftwise scan` gives you a structured tour of the product as it actually exists — flows, surfaces, data, components. Your first week becomes productive instead of theoretical.
 
 **Understanding the current state before drafting.** Before you write a spec for a change, ask Draftwise how the existing flow works. Get the truth from the code, not from a six-month-old PRD. Avoid proposing things that already exist or changes that conflict with how the system actually behaves.
 
@@ -92,29 +92,29 @@ Draftwise works with your AI coding agent (Claude Code, Cursor, Antigravity, Cop
 npm install -g draftwise
 
 cd your-project          # existing repo, or an empty directory for a new project
-draft init
+draftwise init
 ```
 
-**Optional — slash commands inside Claude Code.** If you use Claude Code, install the Draftwise plugin so `/draft init`, `/draft new "<idea>"`, etc. work in chat:
+**Optional — slash commands inside Claude Code.** If you use Claude Code, install the Draftwise plugin so `/draftwise init`, `/draftwise new "<idea>"`, etc. work in chat:
 
 ```
 /plugin marketplace add 4nkur/draftwise
 /plugin install draftwise
 ```
 
-The plugin shells out to the same `draft` CLI — install Draftwise via npm first.
+The plugin shells out to the same `draftwise` CLI — install Draftwise via npm first.
 
-`draft init` first asks whether you're starting **greenfield** (no code yet) or **brownfield** (existing codebase) and routes accordingly:
+`draftwise init` first asks whether you're starting **greenfield** (no code yet) or **brownfield** (existing codebase) and routes accordingly:
 
-- **Greenfield:** describe the idea → answer 4-6 clarifying questions → pick from 2-3 stack options → get a plan with directory structure and setup commands. Optional: `draft scaffold` to create the user-written initial files automatically.
+- **Greenfield:** describe the idea → answer 4-6 clarifying questions → pick from 2-3 stack options → get a plan with directory structure and setup commands. Optional: `draftwise scaffold` to create the user-written initial files automatically.
 - **Brownfield:** scans the repo and writes an overview of flows, routes, components, and models.
 
 Either way, you end up in `.draftwise/` with `overview.md` and `config.yaml`. From there:
 
 ```bash
-draft scan                    # refresh the codebase overview (brownfield only)
-draft explain checkout        # walk a specific flow (brownfield only)
-draft new "your feature idea" # draft a new spec
+draftwise scan                    # refresh the codebase overview (brownfield only)
+draftwise explain checkout        # walk a specific flow (brownfield only)
+draftwise new "your feature idea" # draft a new spec
 ```
 
 ---
@@ -123,15 +123,15 @@ draft new "your feature idea" # draft a new spec
 
 | Command | What it does |
 |---------|-------------|
-| `draft init` | Set up `.draftwise/`. Asks whether the project is greenfield or brownfield and routes accordingly — either a stack-recommendation conversation or a codebase scan. |
-| `draft scaffold` | Create the user-written initial files from a greenfield plan. Reads `.draftwise/scaffold.json` (written by `init` in greenfield mode), confirms before writing, and skips existing files. |
-| `draft scan` | Refresh the structured codebase overview (brownfield). |
-| `draft explain <flow>` | Walk through how a specific flow works today, traced from the actual code (brownfield). |
-| `draft new "<idea>"` | Conversational drafting — generates a product spec grounded in the codebase or the greenfield plan. |
-| `draft tech [<feature>]` | Drafts a technical spec from the product spec, referencing real files and endpoints. |
-| `draft tasks [<feature>]` | Generates implementation tasks from the tech spec, ordered by dependency. |
-| `draft list` | List all specs in `.draftwise/specs/`. |
-| `draft show <feature> [type]` | Show a specific spec (type: `product`, `tech`, or `tasks`; default: `product`). |
+| `draftwise init` | Set up `.draftwise/`. Asks whether the project is greenfield or brownfield and routes accordingly — either a stack-recommendation conversation or a codebase scan. |
+| `draftwise scaffold` | Create the user-written initial files from a greenfield plan. Reads `.draftwise/scaffold.json` (written by `init` in greenfield mode), confirms before writing, and skips existing files. |
+| `draftwise scan` | Refresh the structured codebase overview (brownfield). |
+| `draftwise explain <flow>` | Walk through how a specific flow works today, traced from the actual code (brownfield). |
+| `draftwise new "<idea>"` | Conversational drafting — generates a product spec grounded in the codebase or the greenfield plan. |
+| `draftwise tech [<feature>]` | Drafts a technical spec from the product spec, referencing real files and endpoints. |
+| `draftwise tasks [<feature>]` | Generates implementation tasks from the tech spec, ordered by dependency. |
+| `draftwise list` | List all specs in `.draftwise/specs/`. |
+| `draftwise show <feature> [type]` | Show a specific spec (type: `product`, `tech`, or `tasks`; default: `product`). |
 
 ---
 
@@ -141,7 +141,7 @@ draft new "your feature idea" # draft a new spec
 .draftwise/
 ├── .gitignore                      # written by init; keeps the cache out of version control
 ├── overview.md                     # codebase summary (brownfield) or greenfield plan
-├── scaffold.json                   # greenfield only: structured stack data for `draft scaffold`
+├── scaffold.json                   # greenfield only: structured stack data for `draftwise scaffold`
 ├── specs/
 │   └── add-collaborative-albums/
 │       ├── product-spec.md         # what & why
@@ -156,28 +156,28 @@ Markdown. Version-controlled. Travels with your repo. (Draftwise also writes a `
 
 ## What you get from each command
 
-**`draft scan`** — a structured codebase overview:
+**`draftwise scan`** — a structured codebase overview:
 - Major flows in the product (signup, checkout, sharing, etc.)
 - API surface (endpoints, methods, what they do)
 - Data model (key tables, key relationships)
 - Component map (what's in your UI, how it's organized)
 - Integrations and external dependencies
 
-**`draft explain <flow>`** — a traced walkthrough:
+**`draftwise explain <flow>`** — a traced walkthrough:
 - The entry points (routes, UI events, scheduled jobs)
 - The services and functions involved
 - The data read and written
 - Side effects (emails, webhooks, async jobs)
 - Edge cases the code actually handles
 
-**`draft new`** — a product spec with:
+**`draftwise new`** — a product spec with:
 - Problem with evidence
 - User stories & acceptance criteria
 - Flows, touchpoints, edge cases
 - Scope: covered, assumed, hypothesized, out of scope
 - Core metrics & counter metrics
 
-**`draft tech`** — a technical spec grounded in real code:
+**`draftwise tech`** — a technical spec grounded in real code:
 - Data model changes (your actual schema)
 - API changes (your actual conventions)
 - Component changes (your actual files)
@@ -229,7 +229,7 @@ Claude Code · GitHub Copilot · Cursor · Gemini CLI · Codex CLI · Antigravit
 
 In practice it has only been smoke-tested in a plain terminal so far. If you run it inside one of these and something breaks, please open an issue.
 
-**Non-interactive use.** Every command also runs without a TTY — pass values as flags instead of letting inquirer prompt for them. That's what makes the agent integration possible: a slash-command wrapper (or any host agent) can collect answers in chat and re-invoke `draft <command>` with `--mode=...`, `--ai-mode=...`, `--idea="..."`, `--answers @path`, `--force`, `--yes`, etc. Run `draft <command> --help` for the per-command flag list. When `draft init` is run in a non-TTY shell with too few flags, it prints a structured handoff with the questions to ask the user — copy it into your AI assistant if you're not already inside one.
+**Non-interactive use.** Every command also runs without a TTY — pass values as flags instead of letting inquirer prompt for them. That's what makes the agent integration possible: a slash-command wrapper (or any host agent) can collect answers in chat and re-invoke `draftwise <command>` with `--mode=...`, `--ai-mode=...`, `--idea="..."`, `--answers @path`, `--force`, `--yes`, etc. Run `draftwise <command> --help` for the per-command flag list. When `draftwise init` is run in a non-TTY shell with too few flags, it prints a structured handoff with the questions to ask the user — copy it into your AI assistant if you're not already inside one.
 
 Standalone (API mode) currently supports:
 
@@ -237,7 +237,7 @@ Standalone (API mode) currently supports:
 - ⏳ **GPT (OpenAI)** — adapter not yet implemented
 - ⏳ **Gemini** (Google) — adapter not yet implemented
 
-Until the OpenAI and Gemini adapters land, pick `agent` mode at `draft init` if you want to use those models — they'll work via the host (e.g. Gemini via Antigravity or Gemini CLI; GPT via Codex CLI or Copilot).
+Until the OpenAI and Gemini adapters land, pick `agent` mode at `draftwise init` if you want to use those models — they'll work via the host (e.g. Gemini via Antigravity or Gemini CLI; GPT via Codex CLI or Copilot).
 
 ---
 
@@ -270,7 +270,7 @@ v1 commands are all shipped on `npm` as of `0.0.1`. The next published release w
 - [x] `tech` — technical spec, greenfield-aware (every file marked `(new)`, follows the planned directory structure)
 - [x] `tasks` — dependency-ordered breakdown, greenfield-aware (first 1-3 tasks are project setup before feature work)
 - [x] `list` and `show` — spec browsing utilities
-- [x] optional file scaffolding from `init`'s greenfield plan via `draft scaffold`
+- [x] optional file scaffolding from `init`'s greenfield plan via `draftwise scaffold`
 
 **Next:** OpenAI and Gemini provider adapters (Claude is the only fully-wired adapter today), framework support beyond JS/TS Node (Python, Go, Rust), greenfield-aware downstream commands, and a flag-aware scanner cache for very large repos.
 

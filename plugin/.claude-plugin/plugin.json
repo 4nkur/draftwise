@@ -1,6 +1,6 @@
 {
   "name": "draftwise",
-  "description": "Slash commands that drive the Draftwise CLI in chat — `/draft init`, `/draft new \"<idea>\"`, `/draft tech`, `/draft tasks`, `/draft scan`, `/draft explain`, plus list / show / scaffold. Requires the `draft` CLI installed via `npm i -g draftwise`.",
+  "description": "Slash commands that drive the Draftwise CLI in chat — `/draftwise init`, `/draftwise new \"<idea>\"`, `/draftwise tech`, `/draftwise tasks`, `/draftwise scan`, `/draftwise explain`, plus list / show / scaffold. Requires the `draftwise` CLI installed via `npm i -g draftwise`.",
   "version": "0.1.0",
   "author": {
     "name": "Ankur Goyal",

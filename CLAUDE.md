@@ -35,7 +35,7 @@ If you're proposing a feature for Draftwise, the test is: **does this make the c
 ## Architecture
 
 ```
-bin/draft.js              → CLI entry point (shebang, calls src/index.js)
+bin/draftwise.js              → CLI entry point (shebang, calls src/index.js)
 src/index.js              → command router (dynamic imports, help)
 src/commands/             → one file per CLI command, default export async fn
 src/core/scanner.js       → codebase scanning (frameworks, routes, components, models)
@@ -48,7 +48,7 @@ test/                     → vitest, mirrors src structure
 plugin/                   → plugin source tree shipped via the marketplace
 ```
 
-**Claude Code plugin.** Distributed separately from the npm package — `.claude-plugin/marketplace.json` at repo root declares a single `draftwise` plugin with `source: ./plugin`. Inside `plugin/` is `.claude-plugin/plugin.json` (the install manifest) and `skills/draft/SKILL.md` plus `skills/draft/reference/<verb>.md` per CLI verb. **Plugin name is `draftwise` (matches npm package + brand); skill name is `draft` (matches CLI binary), so the user-facing slash form is `/draft <verb>`** — same word in chat and terminal. Pattern follows impeccable's distribution model: one skill routes to per-verb references that drive the conversation in chat and shell out to the npm-installed `draft` CLI. Users install via `/plugin marketplace add 4nkur/draftwise` in Claude Code, then `/plugin install draftwise`. The plugin is *not* shipped on npm — `package.json` `files` excludes the plugin directories. References include pre-flight checks (e.g. `new` warns if `overview.md` is stale, `tech` nudges to skim the product spec first) and tone shaping for how to ask the user about ambiguous flag values; they explicitly inherit `src/ai/prompts/principles.js`'s collaboration standards so the chat-driven conversation matches what the CLI's api-mode synthesis enforces.
+**Claude Code plugin.** Distributed separately from the npm package — `.claude-plugin/marketplace.json` at repo root declares a single `draftwise` plugin with `source: ./plugin`. Inside `plugin/` is `.claude-plugin/plugin.json` (the install manifest) and `skills/draft/SKILL.md` plus `skills/draft/reference/<verb>.md` per CLI verb. **Plugin name is `draftwise` (matches npm package + brand); skill name is `draftwise` (matches CLI binary), so the user-facing slash form is `/draftwise <verb>`** — same word in chat and terminal. Pattern follows impeccable's distribution model: one skill routes to per-verb references that drive the conversation in chat and shell out to the npm-installed `draftwise` CLI. Users install via `/plugin marketplace add 4nkur/draftwise` in Claude Code, then `/plugin install draftwise`. The plugin is *not* shipped on npm — `package.json` `files` excludes the plugin directories. References include pre-flight checks (e.g. `new` warns if `overview.md` is stale, `tech` nudges to skim the product spec first) and tone shaping for how to ask the user about ambiguous flag values; they explicitly inherit `src/ai/prompts/principles.js`'s collaboration standards so the chat-driven conversation matches what the CLI's api-mode synthesis enforces.
 
 The single most important module is `src/core/scanner.js` — it parses the user's codebase and produces a structured representation everything else builds on. Get that right and the rest follows.
 
@@ -77,7 +77,7 @@ Draftwise is fully AI-driven. Every meaningful command needs a model to do its w
 
 **Mode 1: Inside a coding agent.** Draftwise runs as slash commands inside Claude Code, Cursor, Copilot, etc. The agent's existing model handles the reasoning. Draftwise provides prompts, templates, and the codebase context.
 
-**Mode 2: Standalone with API key.** User configures an API key (Claude, OpenAI, or Gemini) during `draft init`. Draftwise calls the API directly.
+**Mode 2: Standalone with API key.** User configures an API key (Claude, OpenAI, or Gemini) during `draftwise init`. Draftwise calls the API directly.
 
 Both modes share the same prompt templates and codebase scanning logic. The difference is just where the model call happens.
 
@@ -91,7 +91,7 @@ ai:
   model: ""                            # optional override
   max_tokens: 16384                    # optional; default 16384. Bumped from 8192 because synthesis calls were truncating on big repos.
 project:
-  state: greenfield | brownfield      # set by `draft init`; controls prompt routing
+  state: greenfield | brownfield      # set by `draftwise init`; controls prompt routing
   stack: "Next.js + Postgres + Prisma" # greenfield only; the stack the PM picked at init
 scan:
   max_files: 5000                      # optional; raise for monorepos. Scanner emits a "truncated" warning when this is hit.
@@ -111,9 +111,9 @@ scan:
 
 **Prompts are authoritative.** Each command's section structure lives in its prompt module under `src/ai/prompts/<command>.js` (a `SYSTEM` constant plus a `buildPrompt` function plus an agent-mode instruction). Don't hardcode structure inside command files — change the prompt instead.
 
-**Conversation, not form-filling.** `draft new` should walk the user through questions, not present a blank form. The conversation is the value — it surfaces gaps the user wouldn't have noticed in a template.
+**Conversation, not form-filling.** `draftwise new` should walk the user through questions, not present a blank form. The conversation is the value — it surfaces gaps the user wouldn't have noticed in a template.
 
-**Flags drive input; inquirer is a TTY-only fallback.** Every command takes its full input set as flags (`--mode`, `--ai-mode`, `--idea`, `--answers @file.json`, `--force`, `--yes`, etc.) parsed via Node's built-in `util.parseArgs`. When stdin is a TTY and a required value is missing, inquirer fires to fill it in — that's the only place inquirer lives. When stdin is not a TTY (CI, coding-agent shell), most commands error with a specific usage hint instead of hanging on a prompt; `draft init` is special — when it can't proceed without asking the user something, it prints a structured **agent handoff** (questions in chat-friendly format + a re-invocation template, all under `AGENT_HANDOFF_PREFIX`) and exits cleanly, so the host coding agent reads stderr, asks the user in chat, and re-invokes with collected flags. Mode 1 (slash-command wrappers, issue #42) drives the conversation up in the host agent's chat and re-invokes the CLI with flags; the CLI itself becomes a non-conversational executor. TTY-detection helper in `src/utils/tty.js`; tests opt into either path via `deps.isInteractive`.
+**Flags drive input; inquirer is a TTY-only fallback.** Every command takes its full input set as flags (`--mode`, `--ai-mode`, `--idea`, `--answers @file.json`, `--force`, `--yes`, etc.) parsed via Node's built-in `util.parseArgs`. When stdin is a TTY and a required value is missing, inquirer fires to fill it in — that's the only place inquirer lives. When stdin is not a TTY (CI, coding-agent shell), most commands error with a specific usage hint instead of hanging on a prompt; `draftwise init` is special — when it can't proceed without asking the user something, it prints a structured **agent handoff** (questions in chat-friendly format + a re-invocation template, all under `AGENT_HANDOFF_PREFIX`) and exits cleanly, so the host coding agent reads stderr, asks the user in chat, and re-invokes with collected flags. Mode 1 (slash-command wrappers, issue #42) drives the conversation up in the host agent's chat and re-invokes the CLI with flags; the CLI itself becomes a non-conversational executor. TTY-detection helper in `src/utils/tty.js`; tests opt into either path via `deps.isInteractive`.
 
 **Don't clobber hand-edits silently.** Specs are work product — PMs review and refine them after generation. Re-running `new`, `tech`, or `tasks` against an existing file (same slug, same target) prompts to confirm overwrite; `--force` skips the prompt for scripted use. Agent mode is exempt because the host coding agent does the write, not Draftwise. `scan` is also exempt — refreshing `overview.md` IS its purpose. The check is positioned *before* the synthesis API call (after the plan call in `new`, after target selection in `tech` / `tasks`) so a cancel doesn't burn tokens or waste user-typed answers.
 
@@ -128,15 +128,15 @@ scan:
 ## Commands
 
 ```
-draft init                          → set up .draftwise/; routes to greenfield or brownfield flow
-draft scaffold                      → create initial files from the greenfield plan (greenfield only)
-draft scan                          → refresh the structured codebase overview (brownfield)
-draft explain <flow>                → trace how a specific flow works in the actual code (brownfield)
-draft new "<idea>" [--force]        → conversational drafting → product-spec.md
-draft tech [<feature>] [--force]    → drafts technical-spec.md from approved product spec
-draft tasks [<feature>] [--force]   → ordered tasks.md from technical spec
-draft list                          → list all specs in .draftwise/specs/
-draft show <feature> [type]         → display a spec (type: product | tech | tasks; default: product)
+draftwise init                          → set up .draftwise/; routes to greenfield or brownfield flow
+draftwise scaffold                      → create initial files from the greenfield plan (greenfield only)
+draftwise scan                          → refresh the structured codebase overview (brownfield)
+draftwise explain <flow>                → trace how a specific flow works in the actual code (brownfield)
+draftwise new "<idea>" [--force]        → conversational drafting → product-spec.md
+draftwise tech [<feature>] [--force]    → drafts technical-spec.md from approved product spec
+draftwise tasks [<feature>] [--force]   → ordered tasks.md from technical spec
+draftwise list                          → list all specs in .draftwise/specs/
+draftwise show <feature> [type]         → display a spec (type: product | tech | tasks; default: product)
 ```
 
 Each command is a separate file under `src/commands/` with a single `export default async function(args, deps = {}) {}`. The `deps` object is the dependency-injection seam used by tests — `cwd`, `log`, `scan`, `loadConfig`, `complete`, and per-command prompt overrides.
@@ -151,8 +151,8 @@ Each command is a separate file under `src/commands/` with a single `export defa
 ├── .cache/
 │   └── scan.json                # fingerprinted scan cache (gitignored)
 ├── overview.md                  # codebase summary (brownfield) or greenfield plan
-├── scaffold.json                # greenfield only: structured stack data for `draft scaffold`
-├── flows/                       # `draft explain` snapshots (brownfield)
+├── scaffold.json                # greenfield only: structured stack data for `draftwise scaffold`
+├── flows/                       # `draftwise explain` snapshots (brownfield)
 │   └── <flow-slug>.md
 ├── specs/
 │   └── <feature-name>/
@@ -245,7 +245,7 @@ npm test                # vitest run
 npm run test:watch      # vitest watch
 npm run lint            # eslint src/ test/
 npm run format          # prettier --write
-node bin/draft.js   # run CLI locally
+node bin/draftwise.js   # run CLI locally
 npm link                # install CLI globally from this repo
 ```
 
