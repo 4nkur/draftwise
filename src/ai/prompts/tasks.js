@@ -82,9 +82,6 @@ Hard rules:
 - Output markdown only. No preamble.
 `;
 
-// Backwards-compatible default
-export const SYSTEM = SYSTEM_BROWNFIELD;
-
 export function selectSystem(projectState) {
   return projectState === 'greenfield' ? SYSTEM_GREENFIELD : SYSTEM_BROWNFIELD;
 }

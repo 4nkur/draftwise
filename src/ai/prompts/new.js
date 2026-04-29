@@ -363,7 +363,3 @@ PHASE 3 — Generate product-spec.md:
 
 Hard rules: ground every claim in the scanner; turn every gap into a question, not an assumption; keep the spec tight.`;
 }
-
-// Backwards compatibility — keep the old names alive as aliases.
-export const PLAN_SYSTEM = PLAN_SYSTEM_BROWNFIELD;
-export const SPEC_SYSTEM = SPEC_SYSTEM_BROWNFIELD;
