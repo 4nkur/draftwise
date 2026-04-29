@@ -40,7 +40,7 @@ src/index.js              → command router (dynamic imports, help)
 src/commands/             → one file per CLI command, default export async fn
 src/core/scanner.js       → codebase scanning (frameworks, routes, components, models)
 src/ai/prompts/           → one prompt module per command. Each exports a `buildAgentInstruction(...)` (or `AGENT_INSTRUCTION` constant for `scan`) that the host coding agent reads — section structure, hard rules, save path. No SDK call from the CLI; the agent does the synthesis.
-src/utils/                → config.js (yaml loader; returns projectState/stack/scanMaxFiles), specs.js (list .draftwise/specs/), slug.js, overview.js (read .draftwise/overview.md for greenfield context), scan-cache.js (fingerprinted scan cache, drop-in for scan()), flow-filter.js (narrow scan to flow-relevant items), scan-warnings.js (truncation + missing-framework messages), fs.js (shared pathExists), scan-projection.js (shared compactScan that trims a raw scan into a prompt-sized projection), scan-context.js (shared greenfield/brownfield branch for new/tech/tasks), draftwise-dir.js (`requireDraftwiseDir` guard), tty.js (isInteractive helper), agent-handoff.js (shared orienting prefix logged before every agent-mode handoff), project-state.js (filesystem auto-detect for `init` — bail-fast walk for source files using scanner's IGNORE_DIRS + CODE_EXTENSIONS), skill-providers.js (provider dir mapping + Claude-only frontmatter trim + `detectInstalledProviders` filesystem check shared across `skills install` / `uninstall` / `help`)
+src/utils/                → config.js (yaml loader; returns projectState/stack/scanMaxFiles), specs.js (list .draftwise/specs/), slug.js, overview.js (read .draftwise/overview.md for greenfield context), scan-cache.js (fingerprinted scan cache, drop-in for scan()), flow-filter.js (narrow scan to flow-relevant items), scan-warnings.js (truncation + missing-framework messages), fs.js (shared pathExists), scan-projection.js (shared compactScan that trims a raw scan into a prompt-sized projection), scan-context.js (shared greenfield/brownfield branch for new/tech/tasks), draftwise-dir.js (`requireDraftwiseDir` guard), agent-handoff.js (shared orienting prefix logged before every agent-mode handoff), project-state.js (filesystem auto-detect for `init` — bail-fast walk for source files using scanner's IGNORE_DIRS + CODE_EXTENSIONS), skill-providers.js (provider dir mapping + Claude-only frontmatter trim + `detectInstalledProviders` filesystem check shared across `skills install` / `uninstall` / `help`)
 test/                     → vitest, mirrors src structure
 .claude-plugin/           → plugin marketplace declaration (see "Claude Code plugin" below)
 plugin/                   → plugin source tree shipped via the marketplace
@@ -65,10 +65,10 @@ The single most important module is `src/core/scanner.js` — it parses the user
 - **eslint + prettier** for code style
 - **YAML** for config (`yaml` package)
 - **Markdown** for all spec documents
-- **`@inquirer/prompts`** for interactive prompts (init's idea prompt, tech/tasks spec picker, scaffold's confirm) — strictly the TTY-only convenience layer; flags drive the canonical input path (see "How input works" below).
-- **No AI SDK.** Draftwise no longer calls models from the CLI. Every command prints scanner data plus an instruction for the host coding agent (Claude Code, Cursor, Gemini CLI, etc.), which does the synthesis using its own model.
+- **No interactive prompts.** Every command takes its input via flags or positional args. Missing required input → error with a usage hint, or (for `draftwise init` greenfield without `--idea`) a structured agent handoff. No `@inquirer/prompts`, no `node:readline` — the CLI never blocks on stdin.
+- **No AI SDK.** Draftwise doesn't call models from the CLI. Every command prints scanner data plus an instruction for the host coding agent (Claude Code, Cursor, Gemini CLI, etc.), which does the synthesis using its own model.
 
-**On dependency pinning:** `@inquirer/prompts` and `yaml` use caret ranges because they're stable 1.x+ packages where minor bumps follow semver. Dependabot (`.github/dependabot.yml`) opens PRs for both.
+**On dependency pinning:** `yaml` uses a caret range because it's a stable 2.x package where minor bumps follow semver. Dependabot (`.github/dependabot.yml`) opens PRs for it.
 
 No TypeScript for v1 — keep it simple. May migrate later if the codebase grows.
 
@@ -104,7 +104,7 @@ scan:
 
 **Conversation lives in the host agent.** The CLI is a non-conversational executor: it loads context (scanner data or greenfield plan), prints an instruction, and exits. The host coding agent walks the PM through clarifying questions in chat, then writes the spec to disk. `draftwise new` doesn't run a Q&A loop from the CLI itself — its instruction tells the agent to.
 
-**Flags drive input; inquirer is a TTY-only fallback.** Every command takes its full input set as flags (`--mode`, `--idea`, `--yes`, etc.) parsed via Node's built-in `util.parseArgs`. When stdin is a TTY and a required value is missing, inquirer fires to fill it in — that's the only place inquirer lives. When stdin is not a TTY (CI, coding-agent shell), most commands error with a specific usage hint instead of hanging on a prompt; `draftwise init` is special — when it can't proceed without asking the user something (greenfield without `--idea`), it prints a structured **agent handoff** (the question in chat-friendly format + a re-invocation template, all under `AGENT_HANDOFF_PREFIX`) and exits cleanly, so the host coding agent reads stderr, asks the user in chat, and re-invokes with the collected flag. TTY-detection helper in `src/utils/tty.js`; tests opt into either path via `deps.isInteractive`.
+**Flags drive input; no interactive prompts.** Every command takes its full input set as flags (`--mode`, `--idea`, `--yes`) or positional args, parsed via Node's built-in `util.parseArgs`. Missing required input errors with a specific usage hint — the CLI never blocks waiting for stdin. `draftwise init` is the one special case: greenfield without `--idea` prints a structured **agent handoff** (the question in chat-friendly format + a re-invocation template, all under `AGENT_HANDOFF_PREFIX`) and exits cleanly, so the host coding agent reads stderr, asks the user in chat, and re-invokes with the collected flag. A plain-terminal user reads the same handoff as a usage hint.
 
 **Single repo, single feature spec at a time.** No cross-spec dependency tracking. No multi-repo. Keep scope tight.
 
@@ -127,7 +127,7 @@ draftwise skills uninstall [--provider=...] [--scope=...]           → remove s
 draftwise skills help                                                → list known harnesses + install state
 ```
 
-Each command is a separate file under `src/commands/` with a single `export default async function(args, deps = {}) {}`. The `deps` object is the dependency-injection seam used by tests — `cwd`, `log`, `scan`, `loadConfig`, `readOverview`, `isInteractive`, and per-command prompt overrides.
+Each command is a separate file under `src/commands/` with a single `export default async function(args, deps = {}) {}`. The `deps` object is the dependency-injection seam used by tests — `cwd`, `log`, `scan`, `loadConfig`, `readOverview`, `listSpecs`, etc.
 
 ---
 
@@ -216,7 +216,7 @@ Don't try to make v1 universal. A great experience for JS/TS is better than a me
 
 ## Conventions
 
-- **File per command.** `src/commands/<name>.js` with `export default async function(args, deps = {}) {}`. The `deps` argument is how tests inject `cwd`, `log`, `scan`, `loadConfig`, `readOverview`, `isInteractive`, and prompts.
+- **File per command.** `src/commands/<name>.js` with `export default async function(args, deps = {}) {}`. The `deps` argument is how tests inject `cwd`, `log`, `scan`, `loadConfig`, `readOverview`, `listSpecs`, etc.
 - **Async/await everywhere.** No `.then()` chains.
 - **Console output for CLI feedback.** Plain text for now — colored output (kleur/chalk) is deferred until there's a need.
 - **Errors bubble up to `src/index.js`.** It catches and prints a friendly message, then exits non-zero.

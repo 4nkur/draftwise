@@ -182,30 +182,19 @@ describe('draftwise tasks', () => {
     expect(out).toContain('Plan');
   });
 
-  describe('non-TTY (flags-driven)', () => {
-    function noPrompts() {
-      const fail = () => {
-        throw new Error('inquirer prompt fired in non-TTY test');
-      };
-      return { pickSpec: fail };
-    }
+  it('errors when there are multiple specs and no slug arg', async () => {
+    await seedSpec(dir, 'collab-albums', { technical: '# T1' });
+    await seedSpec(dir, 'photo-uploads', { technical: '# T2' });
 
-    it('errors when multiple specs exist and no slug arg, instead of prompting', async () => {
-      await seedSpec(dir, 'collab-albums', { technical: '# T1' });
-      await seedSpec(dir, 'photo-uploads', { technical: '# T2' });
-
-      await expect(
-        tasksCommand([], {
-          cwd: dir,
-          log: () => {},
-          isInteractive: () => false,
-          prompts: noPrompts(),
-          scan: async () => SAMPLE_SCAN,
-          loadConfig: async () => ({ projectState: 'brownfield' }),
-        }),
-      ).rejects.toThrow(
-        /Multiple technical specs.*Available:.*collab-albums/,
-      );
-    });
+    await expect(
+      tasksCommand([], {
+        cwd: dir,
+        log: () => {},
+        scan: async () => SAMPLE_SCAN,
+        loadConfig: async () => ({ projectState: 'brownfield' }),
+      }),
+    ).rejects.toThrow(
+      /Multiple technical specs.*Available:.*collab-albums/,
+    );
   });
 });

@@ -236,7 +236,7 @@ Claude Code · GitHub Copilot · Cursor · Gemini CLI · Codex CLI · Antigravit
 
 In practice it has only been smoke-tested in a plain terminal so far. If you run it inside one of these and something breaks, please open an issue.
 
-**Non-interactive use.** Every command runs without a TTY — pass values as flags instead of letting inquirer prompt for them. That's what makes the agent integration possible: a slash-command wrapper (or any host agent) can collect answers in chat and re-invoke `draftwise <command>` with `--mode=...`, `--idea="..."`, `--yes`, etc. Run `draftwise <command> --help` for the per-command flag list. When `draftwise init` is run in a non-TTY shell as greenfield without `--idea`, it prints a structured handoff with the question to ask the user — copy it into your AI assistant if you're not already inside one.
+**Flags-driven, never blocks.** Every command takes its input via flags or positional args; missing required input errors with a usage hint instead of waiting on stdin. That's what makes the agent integration possible: a slash-command wrapper (or any host agent) collects answers in chat and re-invokes `draftwise <command>` with `--mode=...`, `--idea="..."`, `--yes`, etc. Run `draftwise <command> --help` for the per-command flag list. `draftwise init` greenfield without `--idea` is the one case that prints a structured handoff instead of erroring — copy it into your AI assistant if you're not already inside one.
 
 ---
 

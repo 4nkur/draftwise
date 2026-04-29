@@ -1,13 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
-import { select } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { listSpecs as defaultListSpecs } from '../utils/specs.js';
 import { readOverview as defaultReadOverview } from '../utils/overview.js';
 import { requireDraftwiseDir } from '../utils/draftwise-dir.js';
 import { loadScanContext } from '../utils/scan-context.js';
-import { isInteractive as defaultIsInteractive } from '../utils/tty.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import { buildAgentInstruction } from '../ai/prompts/tech.js';
 
@@ -16,32 +14,17 @@ export const HELP = `draftwise tech [<feature>] — draft technical-spec.md from
 Usage:
   draftwise tech                 # auto-pick if exactly one product spec exists
   draftwise tech <feature-slug>  # target a specific feature
-  draftwise tech                 # multiple specs → picks via inquirer (TTY only)
 
 Reads the product spec, prints it plus scanner data (brownfield) or
 the project plan (greenfield) and an instruction for your coding
 agent, which writes technical-spec.md grounded in real code or
 marked "(new)" for greenfield.
 
-Non-TTY (CI, coding-agent shell): when multiple product specs exist
-and no <feature-slug> is supplied, the command errors with the
-available slugs instead of running the picker.
+When multiple product specs exist and no <feature-slug> is supplied,
+the command errors with the available slugs.
 `;
 
 const ARG_OPTIONS = {};
-
-const DEFAULT_PROMPTS = {
-  pickSpec: ({ specs }) =>
-    select({
-      message: 'Which feature spec do you want a technical spec for?',
-      choices: specs.map((s) => ({
-        name: s.hasTechnicalSpec
-          ? `${s.slug}  (technical-spec.md exists)`
-          : s.slug,
-        value: s.slug,
-      })),
-    }),
-};
 
 export default async function techCommand(args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
@@ -50,8 +33,6 @@ export default async function techCommand(args = [], deps = {}) {
   const loadConfig = deps.loadConfig ?? defaultLoadConfig;
   const listSpecs = deps.listSpecs ?? defaultListSpecs;
   const readOverview = deps.readOverview ?? defaultReadOverview;
-  const isInteractive = deps.isInteractive ?? defaultIsInteractive;
-  const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };
 
   await requireDraftwiseDir(cwd);
 
@@ -92,9 +73,6 @@ export default async function techCommand(args = [], deps = {}) {
   } else if (specs.length === 1) {
     target = specs[0];
     log(`Using the only product spec: ${target.slug}`);
-  } else if (isInteractive()) {
-    const slug = await prompts.pickSpec({ specs });
-    target = specs.find((s) => s.slug === slug);
   } else {
     const available = specs.map((s) => s.slug).join(', ');
     throw new Error(

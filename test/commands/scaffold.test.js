@@ -41,10 +41,6 @@ async function seedScaffold(dir, plan = SAMPLE_PLAN) {
   );
 }
 
-function fakePrompts(answer) {
-  return { confirmScaffold: async () => answer };
-}
-
 const greenfieldConfig = async () => ({ projectState: 'greenfield' });
 const brownfieldConfig = async () => ({ projectState: 'brownfield' });
 
@@ -67,10 +63,23 @@ describe('draftwise scaffold', () => {
     ).rejects.toThrow(/Run `draftwise init` first/);
   });
 
+  it('errors without --yes', async () => {
+    await seedScaffold(dir);
+    await expect(
+      scaffoldCommand([], {
+        cwd: dir,
+        log: () => {},
+        loadConfig: greenfieldConfig,
+      }),
+    ).rejects.toThrow(/needs --yes to confirm/);
+    // No file writes happened.
+    expect(await pathExists(join(dir, 'app/page.tsx'))).toBe(false);
+  });
+
   it('errors if scaffold.json is missing', async () => {
     await mkdir(join(dir, '.draftwise'));
     await expect(
-      scaffoldCommand([], {
+      scaffoldCommand(['--yes'], {
         cwd: dir,
         log: () => {},
         loadConfig: greenfieldConfig,
@@ -82,7 +91,7 @@ describe('draftwise scaffold', () => {
     // Seed a scaffold.json so a "missing-file" code path can't possibly fire —
     // we want to confirm the brownfield check happens BEFORE the file check.
     await seedScaffold(dir);
-    await scaffoldCommand([], {
+    await scaffoldCommand(['--yes'], {
       cwd: dir,
       log: (m) => logs.push(m),
       loadConfig: brownfieldConfig,
@@ -96,7 +105,7 @@ describe('draftwise scaffold', () => {
     await mkdir(join(dir, '.draftwise'));
     await writeFile(join(dir, '.draftwise', 'scaffold.json'), '{not json', 'utf8');
     await expect(
-      scaffoldCommand([], {
+      scaffoldCommand(['--yes'], {
         cwd: dir,
         log: () => {},
         loadConfig: greenfieldConfig,
@@ -106,34 +115,20 @@ describe('draftwise scaffold', () => {
 
   it('does nothing when initial_files is empty', async () => {
     await seedScaffold(dir, { ...SAMPLE_PLAN, initial_files: [] });
-    await scaffoldCommand([], {
+    await scaffoldCommand(['--yes'], {
       cwd: dir,
       log: (m) => logs.push(m),
       loadConfig: greenfieldConfig,
-      prompts: fakePrompts(true),
     });
     expect(logs.join('\n')).toContain('Nothing to do');
   });
 
-  it('aborts cleanly when the user declines confirmation', async () => {
-    await seedScaffold(dir);
-    await scaffoldCommand([], {
-      cwd: dir,
-      log: (m) => logs.push(m),
-      loadConfig: greenfieldConfig,
-      prompts: fakePrompts(false),
-    });
-    expect(logs.join('\n')).toContain('Aborted');
-    expect(await pathExists(join(dir, 'app/page.tsx'))).toBe(false);
-  });
-
   it('creates each initial file with placeholder content and prints setup commands', async () => {
     await seedScaffold(dir);
-    await scaffoldCommand([], {
+    await scaffoldCommand(['--yes'], {
       cwd: dir,
       log: (m) => logs.push(m),
       loadConfig: greenfieldConfig,
-      prompts: fakePrompts(true),
     });
 
     expect(await pathExists(join(dir, 'app/page.tsx'))).toBe(true);
@@ -163,11 +158,10 @@ describe('draftwise scaffold', () => {
       ],
     });
 
-    await scaffoldCommand([], {
+    await scaffoldCommand(['--yes'], {
       cwd: dir,
       log: (m) => logs.push(m),
       loadConfig: greenfieldConfig,
-      prompts: fakePrompts(true),
     });
 
     const out = logs.join('\n');
@@ -187,54 +181,14 @@ describe('draftwise scaffold', () => {
     await mkdir(join(dir, 'app'), { recursive: true });
     await writeFile(join(dir, 'app/page.tsx'), 'existing content', 'utf8');
 
-    await scaffoldCommand([], {
+    await scaffoldCommand(['--yes'], {
       cwd: dir,
       log: (m) => logs.push(m),
       loadConfig: greenfieldConfig,
-      prompts: fakePrompts(true),
     });
 
     const tsx = await readFile(join(dir, 'app/page.tsx'), 'utf8');
     expect(tsx).toBe('existing content');
     expect(logs.join('\n')).toContain('skipped (exists): app/page.tsx');
-  });
-
-  describe('non-TTY (flags-driven)', () => {
-    function noPrompts() {
-      return {
-        confirmScaffold: () => {
-          throw new Error('inquirer prompt fired in non-TTY test');
-        },
-      };
-    }
-
-    it('--yes runs without prompting in non-TTY', async () => {
-      await seedScaffold(dir);
-
-      await scaffoldCommand(['--yes'], {
-        cwd: dir,
-        log: () => {},
-        isInteractive: () => false,
-        loadConfig: greenfieldConfig,
-        prompts: noPrompts(),
-      });
-
-      const tsx = await readFile(join(dir, 'app/page.tsx'), 'utf8');
-      expect(tsx).toContain('TODO');
-    });
-
-    it('errors in non-TTY without --yes', async () => {
-      await seedScaffold(dir);
-
-      await expect(
-        scaffoldCommand([], {
-          cwd: dir,
-          log: () => {},
-          isInteractive: () => false,
-          loadConfig: greenfieldConfig,
-          prompts: noPrompts(),
-        }),
-      ).rejects.toThrow(/Pass --yes to confirm/);
-    });
   });
 });

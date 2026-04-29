@@ -42,7 +42,7 @@ Draftwise has implicit dependencies. Surface them in chat before invoking the CL
 ## Common patterns across verbs
 
 - **`!`draftwise <verb> $ARGUMENTS`** is the starting shell call. Pass through whatever flags the user already gave; collect missing required ones in chat first.
-- **Structured handoff (init in non-TTY)** — if `draftwise init` prints a block starting with "INIT — answer these in chat..." it's asking you to walk the user through the listed questions. Follow the INSTRUCTION block at the bottom verbatim — re-invoke `draftwise init` with the user's collected flags.
+- **Structured handoff (init greenfield without --idea)** — if `draftwise init` prints a block starting with "INIT — answer..." it's asking you to walk the user through the listed question. Follow the INSTRUCTION block at the bottom verbatim — re-invoke `draftwise init` with the user's collected flag.
 - **Agent-mode handoff (scan / explain / new / tech / tasks)** — the CLI always prints SCANNER OUTPUT or PROJECT PLAN followed by an INSTRUCTION block. It expects YOU to do the synthesis. Follow the INSTRUCTION exactly; ground every claim in the scanner data shown. Don't invent files, routes, or models that aren't there. The CLI never writes the spec — that's your job.
 - **Existing target file** — when re-running `new` / `tech` / `tasks`, ask the user before overwriting their hand-edits. The CLI doesn't guard against this (it doesn't write specs at all), so the conversation has to.
 - **`.draftwise/` not found** — point the user at `/draftwise init`.
