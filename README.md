@@ -95,7 +95,7 @@ cd your-project          # existing repo, or an empty directory for a new projec
 draft init
 ```
 
-**Optional — slash commands inside Claude Code.** If you use Claude Code, install the Draftwise plugin so `/draftwise init`, `/draftwise new "<idea>"`, etc. work in chat:
+**Optional — slash commands inside Claude Code.** If you use Claude Code, install the Draftwise plugin so `/draft init`, `/draft new "<idea>"`, etc. work in chat:
 
 ```
 /plugin marketplace add 4nkur/draftwise
