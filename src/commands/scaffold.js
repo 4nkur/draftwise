@@ -3,6 +3,7 @@ import { join, dirname, resolve, sep } from 'node:path';
 import { parseArgs } from 'node:util';
 import { confirm } from '@inquirer/prompts';
 import { pathExists } from '../utils/fs.js';
+import { requireDraftwiseDir } from '../utils/draftwise-dir.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { isInteractive as defaultIsInteractive } from '../utils/tty.js';
 
@@ -89,10 +90,7 @@ export default async function scaffoldCommand(args = [], deps = {}) {
   }
   const skipConfirm = Boolean(parsed.values.yes);
 
-  const draftwiseDir = join(cwd, '.draftwise');
-  if (!(await pathExists(draftwiseDir))) {
-    throw new Error('.draftwise/ not found. Run `draftwise init` first.');
-  }
+  const draftwiseDir = await requireDraftwiseDir(cwd);
 
   // Short-circuit for brownfield projects — scaffold has nothing to do, and
   // the missing-scaffold.json error message would mislead the user toward

@@ -1,15 +1,14 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { select, confirm } from '@inquirer/prompts';
+import { select } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { listSpecs as defaultListSpecs } from '../utils/specs.js';
 import { readOverview as defaultReadOverview } from '../utils/overview.js';
-import { describeScanWarnings } from '../utils/scan-warnings.js';
-import { pathExists } from '../utils/fs.js';
-import { compactScan } from '../utils/scan-projection.js';
+import { requireDraftwiseDir } from '../utils/draftwise-dir.js';
+import { loadScanContext } from '../utils/scan-context.js';
+import { confirmOverwriteOrCancel } from '../utils/overwrite-guard.js';
 import { isInteractive as defaultIsInteractive } from '../utils/tty.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import {
@@ -55,11 +54,6 @@ const DEFAULT_PROMPTS = {
         value: s.slug,
       })),
     }),
-  confirmOverwrite: ({ slug, file }) =>
-    confirm({
-      message: `${slug}/${file} already exists. Overwrite?`,
-      default: false,
-    }),
 };
 
 export default async function techCommand(args = [], deps = {}) {
@@ -73,10 +67,7 @@ export default async function techCommand(args = [], deps = {}) {
   const isInteractive = deps.isInteractive ?? defaultIsInteractive;
   const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };
 
-  const draftwiseDir = join(cwd, '.draftwise');
-  if (!(await pathExists(draftwiseDir))) {
-    throw new Error('.draftwise/ not found. Run `draftwise init` first.');
-  }
+  await requireDraftwiseDir(cwd);
 
   let parsed;
   try {
@@ -136,57 +127,27 @@ export default async function techCommand(args = [], deps = {}) {
   // Confirm before clobbering a hand-edited technical-spec.md. Run before the
   // scan so a cancel doesn't waste the scan time. Agent mode is exempt — the
   // host agent does the write, not Draftwise.
-  if (
-    !force &&
-    config.mode !== 'agent' &&
-    (await pathExists(target.technicalSpec))
-  ) {
-    if (isInteractive()) {
-      const proceed = await prompts.confirmOverwrite({
-        slug: target.slug,
-        file: 'technical-spec.md',
-      });
-      if (!proceed) {
-        log(
-          'Cancelled. No changes written. (Pass --force to skip this prompt.)',
-        );
-        return;
-      }
-    } else {
-      throw new Error(
-        `${target.slug}/technical-spec.md already exists. Pass --force to overwrite.`,
-      );
-    }
+  if (config.mode !== 'agent') {
+    const proceed = await confirmOverwriteOrCancel({
+      targetPath: target.technicalSpec,
+      slug: target.slug,
+      file: 'technical-spec.md',
+      force,
+      isInteractive,
+      log,
+      confirmOverwrite: prompts.confirmOverwrite,
+    });
+    if (!proceed) return;
   }
 
-  let scanForPrompt;
-  let packageMeta;
-  let overview;
-
-  if (isGreenfield) {
-    log('Reading project plan from overview.md...');
-    overview = await readOverview(cwd);
-    if (!overview.trim()) {
-      throw new Error(
-        'Greenfield project but .draftwise/overview.md is missing or empty. Re-run `draftwise init` to generate the plan.',
-      );
-    }
-    scanForPrompt = null;
-    packageMeta = null;
-  } else {
-    log('Scanning repo...');
-    const result = await scan(cwd, { maxFiles: config.scanMaxFiles });
-    if (!result.files || result.files.length === 0) {
-      throw new Error(
-        `No source files found under ${cwd}. Run \`draftwise tech\` from your repo root.`,
-      );
-    }
-    for (const warning of describeScanWarnings(result)) {
-      log(warning);
-    }
-    scanForPrompt = compactScan(result);
-    packageMeta = result.packageMeta;
-  }
+  const { scanForPrompt, packageMeta, overview } = await loadScanContext({
+    cwd,
+    config,
+    log,
+    scan,
+    readOverview,
+    commandName: 'tech',
+  });
 
   if (config.mode === 'agent') {
     log('');

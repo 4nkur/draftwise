@@ -5,7 +5,7 @@ import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { filterScanForFlow } from '../utils/flow-filter.js';
-import { pathExists } from '../utils/fs.js';
+import { requireDraftwiseDir } from '../utils/draftwise-dir.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import { compactScan } from '../utils/scan-projection.js';
 import { SYSTEM, buildPrompt, buildAgentInstruction } from '../ai/prompts/explain.js';
@@ -39,10 +39,7 @@ export default async function explainCommand(args = [], deps = {}) {
     );
   }
 
-  const draftwiseDir = join(cwd, '.draftwise');
-  if (!(await pathExists(draftwiseDir))) {
-    throw new Error('.draftwise/ not found. Run `draftwise init` first.');
-  }
+  const draftwiseDir = await requireDraftwiseDir(cwd);
 
   const config = await loadConfig(cwd);
 

@@ -1,14 +1,14 @@
 import { writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { input, select, confirm } from '@inquirer/prompts';
+import { input, select } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { readOverview as defaultReadOverview } from '../utils/overview.js';
-import { describeScanWarnings } from '../utils/scan-warnings.js';
-import { pathExists } from '../utils/fs.js';
-import { compactScan } from '../utils/scan-projection.js';
+import { requireDraftwiseDir } from '../utils/draftwise-dir.js';
+import { loadScanContext } from '../utils/scan-context.js';
+import { confirmOverwriteOrCancel } from '../utils/overwrite-guard.js';
 import { isInteractive as defaultIsInteractive } from '../utils/tty.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import { loadAnswersFlag } from '../utils/answers-flag.js';
@@ -75,11 +75,6 @@ const DEFAULT_PROMPTS = {
       ],
       default: 'declined',
     }),
-  confirmOverwrite: ({ slug, file }) =>
-    confirm({
-      message: `${slug}/${file} already exists. Overwrite?`,
-      default: false,
-    }),
 };
 
 export default async function newCommand(args = [], deps = {}) {
@@ -112,44 +107,21 @@ export default async function newCommand(args = [], deps = {}) {
     throw new Error('Missing idea. Usage: draftwise new "<your feature idea>"');
   }
 
-  const draftwiseDir = join(cwd, '.draftwise');
-  if (!(await pathExists(draftwiseDir))) {
-    throw new Error('.draftwise/ not found. Run `draftwise init` first.');
-  }
+  const draftwiseDir = await requireDraftwiseDir(cwd);
 
   const config = await loadConfig(cwd);
   const isGreenfield = config.projectState === 'greenfield';
 
   log(`Idea: "${idea}"`);
 
-  let scanForPrompt;
-  let packageMeta;
-  let overview;
-
-  if (isGreenfield) {
-    log('Reading project plan from overview.md...');
-    overview = await readOverview(cwd);
-    if (!overview.trim()) {
-      throw new Error(
-        'Greenfield project but .draftwise/overview.md is missing or empty. Re-run `draftwise init` to generate the plan, or switch the config to brownfield once code exists.',
-      );
-    }
-    scanForPrompt = null;
-    packageMeta = null;
-  } else {
-    log('Scanning repo...');
-    const result = await scan(cwd, { maxFiles: config.scanMaxFiles });
-    if (!result.files || result.files.length === 0) {
-      throw new Error(
-        `No source files found under ${cwd}. Run \`draftwise new\` from your repo root.`,
-      );
-    }
-    for (const warning of describeScanWarnings(result)) {
-      log(warning);
-    }
-    scanForPrompt = compactScan(result);
-    packageMeta = result.packageMeta;
-  }
+  const { scanForPrompt, packageMeta, overview } = await loadScanContext({
+    cwd,
+    config,
+    log,
+    scan,
+    readOverview,
+    commandName: 'new',
+  });
 
   if (config.mode === 'agent') {
     log('');
@@ -213,25 +185,16 @@ export default async function newCommand(args = [], deps = {}) {
   const slug = slugify(plan.featureSlug);
   const specDir = join(draftwiseDir, 'specs', slug);
   const productSpecPath = join(specDir, 'product-spec.md');
-  if (!force && (await pathExists(productSpecPath))) {
-    if (isInteractive()) {
-      log('');
-      const proceed = await prompts.confirmOverwrite({
-        slug,
-        file: 'product-spec.md',
-      });
-      if (!proceed) {
-        log(
-          'Cancelled. No changes written. (Pass --force to skip this prompt.)',
-        );
-        return;
-      }
-    } else {
-      throw new Error(
-        `${slug}/product-spec.md already exists. Pass --force to overwrite (or delete the file first).`,
-      );
-    }
-  }
+  const proceed = await confirmOverwriteOrCancel({
+    targetPath: productSpecPath,
+    slug,
+    file: 'product-spec.md',
+    force,
+    isInteractive,
+    log,
+    confirmOverwrite: prompts.confirmOverwrite,
+  });
+  if (!proceed) return;
 
   if (plan.affectedFlows.length > 0) {
     log('');
