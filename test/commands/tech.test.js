@@ -43,8 +43,7 @@ describe('draftwise tech', () => {
         cwd: dir,
         log: () => {},
         scan: async () => SAMPLE_SCAN,
-        loadConfig: async () => ({ mode: 'agent' }),
-        complete: async () => '',
+        loadConfig: async () => ({ projectState: 'brownfield' }),
       }),
     ).rejects.toThrow(/Run `draftwise init` first/);
   });
@@ -55,42 +54,21 @@ describe('draftwise tech', () => {
         cwd: dir,
         log: () => {},
         scan: async () => SAMPLE_SCAN,
-        loadConfig: async () => ({ mode: 'agent' }),
-        complete: async () => '',
+        loadConfig: async () => ({ projectState: 'brownfield' }),
       }),
     ).rejects.toThrow(/No product specs found/);
   });
 
   it('auto-picks the only spec when there is exactly one', async () => {
     await seedSpec(dir, 'collab-albums');
-    let captured;
     await techCommand([], {
       cwd: dir,
       log: (m) => logs.push(m),
       scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({
-        mode: 'api',
-        provider: 'claude',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
-        model: '',
-      }),
-      complete: async (req) => {
-        captured = req;
-        return '# Tech\n\nWritten.';
-      },
+      loadConfig: async () => ({ projectState: 'brownfield' }),
     });
 
     expect(logs.join('\n')).toContain('Using the only product spec: collab-albums');
-    expect(captured.system).toContain('technical-spec.md');
-    expect(captured.prompt).toContain('# Product Spec');
-    // tech streams the synthesis live to stdout.
-    expect(typeof captured.onToken).toBe('function');
-
-    const tech = await readFile(
-      join(dir, '.draftwise', 'specs', 'collab-albums', 'technical-spec.md'),
-      'utf8',
-    );
-    expect(tech).toBe('# Tech\n\nWritten.');
   });
 
   it('uses the slug arg to pick a specific spec when given', async () => {
@@ -99,26 +77,12 @@ describe('draftwise tech', () => {
 
     await techCommand(['beta'], {
       cwd: dir,
-      log: () => {},
+      log: (m) => logs.push(m),
       scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({
-        mode: 'api',
-        provider: 'claude',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
-        model: '',
-      }),
-      complete: async () => '# Beta tech',
+      loadConfig: async () => ({ projectState: 'brownfield' }),
     });
 
-    const tech = await readFile(
-      join(dir, '.draftwise', 'specs', 'beta', 'technical-spec.md'),
-      'utf8',
-    );
-    expect(tech).toBe('# Beta tech');
-
-    await expect(
-      readFile(join(dir, '.draftwise', 'specs', 'alpha', 'technical-spec.md')),
-    ).rejects.toThrow();
+    expect(logs.join('\n')).toContain('SPEC: beta');
   });
 
   it('errors when an unknown slug is requested', async () => {
@@ -129,8 +93,7 @@ describe('draftwise tech', () => {
         cwd: dir,
         log: () => {},
         scan: async () => SAMPLE_SCAN,
-        loadConfig: async () => ({ mode: 'agent' }),
-        complete: async () => '',
+        loadConfig: async () => ({ projectState: 'brownfield' }),
       }),
     ).rejects.toThrow(/No product spec found for "ghost"/);
   });
@@ -141,36 +104,23 @@ describe('draftwise tech', () => {
 
     await techCommand([], {
       cwd: dir,
-      log: () => {},
+      log: (m) => logs.push(m),
       scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({
-        mode: 'api',
-        provider: 'claude',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
-        model: '',
-      }),
-      complete: async () => '# Beta tech',
+      loadConfig: async () => ({ projectState: 'brownfield' }),
       prompts: { pickSpec: async () => 'beta' },
     });
 
-    const tech = await readFile(
-      join(dir, '.draftwise', 'specs', 'beta', 'technical-spec.md'),
-      'utf8',
-    );
-    expect(tech).toBe('# Beta tech');
+    expect(logs.join('\n')).toContain('SPEC: beta');
   });
 
-  it('agent mode dumps product spec + scanner + instruction without writing', async () => {
+  it('dumps product spec + scanner + instruction without writing', async () => {
     await seedSpec(dir, 'collab-albums', '# Product\n\nThe spec.');
 
     await techCommand([], {
       cwd: dir,
       log: (m) => logs.push(m),
       scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({ mode: 'agent' }),
-      complete: async () => {
-        throw new Error('should not be called in agent mode');
-      },
+      loadConfig: async () => ({ projectState: 'brownfield' }),
     });
 
     const output = logs.join('\n');
@@ -194,217 +144,31 @@ describe('draftwise tech', () => {
         cwd: dir,
         log: () => {},
         scan: async () => SAMPLE_SCAN,
-        loadConfig: async () => ({ mode: 'agent' }),
-        complete: async () => '',
+        loadConfig: async () => ({ projectState: 'brownfield' }),
       }),
     ).rejects.toThrow(/empty/);
   });
 
-  it('greenfield: skips scanner, reads overview, uses greenfield prompts', async () => {
-    await seedSpec(dir, 'collab-albums', '# Product\n\nGreenfield product.');
+  it('greenfield: skips scanner, reads overview, dumps PROJECT PLAN', async () => {
+    await seedSpec(dir, 'collab-albums', '# Product');
 
     let scanCalled = false;
-    let captured;
-
     await techCommand([], {
       cwd: dir,
-      log: () => {},
+      log: (m) => logs.push(m),
       scan: async () => {
         scanCalled = true;
         return SAMPLE_SCAN;
       },
-      loadConfig: async () => ({
-        mode: 'api',
-        provider: 'claude',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
-        model: '',
-        projectState: 'greenfield',
-      }),
+      loadConfig: async () => ({ projectState: 'greenfield' }),
       readOverview: async () => '# Plan\n\nNext.js + Prisma\n',
-      complete: async (req) => {
-        captured = req;
-        return '# Tech\n\nWith (new) markers.';
-      },
     });
 
     expect(scanCalled).toBe(false);
-    expect(captured.system).toContain('GREENFIELD');
-    expect(captured.prompt).toContain('Plan');
-    expect(captured.prompt).not.toContain('"frameworks"');
-
-    const tech = await readFile(
-      join(dir, '.draftwise', 'specs', 'collab-albums', 'technical-spec.md'),
-      'utf8',
-    );
-    expect(tech).toContain('# Tech');
-  });
-
-  it('prompts before overwriting an existing technical-spec.md, and bails if user declines', async () => {
-    const specDir = await seedSpec(dir, 'collab-albums');
-    await writeFile(
-      join(specDir, 'technical-spec.md'),
-      '# Hand-edited tech spec\n',
-      'utf8',
-    );
-
-    let promptCalls = 0;
-    let completeCalled = false;
-
-    await techCommand([], {
-      cwd: dir,
-      log: (m) => logs.push(m),
-      scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({
-        mode: 'api',
-        provider: 'claude',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
-        model: '',
-      }),
-      complete: async () => {
-        completeCalled = true;
-        return '# Regenerated tech';
-      },
-      prompts: {
-        confirmOverwrite: async () => {
-          promptCalls++;
-          return false;
-        },
-      },
-    });
-
-    expect(promptCalls).toBe(1);
-    expect(completeCalled).toBe(false);
-    expect(logs.join('\n')).toContain('Cancelled');
-
-    // The hand-edited spec must remain on disk untouched.
-    const tech = await readFile(
-      join(specDir, 'technical-spec.md'),
-      'utf8',
-    );
-    expect(tech).toBe('# Hand-edited tech spec\n');
-  });
-
-  it('overwrites without prompting when --force is passed', async () => {
-    const specDir = await seedSpec(dir, 'collab-albums');
-    await writeFile(
-      join(specDir, 'technical-spec.md'),
-      '# Hand-edited tech spec\n',
-      'utf8',
-    );
-
-    let promptCalls = 0;
-
-    await techCommand(['--force'], {
-      cwd: dir,
-      log: () => {},
-      scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({
-        mode: 'api',
-        provider: 'claude',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
-        model: '',
-      }),
-      complete: async () => '# Regenerated tech',
-      prompts: {
-        confirmOverwrite: async () => {
-          promptCalls++;
-          return false;
-        },
-      },
-    });
-
-    expect(promptCalls).toBe(0);
-
-    const tech = await readFile(
-      join(specDir, 'technical-spec.md'),
-      'utf8',
-    );
-    expect(tech).toBe('# Regenerated tech');
-  });
-
-  it('--force works in any arg position (before or after the slug)', async () => {
-    await seedSpec(dir, 'alpha');
-    const betaDir = await seedSpec(dir, 'beta');
-    await writeFile(
-      join(betaDir, 'technical-spec.md'),
-      'old',
-      'utf8',
-    );
-
-    await techCommand(['--force', 'beta'], {
-      cwd: dir,
-      log: () => {},
-      scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({
-        mode: 'api',
-        provider: 'claude',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
-        model: '',
-      }),
-      complete: async () => '# new',
-    });
-
-    const tech = await readFile(join(betaDir, 'technical-spec.md'), 'utf8');
-    expect(tech).toBe('# new');
-  });
-
-  it('agent mode does not trigger the overwrite prompt (host agent writes the file)', async () => {
-    const specDir = await seedSpec(dir, 'collab-albums', '# Product');
-    await writeFile(
-      join(specDir, 'technical-spec.md'),
-      '# Old',
-      'utf8',
-    );
-
-    let promptCalls = 0;
-
-    await techCommand([], {
-      cwd: dir,
-      log: () => {},
-      scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({ mode: 'agent' }),
-      complete: async () => '',
-      prompts: {
-        confirmOverwrite: async () => {
-          promptCalls++;
-          return false;
-        },
-      },
-    });
-
-    expect(promptCalls).toBe(0);
-    // Existing file should still be on disk — agent mode never writes from
-    // the CLI; the host agent will handle it.
-    const tech = await readFile(
-      join(specDir, 'technical-spec.md'),
-      'utf8',
-    );
-    expect(tech).toBe('# Old');
-  });
-
-  it('greenfield agent mode: dumps PROJECT PLAN instead of SCANNER OUTPUT', async () => {
-    await seedSpec(dir, 'collab-albums', '# Product');
-
-    const localLogs = [];
-    await techCommand([], {
-      cwd: dir,
-      log: (m) => localLogs.push(m),
-      scan: async () => {
-        throw new Error('should not be called in greenfield agent mode');
-      },
-      loadConfig: async () => ({
-        mode: 'agent',
-        projectState: 'greenfield',
-      }),
-      readOverview: async () => '# Plan\n\nNext.js + Prisma\n',
-      complete: async () => {
-        throw new Error('should not be called in agent mode');
-      },
-    });
-
-    const out = localLogs.join('\n');
+    const out = logs.join('\n');
     expect(out).toContain('PROJECT PLAN');
     expect(out).not.toContain('SCANNER OUTPUT');
+    expect(out).toContain('Plan');
   });
 
   describe('non-TTY (flags-driven)', () => {
@@ -412,7 +176,7 @@ describe('draftwise tech', () => {
       const fail = () => {
         throw new Error('inquirer prompt fired in non-TTY test');
       };
-      return { pickSpec: fail, confirmOverwrite: fail };
+      return { pickSpec: fail };
     }
 
     it('errors when multiple specs exist and no slug arg, instead of prompting', async () => {
@@ -426,78 +190,9 @@ describe('draftwise tech', () => {
           isInteractive: () => false,
           prompts: noPrompts(),
           scan: async () => SAMPLE_SCAN,
-          loadConfig: async () => ({
-            mode: 'api',
-            provider: 'claude',
-            apiKeyEnv: 'ANTHROPIC_API_KEY',
-            model: '',
-          }),
-          complete: async () => '# Tech',
+          loadConfig: async () => ({ projectState: 'brownfield' }),
         }),
       ).rejects.toThrow(/Multiple product specs.*Available:.*collab-albums/);
-    });
-
-    it('errors when technical-spec.md exists in non-TTY without --force', async () => {
-      await seedSpec(dir, 'collab-albums', '# Product');
-      const techPath = join(
-        dir,
-        '.draftwise',
-        'specs',
-        'collab-albums',
-        'technical-spec.md',
-      );
-      await writeFile(techPath, '# Hand-edited tech spec\n', 'utf8');
-
-      await expect(
-        techCommand([], {
-          cwd: dir,
-          log: () => {},
-          isInteractive: () => false,
-          prompts: noPrompts(),
-          scan: async () => SAMPLE_SCAN,
-          loadConfig: async () => ({
-            mode: 'api',
-            provider: 'claude',
-            apiKeyEnv: 'ANTHROPIC_API_KEY',
-            model: '',
-          }),
-          complete: async () => '# Regenerated',
-        }),
-      ).rejects.toThrow(/already exists\. Pass --force/);
-
-      const preserved = await readFile(techPath, 'utf8');
-      expect(preserved).toBe('# Hand-edited tech spec\n');
-    });
-
-    it('runs end-to-end with positional slug + --force in non-TTY', async () => {
-      await seedSpec(dir, 'collab-albums', '# Product');
-      await seedSpec(dir, 'photo-uploads', '# Product');
-      const techPath = join(
-        dir,
-        '.draftwise',
-        'specs',
-        'collab-albums',
-        'technical-spec.md',
-      );
-      await writeFile(techPath, '# Old\n', 'utf8');
-
-      await techCommand(['collab-albums', '--force'], {
-        cwd: dir,
-        log: () => {},
-        isInteractive: () => false,
-        prompts: noPrompts(),
-        scan: async () => SAMPLE_SCAN,
-        loadConfig: async () => ({
-          mode: 'api',
-          provider: 'claude',
-          apiKeyEnv: 'ANTHROPIC_API_KEY',
-          model: '',
-        }),
-        complete: async () => '# New tech spec',
-      });
-
-      const written = await readFile(techPath, 'utf8');
-      expect(written).toBe('# New tech spec');
     });
   });
 });

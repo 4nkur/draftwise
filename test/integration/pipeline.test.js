@@ -4,10 +4,9 @@
 // seams the unit tests can't (e.g. init writing a config that subsequent
 // commands fail to parse, list/show finding specs in the wrong shape).
 //
-// Scope: agent mode only for now. Agent mode dumps scanner data + an
-// instruction to stdout for the host coding agent — no AI call to mock.
-// API mode integration would need canned `complete` responses for each
-// phase; layered on later if needed.
+// All commands run against a host coding agent — they print scanner data +
+// instruction to stdout and let the agent do the writing. Nothing here calls
+// an LLM directly.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
@@ -58,7 +57,7 @@ const FAKE_PACKAGE_JSON = JSON.stringify(
   2,
 );
 
-describe('integration: pipeline (brownfield, agent mode)', () => {
+describe('integration: pipeline (brownfield)', () => {
   let dir;
   let logs;
 
@@ -79,14 +78,7 @@ describe('integration: pipeline (brownfield, agent mode)', () => {
   }
 
   it('init creates the .draftwise/ skeleton and a parseable config', async () => {
-    await init([], {
-      cwd: dir,
-      log,
-      prompts: {
-        promptProjectState: async () => 'brownfield',
-        promptMode: async () => 'agent',
-      },
-    });
+    await init([], { cwd: dir, log, isInteractive: () => false });
 
     expect(await exists(join(dir, '.draftwise'))).toBe(true);
     expect(await exists(join(dir, '.draftwise', 'specs'))).toBe(true);
@@ -98,21 +90,14 @@ describe('integration: pipeline (brownfield, agent mode)', () => {
       join(dir, '.draftwise', 'config.yaml'),
       'utf8',
     );
-    expect(config).toContain('mode: agent');
     expect(config).toContain('state: brownfield');
+    expect(config).not.toContain('ai:');
   });
 
   it('scan, explain, new — all reach correct agent-mode output', async () => {
-    await init([], {
-      cwd: dir,
-      log,
-      prompts: {
-        promptProjectState: async () => 'brownfield',
-        promptMode: async () => 'agent',
-      },
-    });
+    await init([], { cwd: dir, log, isInteractive: () => false });
 
-    // scan — agent mode dumps scanner output + instruction.
+    // scan dumps scanner output + instruction.
     logs.length = 0;
     await scan([], { cwd: dir, log });
     let out = logs.join('\n');
@@ -139,18 +124,11 @@ describe('integration: pipeline (brownfield, agent mode)', () => {
   });
 
   it('list and show find specs that the host agent would have written', async () => {
-    await init([], {
-      cwd: dir,
-      log,
-      prompts: {
-        promptProjectState: async () => 'brownfield',
-        promptMode: async () => 'agent',
-      },
-    });
+    await init([], { cwd: dir, log, isInteractive: () => false });
 
-    // Agent mode doesn't write specs from inside draftwise — the host
-    // coding agent does. Simulate that step by seeding spec files at
-    // the same paths the agent would.
+    // Agent doesn't write specs from inside draftwise — the host coding
+    // agent does. Simulate that step by seeding spec files at the same
+    // paths the agent would.
     const featureDir = join(dir, '.draftwise', 'specs', 'mute-notifications');
     await mkdir(featureDir, { recursive: true });
     await writeFile(
@@ -194,14 +172,7 @@ describe('integration: pipeline (brownfield, agent mode)', () => {
   });
 
   it('show errors gracefully when the requested type is missing', async () => {
-    await init([], {
-      cwd: dir,
-      log,
-      prompts: {
-        promptProjectState: async () => 'brownfield',
-        promptMode: async () => 'agent',
-      },
-    });
+    await init([], { cwd: dir, log, isInteractive: () => false });
 
     const featureDir = join(dir, '.draftwise', 'specs', 'half-baked');
     await mkdir(featureDir, { recursive: true });
@@ -217,7 +188,7 @@ describe('integration: pipeline (brownfield, agent mode)', () => {
   });
 });
 
-describe('integration: pipeline (greenfield, agent mode)', () => {
+describe('integration: pipeline (greenfield)', () => {
   let dir;
   let logs;
 
@@ -234,16 +205,11 @@ describe('integration: pipeline (greenfield, agent mode)', () => {
     logs.push(m);
   }
 
-  it('init greenfield + agent → scan / explain short-circuit cleanly', async () => {
-    await init([], {
-      cwd: dir,
-      log,
-      prompts: {
-        promptProjectState: async () => 'greenfield',
-        promptMode: async () => 'agent',
-        promptIdea: async () => 'a recipe sharing app for home cooks',
-      },
-    });
+  it('init greenfield → scan / explain short-circuit cleanly', async () => {
+    await init(
+      ['--mode=greenfield', '--idea=a recipe sharing app for home cooks'],
+      { cwd: dir, log, isInteractive: () => false },
+    );
 
     expect(await exists(join(dir, '.draftwise', 'config.yaml'))).toBe(true);
     const config = await readFile(
