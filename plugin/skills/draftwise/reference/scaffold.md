@@ -2,7 +2,7 @@
 
 ## Pre-flight
 
-- **`.draftwise/scaffold.json` exists?** Greenfield + api-mode init writes this. Greenfield + agent-mode init expects the host agent to write it; if it's missing, suggest the user re-run init or write `scaffold.json` manually from the conversation.
+- **`.draftwise/scaffold.json` exists?** Greenfield init's INSTRUCTION tells the host agent to write this from the stack-selection conversation. If it's missing, the agent didn't complete the handoff — suggest the user re-run `/draftwise init` (and follow the INSTRUCTION this time) or write `scaffold.json` manually.
 - **Brownfield project?** Scaffold short-circuits with a friendly hint — let the CLI handle this, but warn the user upfront if you can tell.
 - **Scaffolders run first?** If the plan's `setup_commands` includes something like `npx create-next-app .` or `npm init`, those should run BEFORE scaffold. Scaffold won't overwrite existing files but it may interfere with a fresh scaffolder run that wants an empty directory. Ask the user if they've run their setup commands first; if not, suggest doing those before scaffold.
 
@@ -20,6 +20,6 @@ After confirming readiness:
 
 - **Brownfield short-circuit** ("scaffold is greenfield-only…"): tell the user this command only applies to greenfield projects.
 
-- **Missing scaffold.json**: the greenfield plan wasn't fully written. Suggest re-running `/draftwise init` in greenfield mode (or writing `.draftwise/scaffold.json` manually if init was run in agent mode and the host agent didn't write it).
+- **Missing scaffold.json**: the greenfield plan wasn't fully written. Suggest re-running `/draftwise init` in greenfield mode (and following the INSTRUCTION this time to write both `overview.md` and `scaffold.json`), or writing `.draftwise/scaffold.json` manually.
 
 - **Path-traversal block** ("blocked (escapes project root)"): a file path in scaffold.json tried to escape the project root. Show the user which paths were blocked and suggest reviewing `.draftwise/scaffold.json`.

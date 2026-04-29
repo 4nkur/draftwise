@@ -95,7 +95,7 @@ export default async function scaffoldCommand(args = [], deps = {}) {
   // Short-circuit for brownfield projects — scaffold has nothing to do, and
   // the missing-scaffold.json error message would mislead the user toward
   // an "ask your agent" path that doesn't apply.
-  const config = await loadConfig(cwd);
+  const config = await loadConfig(cwd, { log });
   if (config.projectState === 'brownfield') {
     log(
       'scaffold is greenfield-only — your project is brownfield, so there are no initial files to create.',

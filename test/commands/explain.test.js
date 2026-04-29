@@ -35,8 +35,7 @@ describe('draftwise explain', () => {
         cwd: dir,
         log: (m) => logs.push(m),
         scan: async () => SAMPLE_SCAN,
-        loadConfig: async () => ({ mode: 'agent' }),
-        complete: async () => '',
+        loadConfig: async () => ({ projectState: 'brownfield' }),
       }),
     ).rejects.toThrow(/Missing flow name/);
   });
@@ -48,8 +47,7 @@ describe('draftwise explain', () => {
         cwd: dir,
         log: () => {},
         scan: async () => SAMPLE_SCAN,
-        loadConfig: async () => ({ mode: 'agent' }),
-        complete: async () => '',
+        loadConfig: async () => ({ projectState: 'brownfield' }),
       }),
     ).rejects.toThrow(/Run `draftwise init` first/);
   });
@@ -59,8 +57,7 @@ describe('draftwise explain', () => {
       cwd: dir,
       log: (m) => logs.push(m),
       scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({ mode: 'agent' }),
-      complete: async () => 'unused',
+      loadConfig: async () => ({ projectState: 'brownfield' }),
     });
 
     const output = logs.join('\n');
@@ -68,15 +65,12 @@ describe('draftwise explain', () => {
     expect(output).toContain('user-signup.md');
   });
 
-  it('agent mode: prints scanner data + flow + instruction without writing the snapshot', async () => {
+  it('prints scanner data + flow + instruction without writing the snapshot', async () => {
     await explainCommand(['login'], {
       cwd: dir,
       log: (m) => logs.push(m),
       scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({ mode: 'agent' }),
-      complete: async () => {
-        throw new Error('should not be called in agent mode');
-      },
+      loadConfig: async () => ({ projectState: 'brownfield' }),
     });
 
     const output = logs.join('\n');
@@ -91,37 +85,6 @@ describe('draftwise explain', () => {
     ).rejects.toThrow();
   });
 
-  it('api mode: calls the model, prints the walkthrough, and writes the snapshot', async () => {
-    let captured;
-    await explainCommand(['login'], {
-      cwd: dir,
-      log: (m) => logs.push(m),
-      scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({
-        mode: 'api',
-        provider: 'claude',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
-        model: '',
-      }),
-      complete: async (req) => {
-        captured = req;
-        return '# Flow: login\n\nGenerated walkthrough.';
-      },
-    });
-
-    expect(captured.system).toContain('Draftwise');
-    expect(captured.prompt).toContain('"login"');
-    expect(captured.prompt).toContain('Express');
-    // explain wires onToken so the walkthrough streams to stdout live.
-    expect(typeof captured.onToken).toBe('function');
-
-    const saved = await readFile(
-      join(dir, '.draftwise', 'flows', 'login.md'),
-      'utf8',
-    );
-    expect(saved).toContain('# Flow: login');
-  });
-
   it('short-circuits in greenfield mode with a friendly message', async () => {
     let scanCalled = false;
     await explainCommand(['login'], {
@@ -131,10 +94,7 @@ describe('draftwise explain', () => {
         scanCalled = true;
         return SAMPLE_SCAN;
       },
-      loadConfig: async () => ({ mode: 'agent', projectState: 'greenfield' }),
-      complete: async () => {
-        throw new Error('should not be called in greenfield');
-      },
+      loadConfig: async () => ({ projectState: 'greenfield' }),
     });
     expect(scanCalled).toBe(false);
     expect(logs.join('\n')).toContain('No code yet');
@@ -146,8 +106,7 @@ describe('draftwise explain', () => {
         cwd: dir,
         log: () => {},
         scan: async () => ({ ...SAMPLE_SCAN, files: [] }),
-        loadConfig: async () => ({ mode: 'agent' }),
-        complete: async () => '',
+        loadConfig: async () => ({ projectState: 'brownfield' }),
       }),
     ).rejects.toThrow(/No source files/);
   });

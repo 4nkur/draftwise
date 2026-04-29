@@ -1,14 +1,11 @@
-import { writeFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
-import { complete as defaultComplete } from '../ai/provider.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { filterScanForFlow } from '../utils/flow-filter.js';
 import { requireDraftwiseDir } from '../utils/draftwise-dir.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import { compactScan } from '../utils/scan-projection.js';
-import { SYSTEM, buildPrompt, buildAgentInstruction } from '../ai/prompts/explain.js';
+import { buildAgentInstruction } from '../ai/prompts/explain.js';
 import { slugify } from '../utils/slug.js';
 
 export const HELP = `draftwise explain <flow> — trace a flow through the codebase
@@ -21,8 +18,9 @@ Usage:
 Walks the flow end-to-end: entry points, services, data writes,
 side effects, edge cases the code handles. The scan is filtered
 to flow-keyword-relevant files so the model focuses on what
-matters. Saves a snapshot to .draftwise/flows/<slug>.md in api
-mode. Brownfield only — greenfield short-circuits with a hint.
+matters. Prints scanner data plus an instruction for your coding
+agent, which writes the walkthrough to .draftwise/flows/<slug>.md.
+Brownfield only — greenfield short-circuits with a hint.
 `;
 
 export default async function explainCommand(args = [], deps = {}) {
@@ -30,7 +28,6 @@ export default async function explainCommand(args = [], deps = {}) {
   const log = deps.log ?? ((msg) => console.error(msg));
   const scan = deps.scan ?? defaultScan;
   const loadConfig = deps.loadConfig ?? defaultLoadConfig;
-  const complete = deps.complete ?? defaultComplete;
 
   const flow = args.join(' ').trim();
   if (!flow) {
@@ -39,9 +36,9 @@ export default async function explainCommand(args = [], deps = {}) {
     );
   }
 
-  const draftwiseDir = await requireDraftwiseDir(cwd);
+  await requireDraftwiseDir(cwd);
 
-  const config = await loadConfig(cwd);
+  const config = await loadConfig(cwd, { log });
 
   if (config.projectState === 'greenfield') {
     log(`No code yet — \`draftwise explain\` traces flows that exist in the codebase.`);
@@ -68,49 +65,23 @@ export default async function explainCommand(args = [], deps = {}) {
   const compact = compactScan(result);
   const scanForPrompt = filterScanForFlow(compact, flow);
 
-  if (config.mode === 'agent') {
-    log('');
-    log('Agent mode — handing scanner data off to your coding agent.');
-    log(AGENT_HANDOFF_PREFIX);
-    log('');
-    log('---');
-    log(`FLOW: ${flow}`);
-    log('');
-    log('SCANNER OUTPUT');
-    log('```json');
-    log(JSON.stringify(scanForPrompt, null, 2));
-    log('```');
-    log('');
-    log('PACKAGE METADATA');
-    log('```json');
-    log(JSON.stringify(result.packageMeta, null, 2));
-    log('```');
-    log('');
-    log('INSTRUCTION');
-    log(buildAgentInstruction(flow, slug));
-    return;
-  }
-
-  log(`API mode — calling ${config.provider}...`);
   log('');
-  const walkthrough = await complete({
-    provider: config.provider,
-    apiKeyEnv: config.apiKeyEnv,
-    model: config.model,
-    maxTokens: config.maxTokens,
-    system: SYSTEM,
-    prompt: buildPrompt({
-      flow,
-      scan: scanForPrompt,
-      packageMeta: result.packageMeta,
-    }),
-    onToken: (chunk) => process.stdout.write(chunk),
-  });
+  log('Handing scanner data off to your coding agent.');
+  log(AGENT_HANDOFF_PREFIX);
   log('');
-
-  const flowsDir = join(draftwiseDir, 'flows');
-  await mkdir(flowsDir, { recursive: true });
-  const outPath = join(flowsDir, `${slug}.md`);
-  await writeFile(outPath, walkthrough, 'utf8');
-  log(`Saved snapshot to .draftwise/flows/${slug}.md`);
+  log('---');
+  log(`FLOW: ${flow}`);
+  log('');
+  log('SCANNER OUTPUT');
+  log('```json');
+  log(JSON.stringify(scanForPrompt, null, 2));
+  log('```');
+  log('');
+  log('PACKAGE METADATA');
+  log('```json');
+  log(JSON.stringify(result.packageMeta, null, 2));
+  log('```');
+  log('');
+  log('INSTRUCTION');
+  log(buildAgentInstruction(flow, slug));
 }

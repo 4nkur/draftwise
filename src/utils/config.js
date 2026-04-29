@@ -2,11 +2,9 @@ import { readFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
-const VALID_MODES = new Set(['agent', 'api']);
-const VALID_PROVIDERS = new Set(['claude', 'openai', 'gemini']);
 const VALID_PROJECT_STATES = new Set(['greenfield', 'brownfield']);
 
-export async function loadConfig(cwd = process.cwd()) {
+export async function loadConfig(cwd = process.cwd(), { log } = {}) {
   const path = join(cwd, '.draftwise', 'config.yaml');
   try {
     await access(path);
@@ -26,24 +24,13 @@ export async function loadConfig(cwd = process.cwd()) {
     });
   }
 
-  const ai = parsed?.ai;
-  if (!ai || !VALID_MODES.has(ai.mode)) {
-    throw new Error(
-      '.draftwise/config.yaml is missing a valid `ai.mode` (agent or api).',
+  // Configs written before api-mode was dropped still carry an `ai:` block.
+  // Surface a one-line notice so the user knows it's safe to delete; don't
+  // error — leaving it in place keeps old configs working.
+  if (parsed?.ai && typeof log === 'function') {
+    log(
+      'Note: the `ai:` block in .draftwise/config.yaml is no longer used (Draftwise now runs only inside coding agents). You can delete it.',
     );
-  }
-
-  if (ai.mode === 'api') {
-    if (!VALID_PROVIDERS.has(ai.provider)) {
-      throw new Error(
-        '.draftwise/config.yaml has `ai.mode: api` but is missing a valid `ai.provider` (claude, openai, or gemini).',
-      );
-    }
-    if (!ai.api_key_env || typeof ai.api_key_env !== 'string') {
-      throw new Error(
-        '.draftwise/config.yaml has `ai.mode: api` but is missing `ai.api_key_env`.',
-      );
-    }
   }
 
   const project = parsed?.project ?? {};
@@ -57,17 +44,7 @@ export async function loadConfig(cwd = process.cwd()) {
     scanMaxFiles = Math.max(1, Math.floor(scan.max_files));
   }
 
-  let maxTokens;
-  if (typeof ai.max_tokens === 'number' && Number.isFinite(ai.max_tokens)) {
-    maxTokens = Math.max(1, Math.floor(ai.max_tokens));
-  }
-
   return {
-    mode: ai.mode,
-    provider: ai.provider,
-    apiKeyEnv: ai.api_key_env,
-    model: ai.model || '',
-    maxTokens,
     projectState,
     stack: project.stack,
     scanMaxFiles,

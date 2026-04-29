@@ -1,47 +1,34 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { select } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
-import { complete as defaultComplete } from '../ai/provider.js';
 import { listSpecs as defaultListSpecs } from '../utils/specs.js';
 import { readOverview as defaultReadOverview } from '../utils/overview.js';
 import { requireDraftwiseDir } from '../utils/draftwise-dir.js';
 import { loadScanContext } from '../utils/scan-context.js';
-import { confirmOverwriteOrCancel } from '../utils/overwrite-guard.js';
 import { isInteractive as defaultIsInteractive } from '../utils/tty.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
-import {
-  selectSystem,
-  buildPrompt,
-  buildAgentInstruction,
-} from '../ai/prompts/tech.js';
+import { buildAgentInstruction } from '../ai/prompts/tech.js';
 
-export const HELP = `draftwise tech [<feature>] [--force] — draft technical-spec.md from a product spec
+export const HELP = `draftwise tech [<feature>] — draft technical-spec.md from a product spec
 
 Usage:
   draftwise tech                 # auto-pick if exactly one product spec exists
   draftwise tech <feature-slug>  # target a specific feature
   draftwise tech                 # multiple specs → picks via inquirer (TTY only)
 
-Flags:
-  --force, -f                # Skip the overwrite confirmation prompt.
-
-Reads the product spec, writes technical-spec.md grounded in the
-real codebase (brownfield) or the planned directory structure
-(greenfield, with "(new)" markers). If technical-spec.md already
-exists for the chosen feature, you'll be asked to confirm before
-it's overwritten — pass --force to skip the prompt. In non-TTY
-without --force, the command errors instead of overwriting.
+Reads the product spec, prints it plus scanner data (brownfield) or
+the project plan (greenfield) and an instruction for your coding
+agent, which writes technical-spec.md grounded in real code or
+marked "(new)" for greenfield.
 
 Non-TTY (CI, coding-agent shell): when multiple product specs exist
 and no <feature-slug> is supplied, the command errors with the
 available slugs instead of running the picker.
 `;
 
-const ARG_OPTIONS = {
-  force: { type: 'boolean', short: 'f' },
-};
+const ARG_OPTIONS = {};
 
 const DEFAULT_PROMPTS = {
   pickSpec: ({ specs }) =>
@@ -61,7 +48,6 @@ export default async function techCommand(args = [], deps = {}) {
   const log = deps.log ?? ((msg) => console.error(msg));
   const scan = deps.scan ?? defaultScan;
   const loadConfig = deps.loadConfig ?? defaultLoadConfig;
-  const complete = deps.complete ?? defaultComplete;
   const listSpecs = deps.listSpecs ?? defaultListSpecs;
   const readOverview = deps.readOverview ?? defaultReadOverview;
   const isInteractive = deps.isInteractive ?? defaultIsInteractive;
@@ -82,10 +68,9 @@ export default async function techCommand(args = [], deps = {}) {
       cause: err,
     });
   }
-  const force = Boolean(parsed.values.force);
   const requestedSlug = parsed.positionals[0];
 
-  const config = await loadConfig(cwd);
+  const config = await loadConfig(cwd, { log });
   const isGreenfield = config.projectState === 'greenfield';
 
   const specs = (await listSpecs(cwd)).filter((s) => s.hasProductSpec);
@@ -124,22 +109,6 @@ export default async function techCommand(args = [], deps = {}) {
     );
   }
 
-  // Confirm before clobbering a hand-edited technical-spec.md. Run before the
-  // scan so a cancel doesn't waste the scan time. Agent mode is exempt — the
-  // host agent does the write, not Draftwise.
-  if (config.mode !== 'agent') {
-    const proceed = await confirmOverwriteOrCancel({
-      targetPath: target.technicalSpec,
-      slug: target.slug,
-      file: 'technical-spec.md',
-      force,
-      isInteractive,
-      log,
-      confirmOverwrite: prompts.confirmOverwrite,
-    });
-    if (!proceed) return;
-  }
-
   const { scanForPrompt, packageMeta, overview } = await loadScanContext({
     cwd,
     config,
@@ -149,64 +118,35 @@ export default async function techCommand(args = [], deps = {}) {
     commandName: 'tech',
   });
 
-  if (config.mode === 'agent') {
-    log('');
-    if (isGreenfield) {
-      log('Agent mode — handing project plan + product spec off to your coding agent.');
-    } else {
-      log('Agent mode — handing scanner data + product spec off to your coding agent.');
-    }
-    log(AGENT_HANDOFF_PREFIX);
-    log('');
-    log('---');
-    log(`SPEC: ${target.slug}`);
-    log('');
-    log('PRODUCT SPEC');
-    log(productSpec);
-    log('');
-    if (isGreenfield) {
-      log('PROJECT PLAN (overview.md)');
-      log(overview);
-    } else {
-      log('SCANNER OUTPUT');
-      log('```json');
-      log(JSON.stringify(scanForPrompt, null, 2));
-      log('```');
-      log('');
-      log('PACKAGE METADATA');
-      log('```json');
-      log(JSON.stringify(packageMeta, null, 2));
-      log('```');
-    }
-    log('');
-    log('INSTRUCTION');
-    log(buildAgentInstruction(target.slug, config.projectState));
-    return;
+  log('');
+  if (isGreenfield) {
+    log('Handing project plan + product spec off to your coding agent.');
+  } else {
+    log('Handing scanner data + product spec off to your coding agent.');
   }
-
-  log(`API mode — calling ${config.provider}...`);
+  log(AGENT_HANDOFF_PREFIX);
   log('');
-  const techSpec = await complete({
-    provider: config.provider,
-    apiKeyEnv: config.apiKeyEnv,
-    model: config.model,
-    maxTokens: config.maxTokens,
-    system: selectSystem(config.projectState),
-    prompt: buildPrompt({
-      productSpec,
-      scan: scanForPrompt,
-      packageMeta,
-      projectState: config.projectState,
-      overview,
-    }),
-    onToken: (chunk) => process.stdout.write(chunk),
-  });
+  log('---');
+  log(`SPEC: ${target.slug}`);
   log('');
-
-  await writeFile(target.technicalSpec, techSpec, 'utf8');
+  log('PRODUCT SPEC');
+  log(productSpec);
   log('');
-  log(`Wrote .draftwise/specs/${target.slug}/technical-spec.md`);
-  log(
-    'Next: review, refine, then run `draftwise tasks` to break it into work items.',
-  );
+  if (isGreenfield) {
+    log('PROJECT PLAN (overview.md)');
+    log(overview);
+  } else {
+    log('SCANNER OUTPUT');
+    log('```json');
+    log(JSON.stringify(scanForPrompt, null, 2));
+    log('```');
+    log('');
+    log('PACKAGE METADATA');
+    log('```json');
+    log(JSON.stringify(packageMeta, null, 2));
+    log('```');
+  }
+  log('');
+  log('INSTRUCTION');
+  log(buildAgentInstruction(target.slug, config.projectState));
 }

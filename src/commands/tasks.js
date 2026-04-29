@@ -1,47 +1,34 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { select } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
-import { complete as defaultComplete } from '../ai/provider.js';
 import { listSpecs as defaultListSpecs } from '../utils/specs.js';
 import { readOverview as defaultReadOverview } from '../utils/overview.js';
 import { requireDraftwiseDir } from '../utils/draftwise-dir.js';
 import { loadScanContext } from '../utils/scan-context.js';
-import { confirmOverwriteOrCancel } from '../utils/overwrite-guard.js';
 import { isInteractive as defaultIsInteractive } from '../utils/tty.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
-import {
-  selectSystem,
-  buildPrompt,
-  buildAgentInstruction,
-} from '../ai/prompts/tasks.js';
+import { buildAgentInstruction } from '../ai/prompts/tasks.js';
 
-export const HELP = `draftwise tasks [<feature>] [--force] — break technical spec into ordered work
+export const HELP = `draftwise tasks [<feature>] — break technical spec into ordered work
 
 Usage:
   draftwise tasks                 # auto-pick if exactly one tech spec exists
   draftwise tasks <feature-slug>  # target a specific feature
 
-Flags:
-  --force, -f                 # Skip the overwrite confirmation prompt.
-
-Generates tasks.md: numbered tasks with Goal / Files / Depends on /
-Parallel with / Acceptance, ordered so each task's dependencies
-appear before it. In greenfield, the first 1-3 tasks are project
-scaffolding (run setup commands, install deps). If tasks.md already
-exists for the chosen feature, you'll be asked to confirm before
-it's overwritten — pass --force to skip the prompt. In non-TTY
-without --force, the command errors instead of overwriting.
+Reads the technical spec, prints it plus scanner data (brownfield)
+or the project plan (greenfield) and an instruction for your coding
+agent, which writes tasks.md (numbered tasks with Goal / Files /
+Depends on / Parallel with / Acceptance). In greenfield, the first
+1-3 tasks are project scaffolding (run setup commands, install deps).
 
 Non-TTY (CI, coding-agent shell): when multiple technical specs
 exist and no <feature-slug> is supplied, the command errors with
 the available slugs instead of running the picker.
 `;
 
-const ARG_OPTIONS = {
-  force: { type: 'boolean', short: 'f' },
-};
+const ARG_OPTIONS = {};
 
 const DEFAULT_PROMPTS = {
   pickSpec: ({ specs }) =>
@@ -59,7 +46,6 @@ export default async function tasksCommand(args = [], deps = {}) {
   const log = deps.log ?? ((msg) => console.error(msg));
   const scan = deps.scan ?? defaultScan;
   const loadConfig = deps.loadConfig ?? defaultLoadConfig;
-  const complete = deps.complete ?? defaultComplete;
   const listSpecs = deps.listSpecs ?? defaultListSpecs;
   const readOverview = deps.readOverview ?? defaultReadOverview;
   const isInteractive = deps.isInteractive ?? defaultIsInteractive;
@@ -80,10 +66,9 @@ export default async function tasksCommand(args = [], deps = {}) {
       cause: err,
     });
   }
-  const force = Boolean(parsed.values.force);
   const requestedSlug = parsed.positionals[0];
 
-  const config = await loadConfig(cwd);
+  const config = await loadConfig(cwd, { log });
   const isGreenfield = config.projectState === 'greenfield';
 
   const specs = (await listSpecs(cwd)).filter((s) => s.hasTechnicalSpec);
@@ -122,22 +107,6 @@ export default async function tasksCommand(args = [], deps = {}) {
     );
   }
 
-  // Confirm before clobbering a hand-edited tasks.md. Run before the scan so a
-  // cancel doesn't waste the scan time. Agent mode is exempt — the host agent
-  // does the write, not Draftwise.
-  if (config.mode !== 'agent') {
-    const proceed = await confirmOverwriteOrCancel({
-      targetPath: target.tasks,
-      slug: target.slug,
-      file: 'tasks.md',
-      force,
-      isInteractive,
-      log,
-      confirmOverwrite: prompts.confirmOverwrite,
-    });
-    if (!proceed) return;
-  }
-
   const { scanForPrompt, packageMeta, overview } = await loadScanContext({
     cwd,
     config,
@@ -147,62 +116,35 @@ export default async function tasksCommand(args = [], deps = {}) {
     commandName: 'tasks',
   });
 
-  if (config.mode === 'agent') {
-    log('');
-    if (isGreenfield) {
-      log('Agent mode — handing project plan + technical spec off to your coding agent.');
-    } else {
-      log('Agent mode — handing scanner data + technical spec off to your coding agent.');
-    }
-    log(AGENT_HANDOFF_PREFIX);
-    log('');
-    log('---');
-    log(`SPEC: ${target.slug}`);
-    log('');
-    log('TECHNICAL SPEC');
-    log(technicalSpec);
-    log('');
-    if (isGreenfield) {
-      log('PROJECT PLAN (overview.md)');
-      log(overview);
-    } else {
-      log('SCANNER OUTPUT');
-      log('```json');
-      log(JSON.stringify(scanForPrompt, null, 2));
-      log('```');
-      log('');
-      log('PACKAGE METADATA');
-      log('```json');
-      log(JSON.stringify(packageMeta, null, 2));
-      log('```');
-    }
-    log('');
-    log('INSTRUCTION');
-    log(buildAgentInstruction(target.slug, config.projectState));
-    return;
+  log('');
+  if (isGreenfield) {
+    log('Handing project plan + technical spec off to your coding agent.');
+  } else {
+    log('Handing scanner data + technical spec off to your coding agent.');
   }
-
-  log(`API mode — calling ${config.provider}...`);
+  log(AGENT_HANDOFF_PREFIX);
   log('');
-  const tasks = await complete({
-    provider: config.provider,
-    apiKeyEnv: config.apiKeyEnv,
-    model: config.model,
-    maxTokens: config.maxTokens,
-    system: selectSystem(config.projectState),
-    prompt: buildPrompt({
-      technicalSpec,
-      scan: scanForPrompt,
-      packageMeta,
-      projectState: config.projectState,
-      overview,
-    }),
-    onToken: (chunk) => process.stdout.write(chunk),
-  });
+  log('---');
+  log(`SPEC: ${target.slug}`);
   log('');
-
-  await writeFile(target.tasks, tasks, 'utf8');
+  log('TECHNICAL SPEC');
+  log(technicalSpec);
   log('');
-  log(`Wrote .draftwise/specs/${target.slug}/tasks.md`);
-  log('Next: pick the first task with no dependencies and start shipping.');
+  if (isGreenfield) {
+    log('PROJECT PLAN (overview.md)');
+    log(overview);
+  } else {
+    log('SCANNER OUTPUT');
+    log('```json');
+    log(JSON.stringify(scanForPrompt, null, 2));
+    log('```');
+    log('');
+    log('PACKAGE METADATA');
+    log('```json');
+    log(JSON.stringify(packageMeta, null, 2));
+    log('```');
+  }
+  log('');
+  log('INSTRUCTION');
+  log(buildAgentInstruction(target.slug, config.projectState));
 }

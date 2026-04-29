@@ -54,8 +54,7 @@ describe('draftwise tasks', () => {
         cwd: dir,
         log: () => {},
         scan: async () => SAMPLE_SCAN,
-        loadConfig: async () => ({ mode: 'agent' }),
-        complete: async () => '',
+        loadConfig: async () => ({ projectState: 'brownfield' }),
       }),
     ).rejects.toThrow(/Run `draftwise init` first/);
   });
@@ -67,8 +66,7 @@ describe('draftwise tasks', () => {
         cwd: dir,
         log: () => {},
         scan: async () => SAMPLE_SCAN,
-        loadConfig: async () => ({ mode: 'agent' }),
-        complete: async () => '',
+        loadConfig: async () => ({ projectState: 'brownfield' }),
       }),
     ).rejects.toThrow(/No technical specs found/);
   });
@@ -76,34 +74,14 @@ describe('draftwise tasks', () => {
   it('auto-picks the only spec with a technical-spec.md', async () => {
     await seedSpec(dir, 'collab-albums', { technical: '# Tech\n\nReal.' });
 
-    let captured;
     await tasksCommand([], {
       cwd: dir,
       log: (m) => logs.push(m),
       scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({
-        mode: 'api',
-        provider: 'claude',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
-        model: '',
-      }),
-      complete: async (req) => {
-        captured = req;
-        return '# Tasks\n\n1. Schema change';
-      },
+      loadConfig: async () => ({ projectState: 'brownfield' }),
     });
 
     expect(logs.join('\n')).toContain('Using the only technical spec: collab-albums');
-    expect(captured.system).toContain('tasks.md');
-    expect(captured.prompt).toContain('# Tech');
-    // tasks streams the synthesis live to stdout.
-    expect(typeof captured.onToken).toBe('function');
-
-    const tasks = await readFile(
-      join(dir, '.draftwise', 'specs', 'collab-albums', 'tasks.md'),
-      'utf8',
-    );
-    expect(tasks).toContain('# Tasks');
   });
 
   it('uses the slug arg when given', async () => {
@@ -112,22 +90,12 @@ describe('draftwise tasks', () => {
 
     await tasksCommand(['beta'], {
       cwd: dir,
-      log: () => {},
+      log: (m) => logs.push(m),
       scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({
-        mode: 'api',
-        provider: 'claude',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
-        model: '',
-      }),
-      complete: async () => '# Beta tasks',
+      loadConfig: async () => ({ projectState: 'brownfield' }),
     });
 
-    const tasks = await readFile(
-      join(dir, '.draftwise', 'specs', 'beta', 'tasks.md'),
-      'utf8',
-    );
-    expect(tasks).toBe('# Beta tasks');
+    expect(logs.join('\n')).toContain('SPEC: beta');
   });
 
   it('errors when an unknown slug is requested', async () => {
@@ -137,8 +105,7 @@ describe('draftwise tasks', () => {
         cwd: dir,
         log: () => {},
         scan: async () => SAMPLE_SCAN,
-        loadConfig: async () => ({ mode: 'agent' }),
-        complete: async () => '',
+        loadConfig: async () => ({ projectState: 'brownfield' }),
       }),
     ).rejects.toThrow(/No technical spec found for "ghost"/);
   });
@@ -151,32 +118,20 @@ describe('draftwise tasks', () => {
       cwd: dir,
       log: (m) => logs.push(m),
       scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({
-        mode: 'api',
-        provider: 'claude',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
-        model: '',
-      }),
-      complete: async () => '# Tasks',
+      loadConfig: async () => ({ projectState: 'brownfield' }),
     });
 
     expect(logs.join('\n')).toContain('Using the only technical spec: beta');
-    await expect(
-      readFile(join(dir, '.draftwise', 'specs', 'alpha', 'tasks.md')),
-    ).rejects.toThrow();
   });
 
-  it('agent mode dumps technical spec + scanner + instruction without writing', async () => {
+  it('dumps technical spec + scanner + instruction without writing', async () => {
     await seedSpec(dir, 'collab-albums', { technical: '# Tech\n\nReal stuff.' });
 
     await tasksCommand([], {
       cwd: dir,
       log: (m) => logs.push(m),
       scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({ mode: 'agent' }),
-      complete: async () => {
-        throw new Error('should not be called in agent mode');
-      },
+      loadConfig: async () => ({ projectState: 'brownfield' }),
     });
 
     const output = logs.join('\n');
@@ -200,174 +155,31 @@ describe('draftwise tasks', () => {
         cwd: dir,
         log: () => {},
         scan: async () => SAMPLE_SCAN,
-        loadConfig: async () => ({ mode: 'agent' }),
-        complete: async () => '',
+        loadConfig: async () => ({ projectState: 'brownfield' }),
       }),
     ).rejects.toThrow(/empty/);
   });
 
-  it('greenfield: skips scanner, reads overview, uses greenfield prompts', async () => {
+  it('greenfield: skips scanner, reads overview, dumps PROJECT PLAN', async () => {
     await seedSpec(dir, 'collab-albums', { technical: '# Tech\n\nGreenfield.' });
 
     let scanCalled = false;
-    let captured;
-
     await tasksCommand([], {
       cwd: dir,
-      log: () => {},
+      log: (m) => logs.push(m),
       scan: async () => {
         scanCalled = true;
         return SAMPLE_SCAN;
       },
-      loadConfig: async () => ({
-        mode: 'api',
-        provider: 'claude',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
-        model: '',
-        projectState: 'greenfield',
-      }),
+      loadConfig: async () => ({ projectState: 'greenfield' }),
       readOverview: async () => '# Plan\n\nNext.js + Prisma\n',
-      complete: async (req) => {
-        captured = req;
-        return '# Tasks\n\n1. Scaffold project';
-      },
     });
 
     expect(scanCalled).toBe(false);
-    expect(captured.system).toContain('GREENFIELD');
-    expect(captured.prompt).toContain('Plan');
-    expect(captured.prompt).not.toContain('"frameworks"');
-
-    const tasks = await readFile(
-      join(dir, '.draftwise', 'specs', 'collab-albums', 'tasks.md'),
-      'utf8',
-    );
-    expect(tasks).toContain('Scaffold project');
-  });
-
-  it('prompts before overwriting an existing tasks.md, and bails if user declines', async () => {
-    const specDir = await seedSpec(dir, 'collab-albums');
-    await writeFile(
-      join(specDir, 'tasks.md'),
-      '# Hand-edited tasks\n',
-      'utf8',
-    );
-
-    let promptCalls = 0;
-    let completeCalled = false;
-
-    await tasksCommand([], {
-      cwd: dir,
-      log: (m) => logs.push(m),
-      scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({
-        mode: 'api',
-        provider: 'claude',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
-        model: '',
-      }),
-      complete: async () => {
-        completeCalled = true;
-        return '# Regenerated tasks';
-      },
-      prompts: {
-        confirmOverwrite: async () => {
-          promptCalls++;
-          return false;
-        },
-      },
-    });
-
-    expect(promptCalls).toBe(1);
-    expect(completeCalled).toBe(false);
-    expect(logs.join('\n')).toContain('Cancelled');
-
-    const tasks = await readFile(join(specDir, 'tasks.md'), 'utf8');
-    expect(tasks).toBe('# Hand-edited tasks\n');
-  });
-
-  it('overwrites tasks.md without prompting when --force is passed', async () => {
-    const specDir = await seedSpec(dir, 'collab-albums');
-    await writeFile(
-      join(specDir, 'tasks.md'),
-      '# Hand-edited tasks\n',
-      'utf8',
-    );
-
-    let promptCalls = 0;
-
-    await tasksCommand(['--force'], {
-      cwd: dir,
-      log: () => {},
-      scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({
-        mode: 'api',
-        provider: 'claude',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
-        model: '',
-      }),
-      complete: async () => '# Regenerated tasks',
-      prompts: {
-        confirmOverwrite: async () => {
-          promptCalls++;
-          return false;
-        },
-      },
-    });
-
-    expect(promptCalls).toBe(0);
-    const tasks = await readFile(join(specDir, 'tasks.md'), 'utf8');
-    expect(tasks).toBe('# Regenerated tasks');
-  });
-
-  it('agent mode does not trigger the overwrite prompt for tasks.md', async () => {
-    const specDir = await seedSpec(dir, 'collab-albums');
-    await writeFile(join(specDir, 'tasks.md'), '# Old', 'utf8');
-
-    let promptCalls = 0;
-
-    await tasksCommand([], {
-      cwd: dir,
-      log: () => {},
-      scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({ mode: 'agent' }),
-      complete: async () => '',
-      prompts: {
-        confirmOverwrite: async () => {
-          promptCalls++;
-          return false;
-        },
-      },
-    });
-
-    expect(promptCalls).toBe(0);
-    const tasks = await readFile(join(specDir, 'tasks.md'), 'utf8');
-    expect(tasks).toBe('# Old');
-  });
-
-  it('greenfield agent mode: dumps PROJECT PLAN instead of SCANNER OUTPUT', async () => {
-    await seedSpec(dir, 'collab-albums', { technical: '# Tech' });
-
-    const localLogs = [];
-    await tasksCommand([], {
-      cwd: dir,
-      log: (m) => localLogs.push(m),
-      scan: async () => {
-        throw new Error('should not be called in greenfield agent mode');
-      },
-      loadConfig: async () => ({
-        mode: 'agent',
-        projectState: 'greenfield',
-      }),
-      readOverview: async () => '# Plan\n\nNext.js + Prisma\n',
-      complete: async () => {
-        throw new Error('should not be called in agent mode');
-      },
-    });
-
-    const out = localLogs.join('\n');
+    const out = logs.join('\n');
     expect(out).toContain('PROJECT PLAN');
     expect(out).not.toContain('SCANNER OUTPUT');
+    expect(out).toContain('Plan');
   });
 
   describe('non-TTY (flags-driven)', () => {
@@ -375,7 +187,7 @@ describe('draftwise tasks', () => {
       const fail = () => {
         throw new Error('inquirer prompt fired in non-TTY test');
       };
-      return { pickSpec: fail, confirmOverwrite: fail };
+      return { pickSpec: fail };
     }
 
     it('errors when multiple specs exist and no slug arg, instead of prompting', async () => {
@@ -389,43 +201,11 @@ describe('draftwise tasks', () => {
           isInteractive: () => false,
           prompts: noPrompts(),
           scan: async () => SAMPLE_SCAN,
-          loadConfig: async () => ({
-            mode: 'api',
-            provider: 'claude',
-            apiKeyEnv: 'ANTHROPIC_API_KEY',
-            model: '',
-          }),
-          complete: async () => '# Tasks',
+          loadConfig: async () => ({ projectState: 'brownfield' }),
         }),
       ).rejects.toThrow(
         /Multiple technical specs.*Available:.*collab-albums/,
       );
-    });
-
-    it('errors when tasks.md exists in non-TTY without --force', async () => {
-      const specDir = await seedSpec(dir, 'collab-albums', { technical: '# T' });
-      const tasksPath = join(specDir, 'tasks.md');
-      await writeFile(tasksPath, '# Hand-edited tasks\n', 'utf8');
-
-      await expect(
-        tasksCommand([], {
-          cwd: dir,
-          log: () => {},
-          isInteractive: () => false,
-          prompts: noPrompts(),
-          scan: async () => SAMPLE_SCAN,
-          loadConfig: async () => ({
-            mode: 'api',
-            provider: 'claude',
-            apiKeyEnv: 'ANTHROPIC_API_KEY',
-            model: '',
-          }),
-          complete: async () => '# Regenerated',
-        }),
-      ).rejects.toThrow(/already exists\. Pass --force/);
-
-      const preserved = await readFile(tasksPath, 'utf8');
-      expect(preserved).toBe('# Hand-edited tasks\n');
     });
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdtemp, rm, mkdir, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import scanCommand from '../../src/commands/scan.js';
@@ -36,21 +36,17 @@ describe('draftwise scan', () => {
         cwd: dir,
         log: (m) => logs.push(m),
         scan: async () => SAMPLE_SCAN,
-        loadConfig: async () => ({ mode: 'agent' }),
-        complete: async () => 'unused',
+        loadConfig: async () => ({ projectState: 'brownfield' }),
       }),
     ).rejects.toThrow(/Run `draftwise init` first/);
   });
 
-  it('in agent mode, prints scanner data and instruction without writing overview.md', async () => {
+  it('prints scanner data and instruction without writing overview.md', async () => {
     await scanCommand([], {
       cwd: dir,
       log: (m) => logs.push(m),
       scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({ mode: 'agent' }),
-      complete: async () => {
-        throw new Error('should not be called in agent mode');
-      },
+      loadConfig: async () => ({ projectState: 'brownfield' }),
     });
 
     const output = logs.join('\n');
@@ -64,39 +60,6 @@ describe('draftwise scan', () => {
     await expect(readFile(join(dir, '.draftwise', 'overview.md'))).rejects.toThrow();
   });
 
-  it('in api mode, calls the model and writes overview.md', async () => {
-    let captured;
-    await scanCommand([], {
-      cwd: dir,
-      log: (m) => logs.push(m),
-      scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({
-        mode: 'api',
-        provider: 'claude',
-        apiKeyEnv: 'ANTHROPIC_API_KEY',
-        model: '',
-      }),
-      complete: async (args) => {
-        captured = args;
-        return '# Overview\n\nGenerated content here.';
-      },
-    });
-
-    expect(captured.provider).toBe('claude');
-    expect(captured.system).toContain('Draftwise');
-    expect(captured.prompt).toContain('Next.js');
-    // scan streams the overview live to stdout while it generates.
-    expect(typeof captured.onToken).toBe('function');
-
-    const overview = await readFile(join(dir, '.draftwise', 'overview.md'), 'utf8');
-    expect(overview).toContain('# Overview');
-
-    // First-time users need a nudge toward the next command after scan.
-    const out = logs.join('\n');
-    expect(out).toContain('Next:');
-    expect(out).toContain('draftwise new');
-  });
-
   it('short-circuits in greenfield mode with a friendly message', async () => {
     let scanCalled = false;
     await scanCommand([], {
@@ -106,10 +69,7 @@ describe('draftwise scan', () => {
         scanCalled = true;
         return SAMPLE_SCAN;
       },
-      loadConfig: async () => ({ mode: 'agent', projectState: 'greenfield' }),
-      complete: async () => {
-        throw new Error('should not be called in greenfield');
-      },
+      loadConfig: async () => ({ projectState: 'greenfield' }),
     });
 
     expect(scanCalled).toBe(false);
@@ -124,8 +84,7 @@ describe('draftwise scan', () => {
         cwd: dir,
         log: () => {},
         scan: async () => ({ ...SAMPLE_SCAN, files: [] }),
-        loadConfig: async () => ({ mode: 'agent' }),
-        complete: async () => '',
+        loadConfig: async () => ({ projectState: 'brownfield' }),
       }),
     ).rejects.toThrow(/No source files/);
   });

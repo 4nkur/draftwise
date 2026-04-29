@@ -1,24 +1,21 @@
-import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
-import { complete as defaultComplete } from '../ai/provider.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { compactScan } from '../utils/scan-projection.js';
 import { requireDraftwiseDir } from '../utils/draftwise-dir.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
-import { SYSTEM, buildPrompt, AGENT_INSTRUCTION } from '../ai/prompts/scan.js';
+import { AGENT_INSTRUCTION } from '../ai/prompts/scan.js';
 
 export const HELP = `draftwise scan — refresh the codebase overview (brownfield)
 
 Usage:
   draftwise scan
 
-Re-runs the scanner. In api mode, calls your AI provider to write
-a narrated overview to .draftwise/overview.md. In agent mode,
-prints scanner data + an instruction for the host coding agent.
-In a greenfield project, prints a friendly hint and exits — the
-plan from \`draftwise init\` is already in overview.md.
+Re-runs the scanner and prints the structured data plus an
+instruction for your coding agent, which writes the narrated
+overview to .draftwise/overview.md. In a greenfield project,
+prints a friendly hint and exits — the plan from
+\`draftwise init\` is already in overview.md.
 `;
 
 function summarize(scan) {
@@ -37,11 +34,10 @@ export default async function scanCommand(_args = [], deps = {}) {
   const log = deps.log ?? ((msg) => console.error(msg));
   const scan = deps.scan ?? defaultScan;
   const loadConfig = deps.loadConfig ?? defaultLoadConfig;
-  const complete = deps.complete ?? defaultComplete;
 
-  const draftwiseDir = await requireDraftwiseDir(cwd);
+  await requireDraftwiseDir(cwd);
 
-  const config = await loadConfig(cwd);
+  const config = await loadConfig(cwd, { log });
 
   if (config.projectState === 'greenfield') {
     log('No code yet — `draftwise scan` works on existing codebases.');
@@ -76,44 +72,20 @@ export default async function scanCommand(_args = [], deps = {}) {
 
   const scanForPrompt = compactScan(result);
 
-  if (config.mode === 'agent') {
-    log('Agent mode — handing scanner data off to your coding agent.');
-    log(AGENT_HANDOFF_PREFIX);
-    log('');
-    log('---');
-    log('SCANNER OUTPUT');
-    log('```json');
-    log(JSON.stringify(scanForPrompt, null, 2));
-    log('```');
-    log('');
-    log('PACKAGE METADATA');
-    log('```json');
-    log(JSON.stringify(result.packageMeta, null, 2));
-    log('```');
-    log('');
-    log('INSTRUCTION');
-    log(AGENT_INSTRUCTION);
-    return;
-  }
-
-  log(`API mode — calling ${config.provider}...`);
+  log('Handing scanner data off to your coding agent.');
+  log(AGENT_HANDOFF_PREFIX);
   log('');
-  const overview = await complete({
-    provider: config.provider,
-    apiKeyEnv: config.apiKeyEnv,
-    model: config.model,
-    maxTokens: config.maxTokens,
-    system: SYSTEM,
-    prompt: buildPrompt({ scan: scanForPrompt, packageMeta: result.packageMeta }),
-    onToken: (chunk) => process.stdout.write(chunk),
-  });
+  log('---');
+  log('SCANNER OUTPUT');
+  log('```json');
+  log(JSON.stringify(scanForPrompt, null, 2));
+  log('```');
   log('');
-
-  await writeFile(join(draftwiseDir, 'overview.md'), overview, 'utf8');
+  log('PACKAGE METADATA');
+  log('```json');
+  log(JSON.stringify(result.packageMeta, null, 2));
+  log('```');
   log('');
-  log('Wrote .draftwise/overview.md');
-  log('');
-  log(
-    'Next: review the overview, then `draftwise new "<feature idea>"` to draft your first spec — or `draftwise explain <flow>` to trace a specific area.',
-  );
+  log('INSTRUCTION');
+  log(AGENT_INSTRUCTION);
 }

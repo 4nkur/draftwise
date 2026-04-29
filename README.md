@@ -86,7 +86,7 @@ Specs and codebase summaries live as markdown files in `.draftwise/`. Version-co
 
 ## Quick start
 
-Draftwise works with your AI coding agent (Claude Code, Cursor, Antigravity, Copilot, etc.) or a direct API key.
+Draftwise runs inside your AI coding agent (Claude Code, Cursor, Gemini CLI, Antigravity, Copilot, etc.). The CLI scans the codebase and prints an instruction; your agent does the spec drafting.
 
 ```bash
 npm install -g draftwise
@@ -230,21 +230,13 @@ Test plan                → unit, integration, E2E
 
 ## Agent compatibility
 
-Draftwise's agent mode is designed to be host-agnostic — the CLI prints structured scanner data and an instruction string; the host's model handles the reasoning. In principle that works with any agentic IDE or CLI:
+Draftwise is designed to be host-agnostic — the CLI prints structured scanner data and an instruction string; the host's model handles the reasoning and writes the spec. In principle that works with any agentic IDE or CLI:
 
 Claude Code · GitHub Copilot · Cursor · Gemini CLI · Codex CLI · Antigravity · Windsurf · Amp · Roo Code · Kilo Code · OpenCode · Qoder
 
 In practice it has only been smoke-tested in a plain terminal so far. If you run it inside one of these and something breaks, please open an issue.
 
-**Non-interactive use.** Every command also runs without a TTY — pass values as flags instead of letting inquirer prompt for them. That's what makes the agent integration possible: a slash-command wrapper (or any host agent) can collect answers in chat and re-invoke `draftwise <command>` with `--mode=...`, `--ai-mode=...`, `--idea="..."`, `--answers @path`, `--force`, `--yes`, etc. Run `draftwise <command> --help` for the per-command flag list. When `draftwise init` is run in a non-TTY shell with too few flags, it prints a structured handoff with the questions to ask the user — copy it into your AI assistant if you're not already inside one.
-
-Standalone (API mode) currently supports:
-
-- ✅ **Claude** (Anthropic) — fully wired
-- ⏳ **GPT (OpenAI)** — adapter not yet implemented
-- ⏳ **Gemini** (Google) — adapter not yet implemented
-
-Until the OpenAI and Gemini adapters land, pick `agent` mode at `draftwise init` if you want to use those models — they'll work via the host (e.g. Gemini via Antigravity or Gemini CLI; GPT via Codex CLI or Copilot).
+**Non-interactive use.** Every command runs without a TTY — pass values as flags instead of letting inquirer prompt for them. That's what makes the agent integration possible: a slash-command wrapper (or any host agent) can collect answers in chat and re-invoke `draftwise <command>` with `--mode=...`, `--idea="..."`, `--yes`, etc. Run `draftwise <command> --help` for the per-command flag list. When `draftwise init` is run in a non-TTY shell as greenfield without `--idea`, it prints a structured handoff with the question to ask the user — copy it into your AI assistant if you're not already inside one.
 
 ---
 
@@ -279,7 +271,7 @@ v1 commands are all shipped on `npm` as of `0.0.1`. The next published release w
 - [x] `list` and `show` — spec browsing utilities
 - [x] optional file scaffolding from `init`'s greenfield plan via `draftwise scaffold`
 
-**Next:** OpenAI and Gemini provider adapters (Claude is the only fully-wired adapter today), framework support beyond JS/TS Node (Python, Go, Rust), greenfield-aware downstream commands, and a flag-aware scanner cache for very large repos.
+**Next:** scanner framework support beyond JS/TS and Python (Go, Rust, mobile codebases), and richer flow tracing for very large repos.
 
 ---
 
