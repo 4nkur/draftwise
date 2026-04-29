@@ -36,6 +36,11 @@ Flags:
   -h, --help                    Show this help (or per-command help when after a command)
   -v, --version                 Print the installed draft version
 
+Each command takes its own flags — run \`draft <command> --help\`
+for details. All commands work non-interactively when given the
+flags they need; in a real TTY, missing values fall back to inquirer
+prompts. See per-command --help for the flag list.
+
 Set DRAFTWISE_DEBUG=1 for stack traces on unexpected errors.
 `;
 

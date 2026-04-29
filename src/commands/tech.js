@@ -1,5 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { parseArgs } from 'node:util';
 import { select, confirm } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
@@ -9,6 +10,7 @@ import { readOverview as defaultReadOverview } from '../utils/overview.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { pathExists } from '../utils/fs.js';
 import { compactScan } from '../utils/scan-projection.js';
+import { isInteractive as defaultIsInteractive } from '../utils/tty.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import {
   selectSystem,
@@ -21,17 +23,26 @@ export const HELP = `draft tech [<feature>] [--force] — draft technical-spec.m
 Usage:
   draft tech                 # auto-pick if exactly one product spec exists
   draft tech <feature-slug>  # target a specific feature
-  draft tech                 # multiple specs → prompts you to pick
+  draft tech                 # multiple specs → picks via inquirer (TTY only)
 
 Flags:
-  --force                        # skip the overwrite confirmation prompt
+  --force, -f                # Skip the overwrite confirmation prompt.
 
 Reads the product spec, writes technical-spec.md grounded in the
 real codebase (brownfield) or the planned directory structure
 (greenfield, with "(new)" markers). If technical-spec.md already
 exists for the chosen feature, you'll be asked to confirm before
-it's overwritten — pass --force to skip the prompt.
+it's overwritten — pass --force to skip the prompt. In non-TTY
+without --force, the command errors instead of overwriting.
+
+Non-TTY (CI, coding-agent shell): when multiple product specs exist
+and no <feature-slug> is supplied, the command errors with the
+available slugs instead of running the picker.
 `;
+
+const ARG_OPTIONS = {
+  force: { type: 'boolean', short: 'f' },
+};
 
 const DEFAULT_PROMPTS = {
   pickSpec: ({ specs }) =>
@@ -59,6 +70,7 @@ export default async function techCommand(args = [], deps = {}) {
   const complete = deps.complete ?? defaultComplete;
   const listSpecs = deps.listSpecs ?? defaultListSpecs;
   const readOverview = deps.readOverview ?? defaultReadOverview;
+  const isInteractive = deps.isInteractive ?? defaultIsInteractive;
   const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };
 
   const draftwiseDir = join(cwd, '.draftwise');
@@ -66,11 +78,24 @@ export default async function techCommand(args = [], deps = {}) {
     throw new Error('.draftwise/ not found. Run `draft init` first.');
   }
 
+  let parsed;
+  try {
+    parsed = parseArgs({
+      args,
+      options: ARG_OPTIONS,
+      allowPositionals: true,
+      strict: true,
+    });
+  } catch (err) {
+    throw new Error(`Invalid arguments to draft tech: ${err.message}`, {
+      cause: err,
+    });
+  }
+  const force = Boolean(parsed.values.force);
+  const requestedSlug = parsed.positionals[0];
+
   const config = await loadConfig(cwd);
   const isGreenfield = config.projectState === 'greenfield';
-  const force = args.includes('--force') || args.includes('-f');
-  const positional = args.filter((a) => a !== '--force' && a !== '-f');
-  const requestedSlug = positional[0];
 
   const specs = (await listSpecs(cwd)).filter((s) => s.hasProductSpec);
   if (specs.length === 0) {
@@ -91,9 +116,14 @@ export default async function techCommand(args = [], deps = {}) {
   } else if (specs.length === 1) {
     target = specs[0];
     log(`Using the only product spec: ${target.slug}`);
-  } else {
+  } else if (isInteractive()) {
     const slug = await prompts.pickSpec({ specs });
     target = specs.find((s) => s.slug === slug);
+  } else {
+    const available = specs.map((s) => s.slug).join(', ');
+    throw new Error(
+      `Multiple product specs exist. Pass one as a positional argument: draft tech <slug>. Available: ${available}`,
+    );
   }
 
   const productSpec = await readFile(target.productSpec, 'utf8');
@@ -103,23 +133,29 @@ export default async function techCommand(args = [], deps = {}) {
     );
   }
 
-  // Confirm before clobbering a hand-edited technical-spec.md.
-  // Run before the scan so a cancel doesn't waste the scan time.
-  // Agent mode is exempt — the host agent does the write, not Draftwise.
+  // Confirm before clobbering a hand-edited technical-spec.md. Run before the
+  // scan so a cancel doesn't waste the scan time. Agent mode is exempt — the
+  // host agent does the write, not Draftwise.
   if (
     !force &&
     config.mode !== 'agent' &&
     (await pathExists(target.technicalSpec))
   ) {
-    const proceed = await prompts.confirmOverwrite({
-      slug: target.slug,
-      file: 'technical-spec.md',
-    });
-    if (!proceed) {
-      log(
-        'Cancelled. No changes written. (Pass --force to skip this prompt.)',
+    if (isInteractive()) {
+      const proceed = await prompts.confirmOverwrite({
+        slug: target.slug,
+        file: 'technical-spec.md',
+      });
+      if (!proceed) {
+        log(
+          'Cancelled. No changes written. (Pass --force to skip this prompt.)',
+        );
+        return;
+      }
+    } else {
+      throw new Error(
+        `${target.slug}/technical-spec.md already exists. Pass --force to overwrite.`,
       );
-      return;
     }
   }
 

@@ -406,4 +406,98 @@ describe('draft tech', () => {
     expect(out).toContain('PROJECT PLAN');
     expect(out).not.toContain('SCANNER OUTPUT');
   });
+
+  describe('non-TTY (flags-driven)', () => {
+    function noPrompts() {
+      const fail = () => {
+        throw new Error('inquirer prompt fired in non-TTY test');
+      };
+      return { pickSpec: fail, confirmOverwrite: fail };
+    }
+
+    it('errors when multiple specs exist and no slug arg, instead of prompting', async () => {
+      await seedSpec(dir, 'collab-albums', '# A');
+      await seedSpec(dir, 'photo-uploads', '# B');
+
+      await expect(
+        techCommand([], {
+          cwd: dir,
+          log: () => {},
+          isInteractive: () => false,
+          prompts: noPrompts(),
+          scan: async () => SAMPLE_SCAN,
+          loadConfig: async () => ({
+            mode: 'api',
+            provider: 'claude',
+            apiKeyEnv: 'ANTHROPIC_API_KEY',
+            model: '',
+          }),
+          complete: async () => '# Tech',
+        }),
+      ).rejects.toThrow(/Multiple product specs.*Available:.*collab-albums/);
+    });
+
+    it('errors when technical-spec.md exists in non-TTY without --force', async () => {
+      await seedSpec(dir, 'collab-albums', '# Product');
+      const techPath = join(
+        dir,
+        '.draftwise',
+        'specs',
+        'collab-albums',
+        'technical-spec.md',
+      );
+      await writeFile(techPath, '# Hand-edited tech spec\n', 'utf8');
+
+      await expect(
+        techCommand([], {
+          cwd: dir,
+          log: () => {},
+          isInteractive: () => false,
+          prompts: noPrompts(),
+          scan: async () => SAMPLE_SCAN,
+          loadConfig: async () => ({
+            mode: 'api',
+            provider: 'claude',
+            apiKeyEnv: 'ANTHROPIC_API_KEY',
+            model: '',
+          }),
+          complete: async () => '# Regenerated',
+        }),
+      ).rejects.toThrow(/already exists\. Pass --force/);
+
+      const preserved = await readFile(techPath, 'utf8');
+      expect(preserved).toBe('# Hand-edited tech spec\n');
+    });
+
+    it('runs end-to-end with positional slug + --force in non-TTY', async () => {
+      await seedSpec(dir, 'collab-albums', '# Product');
+      await seedSpec(dir, 'photo-uploads', '# Product');
+      const techPath = join(
+        dir,
+        '.draftwise',
+        'specs',
+        'collab-albums',
+        'technical-spec.md',
+      );
+      await writeFile(techPath, '# Old\n', 'utf8');
+
+      await techCommand(['collab-albums', '--force'], {
+        cwd: dir,
+        log: () => {},
+        isInteractive: () => false,
+        prompts: noPrompts(),
+        scan: async () => SAMPLE_SCAN,
+        loadConfig: async () => ({
+          mode: 'api',
+          provider: 'claude',
+          apiKeyEnv: 'ANTHROPIC_API_KEY',
+          model: '',
+        }),
+        complete: async () => '# New tech spec',
+      });
+
+      const written = await readFile(techPath, 'utf8');
+      expect(written).toBe('# New tech spec');
+    });
+  });
 });

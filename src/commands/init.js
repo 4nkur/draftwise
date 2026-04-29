@@ -1,11 +1,13 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { parseArgs } from 'node:util';
 import { stringify as yamlStringify } from 'yaml';
 import { select, input } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { complete as defaultComplete } from '../ai/provider.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { pathExists } from '../utils/fs.js';
+import { isInteractive as defaultIsInteractive } from '../utils/tty.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import {
   QUESTIONS_SYSTEM,
@@ -21,13 +23,50 @@ import {
 export const HELP = `draft init — set up .draftwise/ for the current project
 
 Usage:
-  draft init
+  draft init                                       # interactive (TTY only)
+  draft init --mode=brownfield --ai-mode=agent
+  draft init --mode=greenfield --ai-mode=api \\
+    --provider=claude --idea="<one-liner>"
+
+Flags:
+  --mode <greenfield|brownfield>     Project state.
+  --ai-mode <agent|api>              How Draftwise calls the AI.
+  --provider <claude|openai|gemini>  AI provider (api mode only).
+  --api-key-env <VAR>                Env var holding the API key (api mode only).
+                                     Defaults to ANTHROPIC_API_KEY / OPENAI_API_KEY /
+                                     GEMINI_API_KEY based on --provider.
+  --idea "<text>"                    The project idea (greenfield only).
+  --stack <name>                     Pre-pick a stack by name (greenfield + api).
+                                     Skips the picker; must match one of the model's
+                                     proposed stack names.
+  --answers <json|@file>             JSON array of answers to greenfield clarifying
+                                     questions, or @path/to/answers.json. Used in
+                                     greenfield + api when you've pre-collected the
+                                     answers (e.g. via a slash-command wrapper).
 
 Asks whether the project is greenfield (no code yet) or brownfield
 (existing codebase) and routes accordingly. Greenfield walks you
 through stack selection with rationale, pros, and cons. Brownfield
 scans the codebase. Refuses to overwrite an existing .draftwise/.
+
+Non-TTY (CI, coding-agent shell): every value must be supplied via
+flags. A missing required flag errors with a usage hint instead of
+hanging on a prompt.
 `;
+
+const ARG_OPTIONS = {
+  mode: { type: 'string' },
+  'ai-mode': { type: 'string' },
+  provider: { type: 'string' },
+  'api-key-env': { type: 'string' },
+  idea: { type: 'string' },
+  stack: { type: 'string' },
+  answers: { type: 'string' },
+};
+
+const VALID_MODES = ['greenfield', 'brownfield'];
+const VALID_AI_MODES = ['agent', 'api'];
+const VALID_PROVIDERS = ['claude', 'openai', 'gemini'];
 
 const ENV_VAR_BY_PROVIDER = {
   claude: 'ANTHROPIC_API_KEY',
@@ -147,17 +186,6 @@ function buildConfigYaml({ mode, provider, apiKeyEnv, projectState, stack }) {
   return yamlStringify({ ai, project });
 }
 
-async function collectAiConfig(prompts) {
-  const mode = await prompts.promptMode();
-  if (mode === 'agent') return { mode };
-  const provider = await prompts.promptProvider();
-  const apiKeyEnv = await prompts.promptApiKeyEnv({
-    provider,
-    suggested: ENV_VAR_BY_PROVIDER[provider],
-  });
-  return { mode, provider, apiKeyEnv };
-}
-
 function formatStackForDisplay(opt, index) {
   const lines = [
     '',
@@ -173,6 +201,61 @@ function formatStackForDisplay(opt, index) {
     ...(opt.cons ?? []).map((c) => `  - ${c}`),
   ];
   return lines.join('\n');
+}
+
+async function loadAnswersFlag(value) {
+  if (!value) return null;
+  let raw;
+  if (value.startsWith('@')) {
+    try {
+      raw = await readFile(value.slice(1), 'utf8');
+    } catch (err) {
+      throw new Error(
+        `Could not read --answers file ${value.slice(1)}: ${err.message}`,
+        { cause: err },
+      );
+    }
+  } else {
+    raw = value;
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(
+      `--answers must be a JSON array (or @path-to-json-file). ${err.message}`,
+      { cause: err },
+    );
+  }
+  if (!Array.isArray(parsed) || !parsed.every((a) => typeof a === 'string')) {
+    throw new Error('--answers must be a JSON array of strings.');
+  }
+  return parsed;
+}
+
+// Resolves a value from (1) a flag, (2) a TTY prompt, or (3) errors out with a
+// usage hint when neither is available. Keeps the "flags-first, prompts as
+// fallback" pattern in one place so every input handles non-TTY identically.
+async function resolveValue({
+  flagName,
+  flagValue,
+  promptFn,
+  isInteractive,
+  validValues,
+  missingHint,
+}) {
+  if (flagValue !== undefined && flagValue !== null) {
+    if (validValues && !validValues.includes(flagValue)) {
+      throw new Error(
+        `Invalid --${flagName} value "${flagValue}". Must be one of: ${validValues.join(', ')}.`,
+      );
+    }
+    return flagValue;
+  }
+  if (isInteractive()) {
+    return promptFn();
+  }
+  throw new Error(missingHint);
 }
 
 async function runBrownfield({ cwd, log, scan, draftwiseDir, aiConfig }) {
@@ -232,9 +315,24 @@ async function runGreenfield({
   draftwiseDir,
   aiConfig,
   prompts,
+  isInteractive,
+  ideaFlag,
+  stackFlag,
+  answersFlag,
 }) {
   log('');
-  const idea = await prompts.promptIdea();
+
+  const idea = await resolveValue({
+    flagName: 'idea',
+    flagValue: ideaFlag,
+    promptFn: () => prompts.promptIdea(),
+    isInteractive,
+    missingHint:
+      'Greenfield init needs --idea "<one-liner describing what you want to build>". Pass it as a flag, or run init in an interactive terminal.',
+  });
+  if (typeof idea !== 'string' || idea.trim().length === 0) {
+    throw new Error('--idea must be a non-empty string.');
+  }
 
   if (aiConfig.mode === 'agent') {
     log('');
@@ -290,16 +388,26 @@ async function runGreenfield({
   log(`Got it — "${projectTitle}". ${questions.length} questions before I propose stacks:`);
   log('');
 
-  const answers = [];
-  for (let i = 0; i < questions.length; i++) {
-    const q = questions[i];
-    const answer = await prompts.askGreenfieldQuestion({
-      index: i,
-      total: questions.length,
-      text: q.text,
-      why: q.why,
-    });
-    answers.push(answer);
+  let answers;
+  if (answersFlag) {
+    answers = answersFlag.slice(0, questions.length);
+    while (answers.length < questions.length) answers.push('');
+  } else if (isInteractive()) {
+    answers = [];
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      const answer = await prompts.askGreenfieldQuestion({
+        index: i,
+        total: questions.length,
+        text: q.text,
+        why: q.why,
+      });
+      answers.push(answer);
+    }
+  } else {
+    // Non-TTY without --answers: model gets no answers. Init still produces a
+    // plan, but the stack rationale will be generic. Pass --answers next time.
+    answers = questions.map(() => '');
   }
 
   log('');
@@ -319,7 +427,23 @@ async function runGreenfield({
   }
   log('');
 
-  const chosenName = await prompts.pickStack({ stackOptions });
+  let chosenName;
+  if (stackFlag) {
+    if (!stackOptions.some((s) => s.name === stackFlag)) {
+      const available = stackOptions.map((s) => s.name).join(', ');
+      throw new Error(
+        `--stack "${stackFlag}" doesn't match any proposed option. Available: ${available}`,
+      );
+    }
+    chosenName = stackFlag;
+  } else if (isInteractive()) {
+    chosenName = await prompts.pickStack({ stackOptions });
+  } else {
+    // Non-TTY without --stack: pick the first option. Caller can re-run with
+    // --stack=<name> if they want a different one.
+    chosenName = stackOptions[0].name;
+    log(`No --stack flag and not interactive — picking first option: ${chosenName}`);
+  }
   const chosen = stackOptions.find((s) => s.name === chosenName);
   if (!chosen) {
     throw new Error(
@@ -348,7 +472,6 @@ async function runGreenfield({
   );
   await writeFile(join(draftwiseDir, '.gitignore'), DRAFTWISE_GITIGNORE, 'utf8');
 
-  // Persist the structured stack data so `draft scaffold` can use it later.
   await writeFile(
     join(draftwiseDir, 'scaffold.json'),
     JSON.stringify(
@@ -387,17 +510,31 @@ async function runGreenfield({
   log('  4. `draft new "<feature idea>"` to draft your first feature spec.');
 }
 
-export default async function init(_args = [], deps = {}) {
+export default async function init(args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
-  // Informational output goes to stderr so streaming content + saved-spec
-  // markdown stays on stdout — `draft scan > foo.md` works as expected.
   const log = deps.log ?? ((msg) => console.error(msg));
   const scan = deps.scan ?? defaultScan;
   const complete = deps.complete ?? defaultComplete;
+  const isInteractive = deps.isInteractive ?? defaultIsInteractive;
   const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };
 
-  const draftwiseDir = join(cwd, '.draftwise');
+  let parsed;
+  try {
+    parsed = parseArgs({
+      args,
+      options: ARG_OPTIONS,
+      allowPositionals: true,
+      strict: true,
+    });
+  } catch (err) {
+    throw new Error(`Invalid arguments to draft init: ${err.message}`, {
+      cause: err,
+    });
+  }
+  const flags = parsed.values;
+  const answersFlag = await loadAnswersFlag(flags.answers);
 
+  const draftwiseDir = join(cwd, '.draftwise');
   if (await pathExists(draftwiseDir)) {
     throw new Error(
       '.draftwise/ already exists in this directory. Delete it or run from a different directory to re-init.',
@@ -407,11 +544,65 @@ export default async function init(_args = [], deps = {}) {
   log('Welcome to Draftwise. A few quick questions before we set you up.');
   log('');
 
-  const projectState = await prompts.promptProjectState();
-  const aiConfig = await collectAiConfig(prompts);
+  const projectState = await resolveValue({
+    flagName: 'mode',
+    flagValue: flags.mode,
+    promptFn: () => prompts.promptProjectState(),
+    isInteractive,
+    validValues: VALID_MODES,
+    missingHint:
+      'Missing --mode flag. Pass --mode=greenfield (no code yet) or --mode=brownfield (existing codebase).',
+  });
+
+  const aiMode = await resolveValue({
+    flagName: 'ai-mode',
+    flagValue: flags['ai-mode'],
+    promptFn: () => prompts.promptMode(),
+    isInteractive,
+    validValues: VALID_AI_MODES,
+    missingHint:
+      'Missing --ai-mode flag. Pass --ai-mode=agent (Claude Code/Cursor handles reasoning) or --ai-mode=api (Draftwise calls a model directly).',
+  });
+
+  let aiConfig;
+  if (aiMode === 'agent') {
+    aiConfig = { mode: 'agent' };
+  } else {
+    const provider = await resolveValue({
+      flagName: 'provider',
+      flagValue: flags.provider,
+      promptFn: () => prompts.promptProvider(),
+      isInteractive,
+      validValues: VALID_PROVIDERS,
+      missingHint:
+        'Missing --provider flag (required when --ai-mode=api). Pass --provider=claude (or openai/gemini once those adapters are wired up).',
+    });
+    const suggested = ENV_VAR_BY_PROVIDER[provider];
+    let apiKeyEnv = flags['api-key-env'];
+    if (!apiKeyEnv) {
+      if (isInteractive()) {
+        apiKeyEnv = await prompts.promptApiKeyEnv({ provider, suggested });
+      } else {
+        // Non-TTY default — the provider's standard env var name. User can
+        // override with --api-key-env if they use a custom name.
+        apiKeyEnv = suggested;
+      }
+    }
+    aiConfig = { mode: 'api', provider, apiKeyEnv };
+  }
 
   if (projectState === 'brownfield') {
     return runBrownfield({ cwd, log, scan, draftwiseDir, aiConfig });
   }
-  return runGreenfield({ log, complete, draftwiseDir, aiConfig, prompts });
+  return runGreenfield({
+    log,
+    complete,
+    draftwiseDir,
+    aiConfig,
+    prompts,
+    isInteractive,
+    ideaFlag: flags.idea,
+    stackFlag: flags.stack,
+    answersFlag,
+  });
 }

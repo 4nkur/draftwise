@@ -198,4 +198,43 @@ describe('draft scaffold', () => {
     expect(tsx).toBe('existing content');
     expect(logs.join('\n')).toContain('skipped (exists): app/page.tsx');
   });
+
+  describe('non-TTY (flags-driven)', () => {
+    function noPrompts() {
+      return {
+        confirmScaffold: () => {
+          throw new Error('inquirer prompt fired in non-TTY test');
+        },
+      };
+    }
+
+    it('--yes runs without prompting in non-TTY', async () => {
+      await seedScaffold(dir);
+
+      await scaffoldCommand(['--yes'], {
+        cwd: dir,
+        log: () => {},
+        isInteractive: () => false,
+        loadConfig: greenfieldConfig,
+        prompts: noPrompts(),
+      });
+
+      const tsx = await readFile(join(dir, 'app/page.tsx'), 'utf8');
+      expect(tsx).toContain('TODO');
+    });
+
+    it('errors in non-TTY without --yes', async () => {
+      await seedScaffold(dir);
+
+      await expect(
+        scaffoldCommand([], {
+          cwd: dir,
+          log: () => {},
+          isInteractive: () => false,
+          loadConfig: greenfieldConfig,
+          prompts: noPrompts(),
+        }),
+      ).rejects.toThrow(/Pass --yes to confirm/);
+    });
+  });
 });
