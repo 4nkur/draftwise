@@ -20,6 +20,14 @@ Each released version is tagged in git (`v0.0.1`, `v0.1.0`, etc.) and includes t
 
 - **CLAUDE.md "Claude Code plugin" section corrected and expanded.** Originally claimed the marketplace plugin's user-facing slash form was `/draftwise <verb>` because plugin name and skill name match; that was wrong — plugin skills are *always* namespaced as `<plugin>:<skill>` and matching names doesn't collapse the prefix. Section now documents both install paths (marketplace + standalone) accurately, links the relevant Claude Code issue, lists the three harnesses the standalone path supports today, and notes that `package.json` `files` ships `plugin/skills/` (previously stated as excluded). Stale `skills/draft/...` paths updated to `skills/draftwise/...`. The `src/utils/` + commands list now includes `skill-providers.js` and `src/commands/skills/{install,uninstall,help}.js`. — Ankur
 
+### Fixed
+
+- **Two user-visible error messages referenced a non-existent `draft` binary instead of `draftwise`.** `src/commands/show.js` printed `Run \`draft new\` to generate it.` when a missing spec type was requested; `src/ai/provider.js` printed `or run draft inside a coding agent.` when the OpenAI / Gemini stub adapter was hit. Both now spell the binary correctly. Caught during a pre-publish audit; relics from an earlier rename when the package was briefly called `draft`. — Ankur
+
+### Removed
+
+- **Dead backwards-compat aliases on the prompt modules.** `src/ai/prompts/new.js` exported `PLAN_SYSTEM` / `SPEC_SYSTEM` and `src/ai/prompts/{tech,tasks}.js` each exported a top-level `SYSTEM` — three aliases marked "Backwards compatibility — keep the old names alive" that never had real callers. Verified by grep across `src/` and `test/`: every consumer either uses the explicit `_BROWNFIELD` / `_GREENFIELD` constants or the `selectSystem` / `selectPlanSystem` / `selectSpecSystem` helpers. The package hasn't shipped a version where these were the canonical names, so there's no compat to preserve. Pre-publish hygiene: shrink the public API surface before users import what we don't intend to support. `scan.js` and `explain.js` keep their `SYSTEM` exports — those are primary, not aliases, and are imported by the matching command files. — Ankur
+
 ## [0.2.0] — 2026-04-29 — Ankur
 
 The "Mode 1, for real" release. Draftwise now ships a Claude Code plugin so PMs drive spec drafting from `/draftwise <verb>` slash commands in chat — backed by a CLI that's been refactored to flags-first so non-TTY shells (CI, coding-agent harnesses) work without inquirer hanging on prompts.

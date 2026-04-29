@@ -67,7 +67,7 @@ export default async function showCommand(args = [], deps = {}) {
   const filePath = target[TYPE_TO_FILE[type]];
   if (!(await pathExists(filePath))) {
     throw new Error(
-      `${TYPE_TO_FILENAME[type]} not found for "${slug}". Run \`draft ${type === 'product' ? 'new' : type}\` to generate it.`,
+      `${TYPE_TO_FILENAME[type]} not found for "${slug}". Run \`draftwise ${type === 'product' ? 'new' : type}\` to generate it.`,
     );
   }
 

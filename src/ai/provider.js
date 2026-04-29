@@ -9,7 +9,7 @@ const ADAPTERS = {
 function notImplemented(name) {
   return () => {
     throw new Error(
-      `The ${name} provider isn't wired up yet. Use Claude for now (set ai.provider: claude in .draftwise/config.yaml) or run draft inside a coding agent.`,
+      `The ${name} provider isn't wired up yet. Use Claude for now (set ai.provider: claude in .draftwise/config.yaml) or run draftwise inside a coding agent.`,
     );
   };
 }
