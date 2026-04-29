@@ -14,8 +14,17 @@ const COMMANDS = {
   list: () => import('./commands/list.js'),
   show: () => import('./commands/show.js'),
   scaffold: () => import('./commands/scaffold.js'),
-  'install-skill': () => import('./commands/install-skill.js'),
-  'uninstall-skill': () => import('./commands/uninstall-skill.js'),
+};
+
+// Grouped subcommands. `draftwise skills <sub>` follows the same pattern as
+// `git remote <sub>` / `gh pr <sub>`. Helps keep the top-level help focused on
+// domain verbs (init, new, tech, tasks…) instead of mixing in infrastructure.
+const SUBCOMMAND_GROUPS = {
+  skills: {
+    install: () => import('./commands/skills/install.js'),
+    uninstall: () => import('./commands/skills/uninstall.js'),
+    help: () => import('./commands/skills/help.js'),
+  },
 };
 
 const HELP = `draftwise — codebase-aware spec drafting
@@ -33,8 +42,9 @@ Commands:
   tasks [<feature>]             Generate ordered tasks.md from technical spec
   list                          List all specs in .draftwise/specs/
   show <feature> [type]         Show a spec (type: product | tech | tasks; default: product)
-  install-skill                 Install Draftwise as a standalone Claude Code skill (bare /draftwise <verb>)
-  uninstall-skill               Remove a standalone skill install
+  skills <install|uninstall|help>   Manage the standalone slash-command skill across harnesses
+                                    (Claude Code, Cursor, Gemini CLI). Bare /draftwise <verb>
+                                    in chat. Run \`draftwise skills help\` for the full surface.
 
 Flags:
   -h, --help                    Show this help (or per-command help when after a command)
@@ -52,6 +62,25 @@ function asksForHelp(args) {
   return args.includes('--help') || args.includes('-h');
 }
 
+// Picks the right subcommand loader for a grouped command (e.g. `skills`).
+// Falls back to the group's own `help` loader when no subcommand was given
+// or when --help was passed at the group level (`draftwise skills --help`).
+function resolveSubcommandLoader(groupName, group, rest) {
+  const sub = rest[0];
+  if (!sub || sub === '--help' || sub === '-h' || sub === 'help') {
+    return group.help ?? null;
+  }
+  const loader = group[sub];
+  if (!loader) {
+    const known = Object.keys(group).join(', ');
+    console.error(
+      `Unknown ${groupName} subcommand: ${sub}\nKnown: ${known}\n`,
+    );
+    process.exit(1);
+  }
+  return loader;
+}
+
 export default async function run(argv) {
   const [cmd, ...rest] = argv;
 
@@ -65,20 +94,26 @@ export default async function run(argv) {
     return;
   }
 
-  const loader = COMMANDS[cmd];
+  const subcommandGroup = SUBCOMMAND_GROUPS[cmd];
+  const loader = subcommandGroup
+    ? resolveSubcommandLoader(cmd, subcommandGroup, rest)
+    : COMMANDS[cmd];
   if (!loader) {
     console.error(`Unknown command: ${cmd}\n`);
     console.error(HELP);
     process.exit(1);
   }
+  // For grouped subcommands, the first arg in `rest` was the subcommand name —
+  // strip it before passing the remainder to the loaded module.
+  const argsForCmd = subcommandGroup ? rest.slice(1) : rest;
 
   try {
     const mod = await loader();
-    if (asksForHelp(rest)) {
+    if (asksForHelp(argsForCmd)) {
       console.log(mod.HELP || `(no help available for "${cmd}")`);
       return;
     }
-    await mod.default(rest);
+    await mod.default(argsForCmd);
   } catch (err) {
     if (process.env.DRAFTWISE_DEBUG === '1') {
       console.error(err?.stack || err);
