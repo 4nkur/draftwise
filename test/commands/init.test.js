@@ -505,7 +505,83 @@ describe('draft init', () => {
       expect(config).toContain('Next.js + Postgres + Prisma');
     });
 
-    it('errors with --mode hint when not interactive and --mode missing', async () => {
+    it('prints the structured handoff when no flags supplied (instead of erroring)', async () => {
+      const logs = [];
+      await init([], {
+        cwd: dir,
+        log: (m) => logs.push(m),
+        isInteractive: interactiveFalse,
+        prompts: noPrompts(),
+        scan: fakeScan(['src/foo.js']),
+      });
+
+      const out = logs.join('\n');
+      expect(out).toContain('coding agent should pick this up');
+      expect(out).toContain('INIT — answer these in chat');
+      expect(out).toContain('Project state');
+      expect(out).toContain('AI mode');
+      expect(out).toContain('AI provider');
+      expect(out).toContain('What do you want to build');
+      expect(out).toContain('INSTRUCTION');
+      expect(out).toContain('draft init --mode=');
+
+      // No files written — init bailed before scanning or writing.
+      await expect(
+        readFile(join(dir, '.draftwise', 'config.yaml'), 'utf8'),
+      ).rejects.toThrow();
+    });
+
+    it('handoff omits questions for fields already supplied', async () => {
+      const logs = [];
+      await init(['--mode=brownfield'], {
+        cwd: dir,
+        log: (m) => logs.push(m),
+        isInteractive: interactiveFalse,
+        prompts: noPrompts(),
+        scan: fakeScan(['src/foo.js']),
+      });
+
+      const out = logs.join('\n');
+      // Only --ai-mode is missing — handoff should ask for that and not for
+      // mode/idea (idea is irrelevant once mode=brownfield).
+      expect(out).toContain('AI mode');
+      expect(out).not.toContain('Project state');
+      expect(out).not.toContain('What do you want to build');
+    });
+
+    it('handoff fires when api + non-TTY + no --provider', async () => {
+      const logs = [];
+      await init(['--mode=brownfield', '--ai-mode=api'], {
+        cwd: dir,
+        log: (m) => logs.push(m),
+        isInteractive: interactiveFalse,
+        prompts: noPrompts(),
+        scan: fakeScan(['src/foo.js']),
+      });
+
+      const out = logs.join('\n');
+      expect(out).toContain('AI provider');
+      expect(out).not.toContain('Project state');
+      expect(out).not.toContain('AI mode —');
+    });
+
+    it('handoff fires when greenfield + non-TTY + no --idea', async () => {
+      const logs = [];
+      await init(['--mode=greenfield', '--ai-mode=agent'], {
+        cwd: dir,
+        log: (m) => logs.push(m),
+        isInteractive: interactiveFalse,
+        prompts: noPrompts(),
+        scan: fakeScan([]),
+      });
+
+      const out = logs.join('\n');
+      expect(out).toContain('What do you want to build');
+      expect(out).not.toContain('Project state');
+    });
+
+    it('still throws (does NOT handoff) on a .draftwise/ that already exists', async () => {
+      await mkdir(join(dir, '.draftwise'));
       await expect(
         init([], {
           cwd: dir,
@@ -514,43 +590,7 @@ describe('draft init', () => {
           prompts: noPrompts(),
           scan: fakeScan(['src/foo.js']),
         }),
-      ).rejects.toThrow(/Missing --mode flag/);
-    });
-
-    it('errors with --ai-mode hint when not interactive and --ai-mode missing', async () => {
-      await expect(
-        init(['--mode=brownfield'], {
-          cwd: dir,
-          log: () => {},
-          isInteractive: interactiveFalse,
-          prompts: noPrompts(),
-          scan: fakeScan(['src/foo.js']),
-        }),
-      ).rejects.toThrow(/Missing --ai-mode flag/);
-    });
-
-    it('errors with --provider hint when api + non-TTY + no --provider', async () => {
-      await expect(
-        init(['--mode=brownfield', '--ai-mode=api'], {
-          cwd: dir,
-          log: () => {},
-          isInteractive: interactiveFalse,
-          prompts: noPrompts(),
-          scan: fakeScan(['src/foo.js']),
-        }),
-      ).rejects.toThrow(/Missing --provider flag/);
-    });
-
-    it('errors with --idea hint when greenfield + non-TTY + no --idea', async () => {
-      await expect(
-        init(['--mode=greenfield', '--ai-mode=agent'], {
-          cwd: dir,
-          log: () => {},
-          isInteractive: interactiveFalse,
-          prompts: noPrompts(),
-          scan: fakeScan([]),
-        }),
-      ).rejects.toThrow(/--idea/);
+      ).rejects.toThrow(/already exists/);
     });
 
     it('rejects --mode with an invalid value', async () => {

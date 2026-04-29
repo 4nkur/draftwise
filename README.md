@@ -220,6 +220,8 @@ Claude Code · GitHub Copilot · Cursor · Gemini CLI · Codex CLI · Antigravit
 
 In practice it has only been smoke-tested in a plain terminal so far. If you run it inside one of these and something breaks, please open an issue.
 
+**Non-interactive use.** Every command also runs without a TTY — pass values as flags instead of letting inquirer prompt for them. That's what makes the agent integration possible: a slash-command wrapper (or any host agent) can collect answers in chat and re-invoke `draft <command>` with `--mode=...`, `--ai-mode=...`, `--idea="..."`, `--answers @path`, `--force`, `--yes`, etc. Run `draft <command> --help` for the per-command flag list. When `draft init` is run in a non-TTY shell with too few flags, it prints a structured handoff with the questions to ask the user — copy it into your AI assistant if you're not already inside one.
+
 Standalone (API mode) currently supports:
 
 - ✅ **Claude** (Anthropic) — fully wired

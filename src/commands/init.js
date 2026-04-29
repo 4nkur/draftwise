@@ -236,6 +236,12 @@ async function loadAnswersFlag(value) {
 // Resolves a value from (1) a flag, (2) a TTY prompt, or (3) errors out with a
 // usage hint when neither is available. Keeps the "flags-first, prompts as
 // fallback" pattern in one place so every input handles non-TTY identically.
+//
+// In normal flow this throws on the non-TTY+missing case as a backstop —
+// `init`'s entry point catches that case earlier with a structured handoff
+// (see needsHandoff / buildInitHandoff below) and returns before reaching
+// here. The throw stays as defensive coverage for fields the handoff doesn't
+// account for.
 async function resolveValue({
   flagName,
   flagValue,
@@ -256,6 +262,82 @@ async function resolveValue({
     return promptFn();
   }
   throw new Error(missingHint);
+}
+
+// True when init can't proceed in non-TTY without asking the user something.
+// Drives the structured-handoff path (see buildInitHandoff) — the host coding
+// agent reads the handoff, asks the user in chat, and re-invokes draft init
+// with the collected flags.
+function needsHandoff(flags) {
+  if (!flags.mode) return true;
+  if (!flags['ai-mode']) return true;
+  if (flags['ai-mode'] === 'api' && !flags.provider) return true;
+  if (flags.mode === 'greenfield' && !flags.idea) return true;
+  return false;
+}
+
+// Builds the structured handoff printed when init can't proceed in non-TTY.
+// Format follows the same AGENT_HANDOFF_PREFIX pattern Draftwise already uses
+// elsewhere — orienting line, fenced section, INSTRUCTION block — so the host
+// agent (Claude Code, Cursor, etc.) recognizes it as a "ask the user, then
+// re-invoke" handoff. Only lists questions for fields that aren't already
+// supplied; conditional questions get a "(only if ...)" marker when the
+// upstream answer isn't known yet.
+function buildInitHandoff(flags) {
+  const askMode = !flags.mode;
+  const askAiMode = !flags['ai-mode'];
+  const askProvider = flags['ai-mode'] !== 'agent' && !flags.provider;
+  const askIdea = flags.mode !== 'brownfield' && !flags.idea;
+
+  const rawQuestions = [];
+  if (askMode) {
+    rawQuestions.push(
+      'Project state — **greenfield** (no code yet) or **brownfield** (existing codebase)?',
+    );
+  }
+  if (askAiMode) {
+    rawQuestions.push(
+      'AI mode — **agent** (the host coding agent — Claude Code, Cursor, etc. — handles reasoning) or **api** (Draftwise calls a model directly with your API key)?',
+    );
+  }
+  if (askProvider) {
+    const conditional =
+      flags['ai-mode'] === undefined ? ' (only if you picked **api** above)' : '';
+    rawQuestions.push(
+      `AI provider — **claude** (the only one fully wired today), openai, or gemini?${conditional}`,
+    );
+  }
+  if (askIdea) {
+    const conditional =
+      flags.mode === undefined ? ' (only if you picked **greenfield** above)' : '';
+    rawQuestions.push(
+      `What do you want to build?${conditional} A sentence or two — the model will ask follow-up questions on stack and structure.`,
+    );
+  }
+  const questions = rawQuestions.map((q, i) => `${i + 1}. ${q}`);
+
+  const lines = [
+    AGENT_HANDOFF_PREFIX,
+    '',
+    '---',
+    'INIT — answer these in chat, then re-invoke draft init with the matching flags',
+    '',
+    ...questions,
+    '',
+    'INSTRUCTION',
+    'Once you have answers from the user, re-invoke draft init with the corresponding flags:',
+    '',
+    '  draft init --mode=<greenfield|brownfield> --ai-mode=<agent|api>',
+    '             [--provider=<claude|openai|gemini>] [--api-key-env=<VAR>]',
+    '             [--idea="<one-liner>"] [--stack="<name>"] [--answers @path/to/answers.json]',
+    '',
+    'Notes:',
+    '- --provider only applies when --ai-mode=api.',
+    '- --api-key-env defaults to ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY based on --provider; pass it only to override.',
+    '- --idea is required for --mode=greenfield.',
+    '- For greenfield + api: --stack and --answers are optional first time. Without them, init picks the first proposed stack and leaves clarifying-question answers blank. Re-invoke with both for a richer plan.',
+  ];
+  return lines.join('\n');
 }
 
 async function runBrownfield({ cwd, log, scan, draftwiseDir, aiConfig }) {
@@ -539,6 +621,17 @@ export default async function init(args = [], deps = {}) {
     throw new Error(
       '.draftwise/ already exists in this directory. Delete it or run from a different directory to re-init.',
     );
+  }
+
+  // Non-TTY structured handoff: when stdin isn't interactive and init needs
+  // to ask the user something, print the questions in the AGENT_HANDOFF_PREFIX
+  // format so the host coding agent (Claude Code, Cursor, etc.) can read them
+  // from stderr, ask the user in chat, and re-invoke `draft init` with the
+  // collected flags. Falls through to normal flag-or-prompt resolution when
+  // every required value is already supplied.
+  if (!isInteractive() && needsHandoff(flags)) {
+    log(buildInitHandoff(flags));
+    return;
   }
 
   log('Welcome to Draftwise. A few quick questions before we set you up.');
