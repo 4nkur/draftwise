@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json');
 
-describe('draftwise CLI router', () => {
+describe('draft CLI router', () => {
   let logs;
   let errs;
   let exitCalls;
@@ -58,13 +58,13 @@ describe('draftwise CLI router', () => {
 
   it('prints per-command HELP when called with --help after a command', async () => {
     await run(['init', '--help']);
-    expect(logs.join('\n')).toContain('draftwise init');
+    expect(logs.join('\n')).toContain('draft init');
     expect(logs.join('\n')).toContain('greenfield');
   });
 
   it('prints per-command HELP for -h after a command', async () => {
     await run(['explain', '-h']);
-    expect(logs.join('\n')).toContain('draftwise explain');
+    expect(logs.join('\n')).toContain('draft explain');
     expect(logs.join('\n')).toContain('Walks the flow');
   });
 
@@ -75,7 +75,7 @@ describe('draftwise CLI router', () => {
 });
 
 describe('HELP consistency between top-level and per-command', () => {
-  // Each command's HELP starts with "draftwise <cmd> — <one-liner>".
+  // Each command's HELP starts with "draft <cmd> — <one-liner>".
   // The top-level HELP listing should describe each command in a way that
   // doesn't drift from that one-liner. This catches accidental drift —
   // not full string equality, just that meaningful keywords from the
@@ -96,7 +96,7 @@ describe('HELP consistency between top-level and per-command', () => {
     it(`${cmd}: per-command HELP starts with the right header`, async () => {
       const m = await import(mod);
       expect(typeof m.HELP).toBe('string');
-      expect(m.HELP.split('\n')[0]).toContain(`draftwise ${cmd}`);
+      expect(m.HELP.split('\n')[0]).toContain(`draft ${cmd}`);
     });
 
     it(`${cmd}: per-command HELP and top-level HELP agree on key concepts`, async () => {

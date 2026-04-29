@@ -16,10 +16,10 @@ const COMMANDS = {
   scaffold: () => import('./commands/scaffold.js'),
 };
 
-const HELP = `draftwise — codebase-aware spec drafting
+const HELP = `draft — codebase-aware spec drafting
 
 Usage:
-  draftwise <command> [args]
+  draft <command> [args]
 
 Commands:
   init                          Set up .draftwise/ — greenfield plan or brownfield scan
@@ -34,7 +34,7 @@ Commands:
 
 Flags:
   -h, --help                    Show this help (or per-command help when after a command)
-  -v, --version                 Print the installed draftwise version
+  -v, --version                 Print the installed draft version
 
 Set DRAFTWISE_DEBUG=1 for stack traces on unexpected errors.
 `;

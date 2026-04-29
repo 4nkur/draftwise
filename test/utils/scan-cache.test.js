@@ -130,7 +130,7 @@ describe('cachedScan', () => {
     };
 
     // Run once to populate a real cache, then mutate cacheVersion to 0
-    // (simulating a cache written by an older draftwise build).
+    // (simulating a cache written by an older draft build).
     await cachedScan(dir, { scan: fakeScan });
     const cacheFile = join(dir, '.draftwise', '.cache', 'scan.json');
     const stale = JSON.parse(await readFile(cacheFile, 'utf8'));

@@ -35,7 +35,7 @@ If you're proposing a feature for Draftwise, the test is: **does this make the c
 ## Architecture
 
 ```
-bin/draftwise.js          → CLI entry point (shebang, calls src/index.js)
+bin/draft.js          → CLI entry point (shebang, calls src/index.js)
 src/index.js              → command router (dynamic imports, help)
 src/commands/             → one file per CLI command, default export async fn
 src/core/scanner.js       → codebase scanning (frameworks, routes, components, models)
@@ -73,7 +73,7 @@ Draftwise is fully AI-driven. Every meaningful command needs a model to do its w
 
 **Mode 1: Inside a coding agent.** Draftwise runs as slash commands inside Claude Code, Cursor, Copilot, etc. The agent's existing model handles the reasoning. Draftwise provides prompts, templates, and the codebase context.
 
-**Mode 2: Standalone with API key.** User configures an API key (Claude, OpenAI, or Gemini) during `draftwise init`. Draftwise calls the API directly.
+**Mode 2: Standalone with API key.** User configures an API key (Claude, OpenAI, or Gemini) during `draft init`. Draftwise calls the API directly.
 
 Both modes share the same prompt templates and codebase scanning logic. The difference is just where the model call happens.
 
@@ -87,7 +87,7 @@ ai:
   model: ""                            # optional override
   max_tokens: 16384                    # optional; default 16384. Bumped from 8192 because synthesis calls were truncating on big repos.
 project:
-  state: greenfield | brownfield      # set by `draftwise init`; controls prompt routing
+  state: greenfield | brownfield      # set by `draft init`; controls prompt routing
   stack: "Next.js + Postgres + Prisma" # greenfield only; the stack the PM picked at init
 scan:
   max_files: 5000                      # optional; raise for monorepos. Scanner emits a "truncated" warning when this is hit.
@@ -107,7 +107,7 @@ scan:
 
 **Prompts are authoritative.** Each command's section structure lives in its prompt module under `src/ai/prompts/<command>.js` (a `SYSTEM` constant plus a `buildPrompt` function plus an agent-mode instruction). Don't hardcode structure inside command files — change the prompt instead.
 
-**Conversation, not form-filling.** `draftwise new` should walk the user through questions, not present a blank form. The conversation is the value — it surfaces gaps the user wouldn't have noticed in a template.
+**Conversation, not form-filling.** `draft new` should walk the user through questions, not present a blank form. The conversation is the value — it surfaces gaps the user wouldn't have noticed in a template.
 
 **Don't clobber hand-edits silently.** Specs are work product — PMs review and refine them after generation. Re-running `new`, `tech`, or `tasks` against an existing file (same slug, same target) prompts to confirm overwrite; `--force` skips the prompt for scripted use. Agent mode is exempt because the host coding agent does the write, not Draftwise. `scan` is also exempt — refreshing `overview.md` IS its purpose. The check is positioned *before* the synthesis API call (after the plan call in `new`, after target selection in `tech` / `tasks`) so a cancel doesn't burn tokens or waste user-typed answers.
 
@@ -122,15 +122,15 @@ scan:
 ## Commands
 
 ```
-draftwise init                          → set up .draftwise/; routes to greenfield or brownfield flow
-draftwise scaffold                      → create initial files from the greenfield plan (greenfield only)
-draftwise scan                          → refresh the structured codebase overview (brownfield)
-draftwise explain <flow>                → trace how a specific flow works in the actual code (brownfield)
-draftwise new "<idea>" [--force]        → conversational drafting → product-spec.md
-draftwise tech [<feature>] [--force]    → drafts technical-spec.md from approved product spec
-draftwise tasks [<feature>] [--force]   → ordered tasks.md from technical spec
-draftwise list                          → list all specs in .draftwise/specs/
-draftwise show <feature> [type]         → display a spec (type: product | tech | tasks; default: product)
+draft init                          → set up .draftwise/; routes to greenfield or brownfield flow
+draft scaffold                      → create initial files from the greenfield plan (greenfield only)
+draft scan                          → refresh the structured codebase overview (brownfield)
+draft explain <flow>                → trace how a specific flow works in the actual code (brownfield)
+draft new "<idea>" [--force]        → conversational drafting → product-spec.md
+draft tech [<feature>] [--force]    → drafts technical-spec.md from approved product spec
+draft tasks [<feature>] [--force]   → ordered tasks.md from technical spec
+draft list                          → list all specs in .draftwise/specs/
+draft show <feature> [type]         → display a spec (type: product | tech | tasks; default: product)
 ```
 
 Each command is a separate file under `src/commands/` with a single `export default async function(args, deps = {}) {}`. The `deps` object is the dependency-injection seam used by tests — `cwd`, `log`, `scan`, `loadConfig`, `complete`, and per-command prompt overrides.
@@ -145,8 +145,8 @@ Each command is a separate file under `src/commands/` with a single `export defa
 ├── .cache/
 │   └── scan.json                # fingerprinted scan cache (gitignored)
 ├── overview.md                  # codebase summary (brownfield) or greenfield plan
-├── scaffold.json                # greenfield only: structured stack data for `draftwise scaffold`
-├── flows/                       # `draftwise explain` snapshots (brownfield)
+├── scaffold.json                # greenfield only: structured stack data for `draft scaffold`
+├── flows/                       # `draft explain` snapshots (brownfield)
 │   └── <flow-slug>.md
 ├── specs/
 │   └── <feature-name>/
@@ -239,7 +239,7 @@ npm test                # vitest run
 npm run test:watch      # vitest watch
 npm run lint            # eslint src/ test/
 npm run format          # prettier --write
-node bin/draftwise.js   # run CLI locally
+node bin/draft.js   # run CLI locally
 npm link                # install CLI globally from this repo
 ```
 

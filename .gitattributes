@@ -1,6 +1,6 @@
 # Normalize line endings to LF in the repo and the working tree.
 # Avoids the "LF will be replaced by CRLF" Git warnings on Windows
-# and keeps the shebang in bin/draftwise.js portable across OSes.
+# and keeps the shebang in bin/draft.js portable across OSes.
 
 * text=auto eol=lf
 

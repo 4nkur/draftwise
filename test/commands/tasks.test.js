@@ -33,7 +33,7 @@ async function seedSpec(dir, slug, opts = {}) {
   return specDir;
 }
 
-describe('draftwise tasks', () => {
+describe('draft tasks', () => {
   let dir;
   let logs;
 
@@ -57,7 +57,7 @@ describe('draftwise tasks', () => {
         loadConfig: async () => ({ mode: 'agent' }),
         complete: async () => '',
       }),
-    ).rejects.toThrow(/Run `draftwise init` first/);
+    ).rejects.toThrow(/Run `draft init` first/);
   });
 
   it('errors when there are no technical specs yet', async () => {

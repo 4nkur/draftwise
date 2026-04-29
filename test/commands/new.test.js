@@ -51,7 +51,7 @@ function fakePrompts({ answers, decisions }) {
   };
 }
 
-describe('draftwise new', () => {
+describe('draft new', () => {
   let dir;
   let logs;
 
@@ -87,7 +87,7 @@ describe('draftwise new', () => {
         loadConfig: async () => ({ mode: 'agent' }),
         complete: async () => '',
       }),
-    ).rejects.toThrow(/Run `draftwise init` first/);
+    ).rejects.toThrow(/Run `draft init` first/);
   });
 
   it('agent mode dumps scanner data + idea + 3-phase instruction without writing the spec', async () => {

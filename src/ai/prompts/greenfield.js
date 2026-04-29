@@ -153,7 +153,7 @@ export function buildOverviewMarkdown({ projectTitle, idea, questions, answers, 
 
 > ${idea}
 
-_This is a greenfield plan written before any code exists. Once you've scaffolded the project and written some code, run \`draftwise scan\` to replace this with a codebase-grounded overview._
+_This is a greenfield plan written before any code exists. Once you've scaffolded the project and written some code, run \`draft scan\` to replace this with a codebase-grounded overview._
 
 ## Idea
 
@@ -193,8 +193,8 @@ ${setup}
 
 1. Run the setup commands above to scaffold the project.
 2. Create the initial files listed.
-3. Once you have some code on disk, \`draftwise scan\` will refresh this overview from the actual codebase.
-4. \`draftwise new "<feature idea>"\` to draft your first feature spec.
+3. Once you have some code on disk, \`draft scan\` will refresh this overview from the actual codebase.
+4. \`draft new "<feature idea>"\` to draft your first feature spec.
 `;
 }
 
@@ -213,7 +213,7 @@ PHASE 2 — Recommend stacks:
 
 PHASE 3 — Write the plan:
   - Save the chosen stack and the conversation as .draftwise/overview.md, with sections: Idea, Discovery (Q&A), Chosen stack (name, summary, rationale, pros, cons), Directory structure, Initial files, Setup commands, Next steps.
-  - Also save .draftwise/scaffold.json with the structured stack data so \`draftwise scaffold\` can use it later. Shape:
+  - Also save .draftwise/scaffold.json with the structured stack data so \`draft scaffold\` can use it later. Shape:
     {
       "stack": "<chosen stack name>",
       "summary": "<one-sentence summary>",
@@ -221,7 +221,7 @@ PHASE 3 — Write the plan:
       "initial_files": [{ "path": "...", "purpose": "..." }],
       "setup_commands": ["...", "..."]
     }
-  - Tell the PM the next steps: run setup commands, optionally \`draftwise scaffold\` to create initial files, then \`draftwise scan\` once code exists, or \`draftwise new "<feature idea>"\` to draft a feature spec.
+  - Tell the PM the next steps: run setup commands, optionally \`draft scaffold\` to create initial files, then \`draft scan\` once code exists, or \`draft new "<feature idea>"\` to draft a feature spec.
 
 Hard rules: ASK don't assume; stack options must be meaningfully different (not three flavors of the same thing); pros/cons must be specific to this project, not generic.`;
 }

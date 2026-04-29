@@ -22,7 +22,7 @@ async function seedSpec(dir, slug, productBody = '# Product Spec\n\nBody.') {
   return specDir;
 }
 
-describe('draftwise tech', () => {
+describe('draft tech', () => {
   let dir;
   let logs;
 
@@ -46,7 +46,7 @@ describe('draftwise tech', () => {
         loadConfig: async () => ({ mode: 'agent' }),
         complete: async () => '',
       }),
-    ).rejects.toThrow(/Run `draftwise init` first/);
+    ).rejects.toThrow(/Run `draft init` first/);
   });
 
   it('errors if there are no product specs yet', async () => {
