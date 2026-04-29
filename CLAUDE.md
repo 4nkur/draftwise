@@ -35,16 +35,20 @@ If you're proposing a feature for Draftwise, the test is: **does this make the c
 ## Architecture
 
 ```
-bin/draft.js          → CLI entry point (shebang, calls src/index.js)
+bin/draft.js              → CLI entry point (shebang, calls src/index.js)
 src/index.js              → command router (dynamic imports, help)
 src/commands/             → one file per CLI command, default export async fn
 src/core/scanner.js       → codebase scanning (frameworks, routes, components, models)
 src/ai/provider.js        → routes complete() calls to the right provider adapter
 src/ai/providers/         → claude.js wired; openai.js + gemini.js stubbed
 src/ai/prompts/           → one prompt module per command. Each exports brownfield + greenfield SYSTEM constants, a selectSystem(projectState) helper, a buildPrompt() that branches on projectState, and an agent-mode instruction
-src/utils/                → config.js (yaml loader; returns projectState/stack/scanMaxFiles), specs.js (list .draftwise/specs/), slug.js, overview.js (read .draftwise/overview.md for greenfield context), scan-cache.js (fingerprinted scan cache, drop-in for scan()), flow-filter.js (narrow scan to flow-relevant items), scan-warnings.js (truncation + missing-framework messages), fs.js (shared pathExists), scan-projection.js (shared compactScan that trims a raw scan into a prompt-sized projection), agent-handoff.js (shared orienting prefix logged before every agent-mode handoff)
+src/utils/                → config.js (yaml loader; returns projectState/stack/scanMaxFiles), specs.js (list .draftwise/specs/), slug.js, overview.js (read .draftwise/overview.md for greenfield context), scan-cache.js (fingerprinted scan cache, drop-in for scan()), flow-filter.js (narrow scan to flow-relevant items), scan-warnings.js (truncation + missing-framework messages), fs.js (shared pathExists), scan-projection.js (shared compactScan that trims a raw scan into a prompt-sized projection), tty.js (isInteractive helper), agent-handoff.js (shared orienting prefix logged before every agent-mode handoff)
 test/                     → vitest, mirrors src structure
+.claude-plugin/           → plugin marketplace declaration (see "Claude Code plugin" below)
+plugin/                   → plugin source tree shipped via the marketplace
 ```
+
+**Claude Code plugin.** Distributed separately from the npm package — `.claude-plugin/marketplace.json` at repo root declares a single `draftwise` plugin with `source: ./plugin`. Inside `plugin/` is `.claude-plugin/plugin.json` (the install manifest) and `skills/draftwise/SKILL.md` plus `skills/draftwise/reference/<verb>.md` per CLI verb. Pattern follows impeccable's distribution model: one skill (`/draftwise`) routes to per-verb references that drive the conversation in chat and shell out to the npm-installed `draft` CLI. Users install via `/plugin marketplace add 4nkur/draftwise` in Claude Code, then `/plugin install draftwise`. The plugin is *not* shipped on npm — `package.json` `files` excludes the plugin directories.
 
 The single most important module is `src/core/scanner.js` — it parses the user's codebase and produces a structured representation everything else builds on. Get that right and the rest follows.
 

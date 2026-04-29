@@ -95,6 +95,15 @@ cd your-project          # existing repo, or an empty directory for a new projec
 draft init
 ```
 
+**Optional — slash commands inside Claude Code.** If you use Claude Code, install the Draftwise plugin so `/draftwise init`, `/draftwise new "<idea>"`, etc. work in chat:
+
+```
+/plugin marketplace add 4nkur/draftwise
+/plugin install draftwise
+```
+
+The plugin shells out to the same `draft` CLI — install Draftwise via npm first.
+
 `draft init` first asks whether you're starting **greenfield** (no code yet) or **brownfield** (existing codebase) and routes accordingly:
 
 - **Greenfield:** describe the idea → answer 4-6 clarifying questions → pick from 2-3 stack options → get a plan with directory structure and setup commands. Optional: `draft scaffold` to create the user-written initial files automatically.
