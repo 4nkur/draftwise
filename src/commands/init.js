@@ -2,11 +2,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { stringify as yamlStringify } from 'yaml';
-import { input } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { describeScanWarnings } from '../utils/scan-warnings.js';
 import { pathExists } from '../utils/fs.js';
-import { isInteractive as defaultIsInteractive } from '../utils/tty.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import { detectProjectState as defaultDetectProjectState } from '../utils/project-state.js';
 import { buildAgentInstruction as buildGreenfieldAgentInstruction } from '../ai/prompts/greenfield.js';
@@ -32,10 +30,10 @@ accordingly. Greenfield prints an instruction your coding agent
 follows to walk through stack selection. Brownfield scans the
 codebase. Refuses to overwrite an existing .draftwise/.
 
-Non-TTY (CI, coding-agent shell): brownfield needs no further input
-and runs straight through. Greenfield without --idea prints a
-structured agent handoff so the host coding agent can ask the user
-in chat and re-invoke with the flag.
+Brownfield needs no further input and runs straight through.
+Greenfield without --idea prints a structured agent handoff so
+the host coding agent can ask the user in chat and re-invoke with
+the flag.
 `;
 
 const ARG_OPTIONS = {
@@ -73,15 +71,6 @@ the instruction printed by init — paste this idea and the instruction into
 a chat and have it generate the plan, then save it back to this file.
 `;
 }
-
-const DEFAULT_PROMPTS = {
-  promptIdea: () =>
-    input({
-      message: 'In a sentence or two — what do you want to build?',
-      validate: (v) =>
-        v.trim().length > 0 ? true : 'Please describe the idea.',
-    }),
-};
 
 function buildConfigYaml({ projectState, stack }) {
   const project = { state: projectState };
@@ -165,29 +154,7 @@ async function runBrownfield({ cwd, log, scan, draftwiseDir }) {
   log('Next: draftwise scan');
 }
 
-async function runGreenfield({
-  log,
-  draftwiseDir,
-  prompts,
-  isInteractive,
-  ideaFlag,
-}) {
-  log('');
-
-  let idea = ideaFlag;
-  if (idea === undefined || idea === null) {
-    if (isInteractive()) {
-      idea = await prompts.promptIdea();
-    } else {
-      throw new Error(
-        'Greenfield init needs --idea "<one-liner describing what you want to build>". Pass it as a flag, or run init in an interactive terminal.',
-      );
-    }
-  }
-  if (typeof idea !== 'string' || idea.trim().length === 0) {
-    throw new Error('--idea must be a non-empty string.');
-  }
-
+async function runGreenfield({ log, draftwiseDir, idea }) {
   log('');
   log('Handing the greenfield conversation off to your coding agent.');
   log(AGENT_HANDOFF_PREFIX);
@@ -225,10 +192,8 @@ export default async function init(args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
   const log = deps.log ?? ((msg) => console.error(msg));
   const scan = deps.scan ?? defaultScan;
-  const isInteractive = deps.isInteractive ?? defaultIsInteractive;
   const detectProjectState =
     deps.detectProjectState ?? defaultDetectProjectState;
-  const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };
 
   let parsed;
   try {
@@ -269,18 +234,16 @@ export default async function init(args = [], deps = {}) {
     modeSource = 'detected';
   }
 
-  // Non-TTY structured handoff: greenfield without --idea is the only
-  // remaining case where init can't proceed without asking the user. Print
-  // the question in AGENT_HANDOFF_PREFIX format so the host coding agent
-  // (Claude Code, Cursor, etc.) reads it from stderr, asks the user in chat,
-  // and re-invokes with --idea filled in.
-  if (
-    !isInteractive() &&
-    projectState === 'greenfield' &&
-    !flags.idea
-  ) {
+  // Greenfield without --idea: print the structured handoff so the host
+  // coding agent (Claude Code, Cursor, etc.) reads it from stderr, asks the
+  // user in chat, and re-invokes with --idea filled in. A plain-terminal
+  // user reads it as a usage hint and re-runs with the flag.
+  if (projectState === 'greenfield' && !flags.idea) {
     log(buildInitHandoff(projectState, modeSource));
     return;
+  }
+  if (projectState === 'greenfield' && flags.idea.trim().length === 0) {
+    throw new Error('--idea must be a non-empty string.');
   }
 
   log('Welcome to Draftwise. Setting up .draftwise/ for this project.');
@@ -307,8 +270,6 @@ export default async function init(args = [], deps = {}) {
   return runGreenfield({
     log,
     draftwiseDir,
-    prompts,
-    isInteractive,
-    ideaFlag: flags.idea,
+    idea: flags.idea,
   });
 }

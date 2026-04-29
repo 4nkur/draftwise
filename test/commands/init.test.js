@@ -8,9 +8,6 @@ function fakeScan(files) {
   return async (root) => ({ root, files });
 }
 
-const interactiveTrue = () => true;
-const interactiveFalse = () => false;
-
 const detectBrownfield = async () => 'brownfield';
 
 describe('draftwise init', () => {
@@ -31,8 +28,6 @@ describe('draftwise init', () => {
       init([], {
         cwd: dir,
         log: () => {},
-        prompts: { promptIdea: async () => 'unused' },
-        isInteractive: interactiveTrue,
         scan: fakeScan(['src/foo.js']),
       }),
     ).rejects.toThrow(/already exists/);
@@ -43,7 +38,6 @@ describe('draftwise init', () => {
       await init([], {
         cwd: dir,
         log: () => {},
-        isInteractive: interactiveTrue,
         detectProjectState: detectBrownfield,
         scan: fakeScan(['src/foo.js', 'src/bar.ts']),
       });
@@ -65,12 +59,26 @@ describe('draftwise init', () => {
       expect(gitignore).toContain('.cache/');
     });
 
+    it('runs end-to-end with no flags (no questions to ask)', async () => {
+      await init([], {
+        cwd: dir,
+        log: () => {},
+        detectProjectState: detectBrownfield,
+        scan: fakeScan(['src/foo.js']),
+      });
+
+      const config = await readFile(
+        join(dir, '.draftwise', 'config.yaml'),
+        'utf8',
+      );
+      expect(config).toContain('state: brownfield');
+    });
+
     it('errors when --mode=brownfield is forced but the repo has no source files', async () => {
       await expect(
         init(['--mode=brownfield'], {
           cwd: dir,
           log: () => {},
-          isInteractive: interactiveTrue,
           scan: fakeScan([]),
         }),
       ).rejects.toThrow(/No source files/);
@@ -83,7 +91,6 @@ describe('draftwise init', () => {
       await init(['--mode=greenfield', '--idea=a recipe sharing app for home cooks'], {
         cwd: dir,
         log: (m) => logs.push(m),
-        isInteractive: interactiveTrue,
         scan: fakeScan([]),
       });
 
@@ -110,89 +117,21 @@ describe('draftwise init', () => {
       expect(config).not.toContain('stack:');
     });
 
-    it('prompts for --idea when interactive and not supplied', async () => {
-      let promptCalls = 0;
-      await init(['--mode=greenfield'], {
-        cwd: dir,
-        log: () => {},
-        isInteractive: interactiveTrue,
-        prompts: {
-          promptIdea: async () => {
-            promptCalls++;
-            return 'a brand new idea';
-          },
-        },
-        scan: fakeScan([]),
-      });
-
-      expect(promptCalls).toBe(1);
-      const overview = await readFile(
-        join(dir, '.draftwise', 'overview.md'),
-        'utf8',
-      );
-      expect(overview).toContain('a brand new idea');
-    });
-
     it('does NOT require source files (empty repo is fine)', async () => {
       await init(['--mode=greenfield', '--idea=a brand new idea'], {
         cwd: dir,
         log: () => {},
-        isInteractive: interactiveTrue,
         scan: fakeScan([]),
       });
 
       await access(join(dir, '.draftwise', 'overview.md'));
     });
-  });
 
-  describe('non-TTY (flags-driven)', () => {
-    function noPrompts() {
-      const fail = () => {
-        throw new Error('inquirer prompt fired in non-TTY test');
-      };
-      return { promptIdea: fail };
-    }
-
-    it('brownfield runs end-to-end with no flags (no questions to ask)', async () => {
-      await init([], {
-        cwd: dir,
-        log: () => {},
-        isInteractive: interactiveFalse,
-        prompts: noPrompts(),
-        detectProjectState: detectBrownfield,
-        scan: fakeScan(['src/foo.js']),
-      });
-
-      const config = await readFile(
-        join(dir, '.draftwise', 'config.yaml'),
-        'utf8',
-      );
-      expect(config).toContain('state: brownfield');
-    });
-
-    it('greenfield + --idea writes the placeholder plan', async () => {
-      await init(['--mode=greenfield', '--idea=A new idea'], {
-        cwd: dir,
-        log: () => {},
-        isInteractive: interactiveFalse,
-        prompts: noPrompts(),
-        scan: fakeScan([]),
-      });
-
-      const overview = await readFile(
-        join(dir, '.draftwise', 'overview.md'),
-        'utf8',
-      );
-      expect(overview).toContain('A new idea');
-    });
-
-    it('prints the structured handoff when greenfield + non-TTY + no --idea', async () => {
+    it('prints the structured handoff when greenfield without --idea', async () => {
       const logs = [];
       await init([], {
         cwd: dir,
         log: (m) => logs.push(m),
-        isInteractive: interactiveFalse,
-        prompts: noPrompts(),
         scan: fakeScan([]),
       });
 
@@ -209,15 +148,15 @@ describe('draftwise init', () => {
         readFile(join(dir, '.draftwise', 'config.yaml'), 'utf8'),
       ).rejects.toThrow();
     });
+  });
 
-    it('still throws (does NOT handoff) on a .draftwise/ that already exists', async () => {
+  describe('argument validation', () => {
+    it('still throws on a .draftwise/ that already exists', async () => {
       await mkdir(join(dir, '.draftwise'));
       await expect(
         init([], {
           cwd: dir,
           log: () => {},
-          isInteractive: interactiveFalse,
-          prompts: noPrompts(),
           scan: fakeScan(['src/foo.js']),
         }),
       ).rejects.toThrow(/already exists/);
@@ -228,8 +167,6 @@ describe('draftwise init', () => {
         init(['--mode=halffield'], {
           cwd: dir,
           log: () => {},
-          isInteractive: interactiveFalse,
-          prompts: noPrompts(),
           scan: fakeScan([]),
         }),
       ).rejects.toThrow(/Invalid --mode value/);
@@ -240,8 +177,6 @@ describe('draftwise init', () => {
         init(['--mode=brownfield', '--bogus=yes'], {
           cwd: dir,
           log: () => {},
-          isInteractive: interactiveFalse,
-          prompts: noPrompts(),
           scan: fakeScan(['src/foo.js']),
         }),
       ).rejects.toThrow(/Invalid arguments to draftwise init/);
@@ -256,7 +191,6 @@ describe('draftwise init', () => {
       await init([], {
         cwd: dir,
         log: (m) => logs.push(m),
-        isInteractive: interactiveTrue,
         scan: fakeScan(['index.ts']),
       });
 
@@ -275,7 +209,6 @@ describe('draftwise init', () => {
       await init(['--idea=a thing'], {
         cwd: dir,
         log: (m) => logs.push(m),
-        isInteractive: interactiveTrue,
         scan: fakeScan([]),
       });
 
@@ -296,7 +229,6 @@ describe('draftwise init', () => {
       await init(['--mode=greenfield', '--idea=a thing'], {
         cwd: dir,
         log: (m) => logs.push(m),
-        isInteractive: interactiveTrue,
         scan: fakeScan(['app.py']),
       });
 

@@ -24,7 +24,7 @@ If the detection looks wrong (e.g. the user is starting fresh in a folder that h
 
 ## How to ask for the idea (greenfield only)
 
-The CLI's only ask in non-TTY is the project idea. Add a sentence of context so the user can answer well: "A sentence or two on what you want to build — once init finishes I'll ask follow-up questions about stack and structure." If the user gives a one-word idea ("a blog", "a todo app"), ask for one more concrete sentence before invoking — the host-agent conversation goes much better with concrete input than with placeholder ideas.
+The CLI's only ask is the project idea (greenfield only). Add a sentence of context so the user can answer well: "A sentence or two on what you want to build — once init finishes I'll ask follow-up questions about stack and structure." If the user gives a one-word idea ("a blog", "a todo app"), ask for one more concrete sentence before invoking — the host-agent conversation goes much better with concrete input than with placeholder ideas.
 
 ## What to do after greenfield init finishes
 

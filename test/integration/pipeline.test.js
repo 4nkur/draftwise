@@ -78,7 +78,7 @@ describe('integration: pipeline (brownfield)', () => {
   }
 
   it('init creates the .draftwise/ skeleton and a parseable config', async () => {
-    await init([], { cwd: dir, log, isInteractive: () => false });
+    await init([], { cwd: dir, log });
 
     expect(await exists(join(dir, '.draftwise'))).toBe(true);
     expect(await exists(join(dir, '.draftwise', 'specs'))).toBe(true);
@@ -95,7 +95,7 @@ describe('integration: pipeline (brownfield)', () => {
   });
 
   it('scan, explain, new — all reach correct agent-mode output', async () => {
-    await init([], { cwd: dir, log, isInteractive: () => false });
+    await init([], { cwd: dir, log });
 
     // scan dumps scanner output + instruction.
     logs.length = 0;
@@ -124,7 +124,7 @@ describe('integration: pipeline (brownfield)', () => {
   });
 
   it('list and show find specs that the host agent would have written', async () => {
-    await init([], { cwd: dir, log, isInteractive: () => false });
+    await init([], { cwd: dir, log });
 
     // Agent doesn't write specs from inside draftwise — the host coding
     // agent does. Simulate that step by seeding spec files at the same
@@ -172,7 +172,7 @@ describe('integration: pipeline (brownfield)', () => {
   });
 
   it('show errors gracefully when the requested type is missing', async () => {
-    await init([], { cwd: dir, log, isInteractive: () => false });
+    await init([], { cwd: dir, log });
 
     const featureDir = join(dir, '.draftwise', 'specs', 'half-baked');
     await mkdir(featureDir, { recursive: true });
@@ -208,7 +208,7 @@ describe('integration: pipeline (greenfield)', () => {
   it('init greenfield → scan / explain short-circuit cleanly', async () => {
     await init(
       ['--mode=greenfield', '--idea=a recipe sharing app for home cooks'],
-      { cwd: dir, log, isInteractive: () => false },
+      { cwd: dir, log },
     );
 
     expect(await exists(join(dir, '.draftwise', 'config.yaml'))).toBe(true);

@@ -1,13 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
-import { select } from '@inquirer/prompts';
 import { cachedScan as defaultScan } from '../utils/scan-cache.js';
 import { loadConfig as defaultLoadConfig } from '../utils/config.js';
 import { listSpecs as defaultListSpecs } from '../utils/specs.js';
 import { readOverview as defaultReadOverview } from '../utils/overview.js';
 import { requireDraftwiseDir } from '../utils/draftwise-dir.js';
 import { loadScanContext } from '../utils/scan-context.js';
-import { isInteractive as defaultIsInteractive } from '../utils/tty.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import { buildAgentInstruction } from '../ai/prompts/tasks.js';
 
@@ -23,23 +21,11 @@ agent, which writes tasks.md (numbered tasks with Goal / Files /
 Depends on / Parallel with / Acceptance). In greenfield, the first
 1-3 tasks are project scaffolding (run setup commands, install deps).
 
-Non-TTY (CI, coding-agent shell): when multiple technical specs
-exist and no <feature-slug> is supplied, the command errors with
-the available slugs instead of running the picker.
+When multiple technical specs exist and no <feature-slug> is
+supplied, the command errors with the available slugs.
 `;
 
 const ARG_OPTIONS = {};
-
-const DEFAULT_PROMPTS = {
-  pickSpec: ({ specs }) =>
-    select({
-      message: 'Which feature do you want a task breakdown for?',
-      choices: specs.map((s) => ({
-        name: s.hasTasks ? `${s.slug}  (tasks.md exists)` : s.slug,
-        value: s.slug,
-      })),
-    }),
-};
 
 export default async function tasksCommand(args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
@@ -48,8 +34,6 @@ export default async function tasksCommand(args = [], deps = {}) {
   const loadConfig = deps.loadConfig ?? defaultLoadConfig;
   const listSpecs = deps.listSpecs ?? defaultListSpecs;
   const readOverview = deps.readOverview ?? defaultReadOverview;
-  const isInteractive = deps.isInteractive ?? defaultIsInteractive;
-  const prompts = { ...DEFAULT_PROMPTS, ...(deps.prompts ?? {}) };
 
   await requireDraftwiseDir(cwd);
 
@@ -90,9 +74,6 @@ export default async function tasksCommand(args = [], deps = {}) {
   } else if (specs.length === 1) {
     target = specs[0];
     log(`Using the only technical spec: ${target.slug}`);
-  } else if (isInteractive()) {
-    const slug = await prompts.pickSpec({ specs });
-    target = specs.find((s) => s.slug === slug);
   } else {
     const available = specs.map((s) => s.slug).join(', ');
     throw new Error(

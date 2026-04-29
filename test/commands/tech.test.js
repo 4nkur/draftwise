@@ -98,19 +98,18 @@ describe('draftwise tech', () => {
     ).rejects.toThrow(/No product spec found for "ghost"/);
   });
 
-  it('prompts the user when there are multiple specs and no slug arg', async () => {
+  it('errors when there are multiple specs and no slug arg', async () => {
     await seedSpec(dir, 'alpha');
     await seedSpec(dir, 'beta');
 
-    await techCommand([], {
-      cwd: dir,
-      log: (m) => logs.push(m),
-      scan: async () => SAMPLE_SCAN,
-      loadConfig: async () => ({ projectState: 'brownfield' }),
-      prompts: { pickSpec: async () => 'beta' },
-    });
-
-    expect(logs.join('\n')).toContain('SPEC: beta');
+    await expect(
+      techCommand([], {
+        cwd: dir,
+        log: (m) => logs.push(m),
+        scan: async () => SAMPLE_SCAN,
+        loadConfig: async () => ({ projectState: 'brownfield' }),
+      }),
+    ).rejects.toThrow(/Multiple product specs.*Available:.*alpha/);
   });
 
   it('dumps product spec + scanner + instruction without writing', async () => {
@@ -169,30 +168,5 @@ describe('draftwise tech', () => {
     expect(out).toContain('PROJECT PLAN');
     expect(out).not.toContain('SCANNER OUTPUT');
     expect(out).toContain('Plan');
-  });
-
-  describe('non-TTY (flags-driven)', () => {
-    function noPrompts() {
-      const fail = () => {
-        throw new Error('inquirer prompt fired in non-TTY test');
-      };
-      return { pickSpec: fail };
-    }
-
-    it('errors when multiple specs exist and no slug arg, instead of prompting', async () => {
-      await seedSpec(dir, 'collab-albums', '# A');
-      await seedSpec(dir, 'photo-uploads', '# B');
-
-      await expect(
-        techCommand([], {
-          cwd: dir,
-          log: () => {},
-          isInteractive: () => false,
-          prompts: noPrompts(),
-          scan: async () => SAMPLE_SCAN,
-          loadConfig: async () => ({ projectState: 'brownfield' }),
-        }),
-      ).rejects.toThrow(/Multiple product specs.*Available:.*collab-albums/);
-    });
   });
 });
