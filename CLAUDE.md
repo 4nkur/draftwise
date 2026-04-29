@@ -42,7 +42,7 @@ src/core/scanner.js       → codebase scanning (frameworks, routes, components,
 src/ai/provider.js        → routes complete() calls to the right provider adapter
 src/ai/providers/         → claude.js wired; openai.js + gemini.js stubbed
 src/ai/prompts/           → one prompt module per command. Each exports brownfield + greenfield SYSTEM constants, a selectSystem(projectState) helper, a buildPrompt() that branches on projectState, and an agent-mode instruction
-src/utils/                → config.js (yaml loader; returns projectState/stack/scanMaxFiles), specs.js (list .draftwise/specs/), slug.js, overview.js (read .draftwise/overview.md for greenfield context), scan-cache.js (fingerprinted scan cache, drop-in for scan()), flow-filter.js (narrow scan to flow-relevant items), scan-warnings.js (truncation + missing-framework messages), fs.js (shared pathExists), scan-projection.js (shared compactScan that trims a raw scan into a prompt-sized projection), tty.js (isInteractive helper), agent-handoff.js (shared orienting prefix logged before every agent-mode handoff)
+src/utils/                → config.js (yaml loader; returns projectState/stack/scanMaxFiles), specs.js (list .draftwise/specs/), slug.js, overview.js (read .draftwise/overview.md for greenfield context), scan-cache.js (fingerprinted scan cache, drop-in for scan()), flow-filter.js (narrow scan to flow-relevant items), scan-warnings.js (truncation + missing-framework messages), fs.js (shared pathExists), scan-projection.js (shared compactScan that trims a raw scan into a prompt-sized projection), tty.js (isInteractive helper), agent-handoff.js (shared orienting prefix logged before every agent-mode handoff), project-state.js (filesystem auto-detect for `init` — bail-fast walk for source files using scanner's IGNORE_DIRS + CODE_EXTENSIONS)
 test/                     → vitest, mirrors src structure
 .claude-plugin/           → plugin marketplace declaration (see "Claude Code plugin" below)
 plugin/                   → plugin source tree shipped via the marketplace
@@ -133,7 +133,7 @@ scan:
 ## Commands
 
 ```
-draftwise init                          → set up .draftwise/; routes to greenfield or brownfield flow
+draftwise init                          → set up .draftwise/; auto-detects new vs existing project (override with --mode=)
 draftwise scaffold                      → create initial files from the greenfield plan (greenfield only)
 draftwise scan                          → refresh the structured codebase overview (brownfield)
 draftwise explain <flow>                → trace how a specific flow works in the actual code (brownfield)
@@ -175,10 +175,10 @@ Each command is a separate file under `src/commands/` with a single `export defa
 
 The build order below was the original sequence. As of `0.1.5` published to npm, every command is implemented end-to-end with both AI modes (agent + api) and a vitest test suite (~240 tests). The original `0.0.1` cut shipped the command surface; `0.1.0` added greenfield support and Python scanner; `0.1.5` added overwrite protection, live token streaming, and a richer set of drafting / spec-quality prompt rules.
 
-1. **`init`** ✅ — asks the user about project state (greenfield vs brownfield) and AI mode, then routes:
+1. **`init`** ✅ — auto-detects project state from the filesystem (zero source files → greenfield; otherwise brownfield, using scanner.js's `IGNORE_DIRS` + `CODE_EXTENSIONS`), asks only for AI mode (and provider / idea when applicable), then routes:
    - **Brownfield path:** scans the codebase, writes `.draftwise/specs/`, `overview.md` placeholder, `config.yaml` (with `project.state: brownfield`).
    - **Greenfield path:** prompts for the idea, then in **api mode** generates clarifying questions → captures answers → proposes 2-3 stack options with rationale/pros/cons/directory structure/setup commands → writes a full greenfield plan to `overview.md` + `config.yaml` (with `project.state: greenfield` and the chosen `stack`). In **agent mode**, prints a 3-phase instruction for the host coding agent to walk the conversation and rewrite `overview.md`.
-   Refuses if `.draftwise/` already exists. (`src/commands/init.js`, prompts in `src/ai/prompts/greenfield.js`)
+   `--mode=greenfield|brownfield` overrides the auto-detection (canonical flag values; user-facing copy uses "new project" / "existing codebase" instead). Refuses if `.draftwise/` already exists. Detection lives in `src/utils/project-state.js`. (`src/commands/init.js`, prompts in `src/ai/prompts/greenfield.js`)
 
 2. **`scan`** ✅ — brownfield: runs the scanner and (api) calls the model to produce a narrated `overview.md`, or (agent) dumps scanner data + an instruction for the host agent. Greenfield: short-circuits with a friendly "no code yet" message — `overview.md` is the greenfield plan from `init`. (`src/commands/scan.js`)
 
