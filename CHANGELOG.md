@@ -6,6 +6,14 @@ Each released version is tagged in git (`v0.0.1`, `v0.1.0`, etc.) and includes t
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-04-29 — Ankur
+
+The polish + cleanup release. Half ergonomic improvements (init now auto-detects new project vs existing codebase from the filesystem instead of asking; plain-language UX throughout init), half code-quality work (five small dedup + tidy PRs that shrink the public API surface, fix two user-visible typos, and consolidate the drafting-command boilerplate behind shared helpers). One genuinely new surface: `draftwise skills <install|uninstall|help>` drops standalone slash-command skills into Claude Code, Cursor, and Gemini CLI's user-level skill dirs — same SKILL.md, per-provider frontmatter trim — independent of the Claude Code marketplace plugin.
+
+Bumps `package.json` + `package-lock.json` from 0.2.0 → 0.2.1 (patch — additive `skills` verb is non-breaking; the removed prompt aliases were never imported by anyone outside this repo, verified by audit). Rolls all [Unreleased] entries into [0.2.1] — 2026-04-29 — Ankur, with a fresh empty [Unreleased] block above.
+
+After merge, ritual: `git tag -a v0.2.1 -m "v0.2.1"`, `git push origin v0.2.1`, `npm publish` (interactive — OTP + login may be needed if the npm session expired).
+
 ### Changed
 
 - **`draftwise init` auto-detects new project vs existing codebase from the filesystem.** Previously asked the user (Q1 in the structured handoff and the first interactive prompt) whether the project was greenfield or brownfield. Now walks the cwd using `src/utils/project-state.js` (which reuses scanner.js's `IGNORE_DIRS` + `CODE_EXTENSIONS`) and bails on the first source file: zero source files → greenfield; one or more → brownfield. The result is logged in plain language ("Detected: new project — no source files yet" / "Detected: existing codebase — source files already in this directory") with an explicit override hint (`--mode=greenfield|brownfield`). The structured handoff opens with the detected state on its first line so the host coding agent can relay it to the user without re-running detection. Why: in non-TTY usage (which is now the primary path through Claude Code), the project state is almost always determinable from the filesystem — asking is pure friction, and the user's own placementos test exposed it. Frame: detection is the default, the flag is the override. Removes `promptProjectState` and the `mode` resolveValue branch from `init.js`. — Ankur
