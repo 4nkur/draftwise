@@ -48,4 +48,21 @@ describe('draftwise skills help (state report)', () => {
     expect(out).toMatch(/Claude Code\s+user\s+not installed/);
     expect(out).toMatch(/Gemini CLI\s+project\s+not installed/);
   });
+
+  it('shows the detected-harness set that auto-detect install would target', async () => {
+    await mkdir(join(home, '.claude'), { recursive: true });
+    await mkdir(join(cwd, '.gemini'), { recursive: true });
+
+    await skillsHelp([], deps());
+    const out = logs.join('\n');
+    expect(out).toMatch(/Detected harnesses \(user scope[^)]*\):\s+Claude Code/);
+    expect(out).toMatch(/Detected harnesses \(project scope[^)]*\):\s+Gemini CLI/);
+  });
+
+  it('reports "none" when no harness dirs exist at a scope', async () => {
+    await skillsHelp([], deps());
+    const out = logs.join('\n');
+    expect(out).toMatch(/Detected harnesses \(user scope[^)]*\):\s+none/);
+    expect(out).toMatch(/Detected harnesses \(project scope[^)]*\):\s+none/);
+  });
 });

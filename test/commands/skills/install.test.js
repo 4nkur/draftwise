@@ -57,8 +57,47 @@ describe('draftwise skills install', () => {
     return { cwd, home, sourceDir, log: (m) => logs.push(m), ...extra };
   }
 
-  it('installs to all known harnesses by default', async () => {
+  // Auto-detect needs the provider dir to exist at the scope root. Most tests
+  // pre-seed all three so behavior matches the old "install everywhere"
+  // baseline; the no-detection / single-detection cases are tested separately
+  // below.
+  async function seedAllProviderDirs() {
+    for (const provider of ['.claude', '.cursor', '.gemini']) {
+      await mkdir(join(home, provider), { recursive: true });
+    }
+  }
+
+  it('auto-detects: installs only to harnesses whose provider dir exists', async () => {
+    // Only Claude is "installed" on this machine.
+    await mkdir(join(home, '.claude'), { recursive: true });
+
     await skillsInstall([], deps());
+
+    const claudeSkill = await readFile(
+      join(home, '.claude', 'skills', 'draftwise', 'SKILL.md'),
+      'utf8',
+    );
+    expect(claudeSkill).toContain('name: draftwise');
+    await expect(
+      readFile(join(home, '.cursor', 'skills', 'draftwise', 'SKILL.md'), 'utf8'),
+    ).rejects.toThrow();
+    await expect(
+      readFile(join(home, '.gemini', 'skills', 'draftwise', 'SKILL.md'), 'utf8'),
+    ).rejects.toThrow();
+
+    // The detection log line tells the user *why* only Claude was picked.
+    expect(logs.join('\n')).toContain('Detected harness(es): Claude Code');
+  });
+
+  it('errors when no provider dir is detected, with a hint to use --provider', async () => {
+    await expect(skillsInstall([], deps())).rejects.toThrow(
+      /No AI harnesses detected[\s\S]*--provider=all[\s\S]*--provider=<claude\|cursor\|gemini>/,
+    );
+  });
+
+  it('--provider=all installs to every known harness regardless of detection', async () => {
+    // No provider dirs exist — auto-detect would error here, but --provider=all overrides.
+    await skillsInstall(['--provider=all'], deps());
 
     for (const provider of ['.claude', '.cursor', '.gemini']) {
       const target = join(home, provider, 'skills', 'draftwise');
@@ -70,6 +109,7 @@ describe('draftwise skills install', () => {
   });
 
   it('keeps Claude-only frontmatter on Claude, strips it for other providers', async () => {
+    await seedAllProviderDirs();
     await skillsInstall([], deps());
 
     const claude = await readFile(
@@ -130,6 +170,7 @@ describe('draftwise skills install', () => {
   });
 
   it('refuses to overwrite existing installs without --force, lists every conflict', async () => {
+    await seedAllProviderDirs();
     await skillsInstall([], deps());
     await expect(skillsInstall([], deps())).rejects.toThrow(
       /Target dirs already exist[\s\S]*\.claude[\s\S]*\.cursor[\s\S]*\.gemini/,
@@ -137,6 +178,7 @@ describe('draftwise skills install', () => {
   });
 
   it('--force replaces all conflicting installs cleanly', async () => {
+    await seedAllProviderDirs();
     await skillsInstall([], deps());
     // Plant a stale file in one of the targets to confirm it's wiped.
     const stale = join(
@@ -159,6 +201,7 @@ describe('draftwise skills install', () => {
   });
 
   it('errors clearly when the skill source is missing', async () => {
+    await seedAllProviderDirs();
     await rm(sourceDir, { recursive: true, force: true });
     await expect(skillsInstall([], deps())).rejects.toThrow(
       /Skill source not found/,

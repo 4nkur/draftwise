@@ -1,7 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, mkdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   PROVIDERS,
   PROVIDER_NAMES,
+  detectInstalledProviders,
   resolveProviderTarget,
   splitFrontmatter,
   joinFrontmatter,
@@ -49,6 +53,43 @@ describe('skill-providers', () => {
           home: '/home/u',
         }),
       ).toThrow(/Unknown provider "sublime"/);
+    });
+  });
+
+  describe('detectInstalledProviders', () => {
+    let workspace;
+    let home;
+    let cwd;
+
+    beforeEach(async () => {
+      workspace = await mkdtemp(join(tmpdir(), 'draftwise-detect-'));
+      home = join(workspace, 'home');
+      cwd = join(workspace, 'project');
+      await mkdir(home, { recursive: true });
+      await mkdir(cwd, { recursive: true });
+    });
+
+    afterEach(async () => {
+      await rm(workspace, { recursive: true, force: true });
+    });
+
+    it('returns an empty list when no provider dirs exist', async () => {
+      const found = await detectInstalledProviders({ scope: 'user', cwd, home });
+      expect(found).toEqual([]);
+    });
+
+    it('returns the providers whose dirs exist at user scope', async () => {
+      await mkdir(join(home, '.claude'), { recursive: true });
+      await mkdir(join(home, '.gemini'), { recursive: true });
+      const found = await detectInstalledProviders({ scope: 'user', cwd, home });
+      expect(found.sort()).toEqual(['claude', 'gemini']);
+    });
+
+    it('uses <cwd> for project scope, not home', async () => {
+      await mkdir(join(home, '.claude'), { recursive: true }); // user-scope decoy
+      await mkdir(join(cwd, '.cursor'), { recursive: true });
+      const found = await detectInstalledProviders({ scope: 'project', cwd, home });
+      expect(found).toEqual(['cursor']);
     });
   });
 

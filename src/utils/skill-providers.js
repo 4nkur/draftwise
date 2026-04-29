@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { parse as yamlParse, stringify as yamlStringify } from 'yaml';
+import { pathExists } from './fs.js';
 
 // One row per AI harness Draftwise's standalone skill targets. Each provider
 // reads SKILL.md from its own `<scope>/<provider-dir>/skills/draftwise/`
@@ -31,6 +32,22 @@ export function resolveProviderTarget({ provider, scope, cwd, home = homedir() }
   }
   const root = scope === 'project' ? cwd : home;
   return join(root, meta.providerDir, 'skills', 'draftwise');
+}
+
+// Returns the subset of PROVIDER_NAMES whose provider dir exists at the given
+// scope root — `~/.claude`, `~/.cursor`, `~/.gemini` for user scope, or the
+// `<cwd>/.<provider-dir>` equivalents for project scope. The presence of the
+// dir is treated as a proxy for "this harness is installed on this machine."
+// Used by `skills install` to install only where the user actually has the
+// harness, instead of writing to all three by default.
+export async function detectInstalledProviders({ scope, cwd, home = homedir() }) {
+  const root = scope === 'project' ? cwd : home;
+  const found = [];
+  for (const provider of PROVIDER_NAMES) {
+    const dir = join(root, PROVIDERS[provider].providerDir);
+    if (await pathExists(dir)) found.push(provider);
+  }
+  return found;
 }
 
 // Splits a SKILL.md (or any markdown with YAML frontmatter) into its
