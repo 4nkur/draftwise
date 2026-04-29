@@ -1,18 +1,18 @@
 ---
-name: draft
-description: Use when the user wants to set up Draftwise, scan a codebase for an overview, trace a specific flow through the code, draft a product spec from a feature idea, draft a technical spec from a product spec, generate ordered implementation tasks from a technical spec, list / show specs, or scaffold initial files for a greenfield project. Covers brownfield (existing repos, scanned for grounded specs) and greenfield (no code yet, with stack recommendation and project planning). Trigger on `/draft <verb>` or natural-language asks like "set up draftwise", "scan this codebase", "draft a spec for X", "explain how the checkout flow works". Not for arbitrary code review, refactoring, or non-spec work.
+name: draftwise
+description: Use when the user wants to set up Draftwise, scan a codebase for an overview, trace a specific flow through the code, draft a product spec from a feature idea, draft a technical spec from a product spec, generate ordered implementation tasks from a technical spec, list / show specs, or scaffold initial files for a greenfield project. Covers brownfield (existing repos, scanned for grounded specs) and greenfield (no code yet, with stack recommendation and project planning). Trigger on `/draftwise <verb>` or natural-language asks like "set up draftwise", "scan this codebase", "draft a spec for X", "explain how the checkout flow works". Not for arbitrary code review, refactoring, or non-spec work.
 version: 0.1.0
 user-invocable: true
 argument-hint: "<init|new|scan|explain|tech|tasks|list|show|scaffold> [args]"
 allowed-tools:
-  - Bash(draft *)
+  - Bash(draftwise *)
 ---
 
-Draftwise is a CLI for codebase-aware product spec drafting. The user has the `draft` binary installed via `npm i -g draftwise`. Your job is to drive the relevant Draftwise verb in chat — collect any inputs the user hasn't already supplied, shell out to `draft <verb>` with the right flags, and report what happened.
+Draftwise is a CLI for codebase-aware product spec drafting. The user has the `draftwise` binary installed via `npm i -g draftwise`. Your job is to drive the relevant Draftwise verb in chat — collect any inputs the user hasn't already supplied, shell out to `draftwise <verb>` with the right flags, and report what happened.
 
 ## How to handle a request
 
-1. **Identify the verb.** The user typed `/draft <verb>` or a natural-language equivalent. Map to one of: `init`, `new`, `scan`, `explain`, `tech`, `tasks`, `list`, `show`, `scaffold`. If ambiguous, ask which they want — don't guess.
+1. **Identify the verb.** The user typed `/draftwise <verb>` or a natural-language equivalent. Map to one of: `init`, `new`, `scan`, `explain`, `tech`, `tasks`, `list`, `show`, `scaffold`. If ambiguous, ask which they want — don't guess.
 
 2. **Check the setup gates** (see below) before invoking. The CLI will throw if a prerequisite is missing; catching it in chat first is faster and friendlier.
 
@@ -27,22 +27,22 @@ Draftwise has implicit dependencies. Surface them in chat before invoking the CL
 | Verb | Requires | If missing, suggest |
 |---|---|---|
 | `init` | nothing — bootstrap | — |
-| `scan` | `.draftwise/` (i.e. `init` was run) | `/draft init` first |
-| `explain <flow>` | `.draftwise/` exists; brownfield project | `/draft init` (brownfield only) |
-| `new "<idea>"` | `.draftwise/` exists; for richer spec, recent `overview.md` (brownfield) or fresh `overview.md` (greenfield) | `/draft init`, then optionally `/draft scan` (brownfield) to refresh |
-| `tech` | a `product-spec.md` exists (i.e. `new` has run for that feature) | `/draft new "<idea>"` first |
-| `tasks` | a `technical-spec.md` exists (i.e. `tech` has run for that feature) | `/draft tech` first |
-| `list` | `.draftwise/` exists | `/draft init` first |
-| `show <slug>` | `.draftwise/` exists; the spec type the user asked for has been generated | `/draft new` / `/draft tech` / `/draft tasks` depending on type |
-| `scaffold` | `scaffold.json` exists (greenfield + api-mode init); brownfield short-circuits | `/draft init` in greenfield mode |
+| `scan` | `.draftwise/` (i.e. `init` was run) | `/draftwise init` first |
+| `explain <flow>` | `.draftwise/` exists; brownfield project | `/draftwise init` (brownfield only) |
+| `new "<idea>"` | `.draftwise/` exists; for richer spec, recent `overview.md` (brownfield) or fresh `overview.md` (greenfield) | `/draftwise init`, then optionally `/draftwise scan` (brownfield) to refresh |
+| `tech` | a `product-spec.md` exists (i.e. `new` has run for that feature) | `/draftwise new "<idea>"` first |
+| `tasks` | a `technical-spec.md` exists (i.e. `tech` has run for that feature) | `/draftwise tech` first |
+| `list` | `.draftwise/` exists | `/draftwise init` first |
+| `show <slug>` | `.draftwise/` exists; the spec type the user asked for has been generated | `/draftwise new` / `/draftwise tech` / `/draftwise tasks` depending on type |
+| `scaffold` | `scaffold.json` exists (greenfield + api-mode init); brownfield short-circuits | `/draftwise init` in greenfield mode |
 
 ## Common patterns across verbs
 
-- **`!`draft <verb> $ARGUMENTS`** is the starting shell call. Pass through whatever flags the user already gave; collect missing required ones in chat first.
-- **Structured handoff (init in non-TTY)** — if `draft init` prints a block starting with "INIT — answer these in chat..." it's asking you to walk the user through the listed questions. Follow the INSTRUCTION block at the bottom verbatim — re-invoke `draft init` with the user's collected flags.
+- **`!`draftwise <verb> $ARGUMENTS`** is the starting shell call. Pass through whatever flags the user already gave; collect missing required ones in chat first.
+- **Structured handoff (init in non-TTY)** — if `draftwise init` prints a block starting with "INIT — answer these in chat..." it's asking you to walk the user through the listed questions. Follow the INSTRUCTION block at the bottom verbatim — re-invoke `draftwise init` with the user's collected flags.
 - **Agent-mode handoff (scan / explain / new / tech / tasks)** — if the CLI prints SCANNER OUTPUT or PROJECT PLAN followed by an INSTRUCTION block, it expects YOU to do the synthesis. Follow the INSTRUCTION exactly; ground every claim in the scanner data shown. Don't invent files, routes, or models that aren't there. The CLI did NOT write the file in this mode — that's your job.
 - **Existing target file** — `new` / `tech` / `tasks` error with "already exists. Pass --force." Ask the user before overwriting; re-invoke with `--force` only on confirmation. Existing work is hand-edited; clobbering it silently is worse than the friction of asking.
-- **`.draftwise/` not found** — point the user at `/draft init`.
+- **`.draftwise/` not found** — point the user at `/draftwise init`.
 
 ## Conversation standards
 

@@ -75,7 +75,7 @@ const SAMPLE_STACKS = {
   ],
 };
 
-describe('draft init', () => {
+describe('draftwise init', () => {
   let dir;
 
   beforeEach(async () => {
@@ -523,7 +523,7 @@ describe('draft init', () => {
       expect(out).toContain('AI provider');
       expect(out).toContain('What do you want to build');
       expect(out).toContain('INSTRUCTION');
-      expect(out).toContain('draft init --mode=');
+      expect(out).toContain('draftwise init --mode=');
 
       // No files written — init bailed before scanning or writing.
       await expect(
@@ -614,7 +614,7 @@ describe('draft init', () => {
           prompts: noPrompts(),
           scan: fakeScan(['src/foo.js']),
         }),
-      ).rejects.toThrow(/Invalid arguments to draft init/);
+      ).rejects.toThrow(/Invalid arguments to draftwise init/);
     });
 
     it('rejects --stack that does not match any proposed option', async () => {

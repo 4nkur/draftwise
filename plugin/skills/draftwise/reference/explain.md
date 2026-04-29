@@ -2,13 +2,13 @@
 
 ## Pre-flight
 
-- **`.draftwise/` exists?** If not, point at `/draft init`.
-- **Flow name supplied?** If the user invoked `/draft explain` with no argument, ask what flow they want traced before invoking. Examples to suggest: `checkout`, `signup`, `photo upload`, `password reset`. Concrete, single-noun flow names work best — the CLI's flow filter narrows the scan by keyword.
+- **`.draftwise/` exists?** If not, point at `/draftwise init`.
+- **Flow name supplied?** If the user invoked `/draftwise explain` with no argument, ask what flow they want traced before invoking. Examples to suggest: `checkout`, `signup`, `photo upload`, `password reset`. Concrete, single-noun flow names work best — the CLI's flow filter narrows the scan by keyword.
 
 ## Run
 
 ```
-!`draft explain $ARGUMENTS`
+!`draftwise explain $ARGUMENTS`
 ```
 
 ## Reading the output

@@ -16,10 +16,10 @@ const COMMANDS = {
   scaffold: () => import('./commands/scaffold.js'),
 };
 
-const HELP = `draft — codebase-aware spec drafting
+const HELP = `draftwise — codebase-aware spec drafting
 
 Usage:
-  draft <command> [args]
+  draftwise <command> [args]
 
 Commands:
   init                          Set up .draftwise/ — greenfield plan or brownfield scan
@@ -34,9 +34,9 @@ Commands:
 
 Flags:
   -h, --help                    Show this help (or per-command help when after a command)
-  -v, --version                 Print the installed draft version
+  -v, --version                 Print the installed draftwise version
 
-Each command takes its own flags — run \`draft <command> --help\`
+Each command takes its own flags — run \`draftwise <command> --help\`
 for details. All commands work non-interactively when given the
 flags they need; in a real TTY, missing values fall back to inquirer
 prompts. See per-command --help for the flag list.

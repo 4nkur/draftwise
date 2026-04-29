@@ -3,7 +3,7 @@
 ## Run
 
 ```
-!`draft init $ARGUMENTS`
+!`draftwise init $ARGUMENTS`
 ```
 
 ## Reading the output

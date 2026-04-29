@@ -11,7 +11,7 @@
 After confirming readiness:
 
 ```
-!`draft scaffold --yes $ARGUMENTS`
+!`draftwise scaffold --yes $ARGUMENTS`
 ```
 
 ## Reading the output
@@ -20,6 +20,6 @@ After confirming readiness:
 
 - **Brownfield short-circuit** ("scaffold is greenfield-only…"): tell the user this command only applies to greenfield projects.
 
-- **Missing scaffold.json**: the greenfield plan wasn't fully written. Suggest re-running `/draft init` in greenfield mode (or writing `.draftwise/scaffold.json` manually if init was run in agent mode and the host agent didn't write it).
+- **Missing scaffold.json**: the greenfield plan wasn't fully written. Suggest re-running `/draftwise init` in greenfield mode (or writing `.draftwise/scaffold.json` manually if init was run in agent mode and the host agent didn't write it).
 
 - **Path-traversal block** ("blocked (escapes project root)"): a file path in scaffold.json tried to escape the project root. Show the user which paths were blocked and suggest reviewing `.draftwise/scaffold.json`.
