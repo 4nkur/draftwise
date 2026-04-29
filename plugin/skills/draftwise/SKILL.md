@@ -12,7 +12,7 @@ Draftwise is a CLI for codebase-aware product spec drafting. The user has the `d
 
 ## How to handle a request
 
-1. **Identify the verb.** The user typed `/draftwise <verb>` or a natural-language equivalent. Map to one of: `init`, `new`, `scan`, `explain`, `tech`, `tasks`, `list`, `show`, `scaffold`. If ambiguous, ask which they want — don't guess.
+1. **Identify the verb.** The user typed `/draftwise <verb>` or a natural-language equivalent. Map to one of: `init`, `new`, `scan`, `explain`, `tech`, `tasks`, `list`, `show`, `scaffold`, `install-skill`, `uninstall-skill`. If ambiguous, ask which they want — don't guess.
 
 2. **Check the setup gates** (see below) before invoking. The CLI will throw if a prerequisite is missing; catching it in chat first is faster and friendlier.
 
@@ -35,6 +35,8 @@ Draftwise has implicit dependencies. Surface them in chat before invoking the CL
 | `list` | `.draftwise/` exists | `/draftwise init` first |
 | `show <slug>` | `.draftwise/` exists; the spec type the user asked for has been generated | `/draftwise new` / `/draftwise tech` / `/draftwise tasks` depending on type |
 | `scaffold` | `scaffold.json` exists (greenfield + api-mode init); brownfield short-circuits | `/draftwise init` in greenfield mode |
+| `install-skill` | the `draftwise` CLI is on PATH (`npm i -g draftwise`) | `npm i -g draftwise` first |
+| `uninstall-skill` | a previous `install-skill` run for the same scope | run `install-skill` first if there's nothing to remove |
 
 ## Common patterns across verbs
 
