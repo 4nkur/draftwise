@@ -6,6 +6,16 @@ Each released version is tagged in git (`v0.0.1`, `v0.1.0`, etc.) and includes t
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-04-29 — Ankur
+
+The "Mode 1, for real" release. Draftwise now ships a Claude Code plugin so PMs drive spec drafting from `/draftwise <verb>` slash commands in chat — backed by a CLI that's been refactored to flags-first so non-TTY shells (CI, coding-agent harnesses) work without inquirer hanging on prompts.
+
+### Highlights
+
+- **`/draftwise` slash commands inside Claude Code.** Install the plugin via `/plugin marketplace add 4nkur/draftwise` then `/plugin install draftwise`. Drives `/draftwise init`, `/draftwise new "<idea>"`, `/draftwise tech`, `/draftwise tasks`, `/draftwise scan`, `/draftwise explain`, `/draftwise list`, `/draftwise show`, `/draftwise scaffold` — each one shells out to the CLI under the hood and walks the user through any missing input in chat.
+- **Non-interactive everywhere.** Every CLI command takes its full input set as flags (`--mode`, `--ai-mode`, `--idea`, `--answers @file.json`, `--force`, `--yes`, etc.). Non-TTY shells are the default execution context; inquirer is a TTY-only convenience that fills missing values when available. Mode 1 (host-agent-driven) actually works now.
+- **`draftwise init` smart non-TTY handoff.** When run with insufficient flags in a non-TTY shell, prints a structured handoff (questions + re-invocation template) for the host coding agent to consume — instead of erroring. The agent walks the user through it in chat, then re-invokes with collected flags.
+
 ### Added
 
 - **Claude Code plugin: `/draftwise` slash commands.** New `.claude-plugin/marketplace.json` at repo root declares a single `draftwise` plugin with `source: ./plugin`. Inside `plugin/` lives the install manifest (`.claude-plugin/plugin.json`) plus a single skill `skills/draftwise/SKILL.md` that routes user input to per-verb references at `skills/draftwise/reference/<verb>.md` (one per CLI verb: init, new, scan, explain, tech, tasks, list, show, scaffold). Each reference walks the model through how to drive that verb in chat — collect inputs, shell out to the npm-installed `draftwise` CLI, parse the structured handoff or streamed output, report back. Pattern mirrors impeccable: 1 skill / N commands / shells out to the underlying CLI. Users install via `/plugin marketplace add 4nkur/draftwise` then `/plugin install draftwise` in Claude Code; the npm CLI install (`npm i -g draftwise`) is the prerequisite. Plugin name = skill name = `draftwise` so the slash form is `/draftwise <verb>` (no `<plugin>:<skill>` namespacing in command logs). Plugin is distributed separately from the npm package — `package.json` `files` does not include the plugin directories. SKILL.md includes a "Setup gates" table making the verb-dependency chain explicit (`init` is bootstrap; `tech` requires a product spec; `tasks` requires a tech spec; etc.) and a "Conversation standards" section that pulls in the eight collaboration principles from `src/ai/prompts/principles.js` by reference, so the chat-driven flow matches what the CLI's api-mode synthesis enforces. Per-verb references add pre-flight gate checks (catch missing prerequisites in chat instead of letting the CLI throw), tone-shaping guidance for ambiguous flag questions, idea-concreteness check for `new` (one-word ideas get one elaboration ask before invoking), and review nudges for `tech` / `tasks`. README's Quick Start gains a 3-line install snippet for the plugin path. Closes #42. — Ankur
@@ -117,7 +127,8 @@ First public release on npm.
 ### Released
 - Tagged `v0.0.1` and published to npm under name `draftwise`. — Ankur
 
-[Unreleased]: https://github.com/4nkur/draftwise/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/4nkur/draftwise/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/4nkur/draftwise/releases/tag/v0.2.0
 [0.1.5]: https://github.com/4nkur/draftwise/releases/tag/v0.1.5
 [0.1.0]: https://github.com/4nkur/draftwise/releases/tag/v0.1.0
 [0.0.1]: https://github.com/4nkur/draftwise/releases/tag/v0.0.1
