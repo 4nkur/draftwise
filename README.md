@@ -95,14 +95,21 @@ cd your-project          # existing repo, or an empty directory for a new projec
 draftwise init
 ```
 
-**Optional — slash commands inside Claude Code.** If you use Claude Code, install the Draftwise plugin so `/draftwise init`, `/draftwise new "<idea>"`, etc. work in chat:
+**Optional — slash commands inside Claude Code.** Two paths, same skill, different slash-command shape:
 
-```
-/plugin marketplace add 4nkur/draftwise
-/plugin install draftwise
-```
+- **Bare `/draftwise <verb>` (recommended — matches the CLI binary).** After `npm install -g draftwise`, run:
+  ```
+  draftwise install-skill
+  ```
+  Drops a standalone skill at `~/.claude/skills/draftwise/`. Slash form is `/draftwise init`, `/draftwise new "<idea>"`, etc. Add `--scope=project` to install at `<cwd>/.claude/skills/draftwise/` instead. Remove with `draftwise uninstall-skill`.
+- **`/draftwise:draftwise <verb>` via the plugin marketplace.** If you prefer Claude Code's `/plugin` workflow:
+  ```
+  /plugin marketplace add 4nkur/draftwise
+  /plugin install draftwise
+  ```
+  Claude Code namespaces all plugin skills as `<plugin>:<skill>`, so the chat form is `/draftwise:draftwise <verb>` regardless of install scope.
 
-The plugin shells out to the same `draftwise` CLI — install Draftwise via npm first.
+Both paths shell out to the same `draftwise` CLI — install Draftwise via npm first. The two paths are independent and may coexist.
 
 `draftwise init` first asks whether you're starting **greenfield** (no code yet) or **brownfield** (existing codebase) and routes accordingly:
 

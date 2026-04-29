@@ -6,6 +6,14 @@ Each released version is tagged in git (`v0.0.1`, `v0.1.0`, etc.) and includes t
 
 ## [Unreleased]
 
+### Added
+
+- **`draftwise install-skill` / `uninstall-skill` — standalone Claude Code skill install for bare `/draftwise <verb>`.** New CLI commands that copy `plugin/skills/draftwise/` (SKILL.md + per-verb references) to `~/.claude/skills/draftwise/` (or `<cwd>/.claude/skills/draftwise/` with `--scope=project`). Why: the marketplace plugin path forces Claude Code's `<plugin>:<skill>` namespace, so `/plugin install draftwise` produces `/draftwise:draftwise <verb>` regardless of scope (user / project / project-this-user) — confirmed against [anthropics/claude-code#15882](https://github.com/anthropics/claude-code/issues/15882) (closed: not planned). A standalone skill written directly into `.claude/skills/` has no plugin manifest, so Claude Code lists it as a user/project skill with no namespace prefix — chat form becomes `/draftwise <verb>`, matching the CLI binary. Same pattern impeccable uses for its 22 bare verbs (`/audit`, `/polish`, etc.). Both install paths can coexist; the two slash forms appear side-by-side in `/help`. `package.json` `files` now ships `plugin/skills/` so the standalone install can resolve its source from the npm install. Source path resolves via `import.meta.url`; tests inject a temp `home` and `sourceDir` to keep the real `~/.claude/` untouched. `--force` overwrites an existing standalone install. `install-skill` and `uninstall-skill` validate `--scope` and reject unknown flags. — Ankur
+
+### Changed
+
+- **CLAUDE.md "Claude Code plugin" section corrected.** Previously claimed the marketplace plugin's user-facing slash form was `/draftwise <verb>` because plugin name and skill name match; that was wrong — plugin skills are *always* namespaced as `<plugin>:<skill>` and matching names doesn't collapse the prefix. Section now documents both install paths accurately, links to the relevant Claude Code issue, and notes that `package.json` `files` ships `plugin/skills/` (was previously stated as excluded). Stale `skills/draft/...` paths in the section also updated to `skills/draftwise/...` to match disk. — Ankur
+
 ## [0.2.0] — 2026-04-29 — Ankur
 
 The "Mode 1, for real" release. Draftwise now ships a Claude Code plugin so PMs drive spec drafting from `/draftwise <verb>` slash commands in chat — backed by a CLI that's been refactored to flags-first so non-TTY shells (CI, coding-agent harnesses) work without inquirer hanging on prompts.
