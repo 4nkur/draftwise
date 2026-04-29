@@ -1,4 +1,4 @@
-import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { stringify as yamlStringify } from 'yaml';
@@ -10,6 +10,7 @@ import { pathExists } from '../utils/fs.js';
 import { isInteractive as defaultIsInteractive } from '../utils/tty.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import { detectProjectState as defaultDetectProjectState } from '../utils/project-state.js';
+import { loadAnswersFlag } from '../utils/answers-flag.js';
 import {
   QUESTIONS_SYSTEM,
   STACKS_SYSTEM,
@@ -190,36 +191,6 @@ function formatStackForDisplay(opt, index) {
     ...(opt.cons ?? []).map((c) => `  - ${c}`),
   ];
   return lines.join('\n');
-}
-
-async function loadAnswersFlag(value) {
-  if (!value) return null;
-  let raw;
-  if (value.startsWith('@')) {
-    try {
-      raw = await readFile(value.slice(1), 'utf8');
-    } catch (err) {
-      throw new Error(
-        `Could not read --answers file ${value.slice(1)}: ${err.message}`,
-        { cause: err },
-      );
-    }
-  } else {
-    raw = value;
-  }
-  let parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (err) {
-    throw new Error(
-      `--answers must be a JSON array (or @path-to-json-file). ${err.message}`,
-      { cause: err },
-    );
-  }
-  if (!Array.isArray(parsed) || !parsed.every((a) => typeof a === 'string')) {
-    throw new Error('--answers must be a JSON array of strings.');
-  }
-  return parsed;
 }
 
 // Resolves a value from (1) a flag, (2) a TTY prompt, or (3) errors out with a

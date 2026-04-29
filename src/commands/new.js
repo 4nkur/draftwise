@@ -1,4 +1,4 @@
-import { writeFile, mkdir, readFile } from 'node:fs/promises';
+import { writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { input, select, confirm } from '@inquirer/prompts';
@@ -11,6 +11,7 @@ import { pathExists } from '../utils/fs.js';
 import { compactScan } from '../utils/scan-projection.js';
 import { isInteractive as defaultIsInteractive } from '../utils/tty.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
+import { loadAnswersFlag } from '../utils/answers-flag.js';
 import {
   selectPlanSystem,
   selectSpecSystem,
@@ -80,36 +81,6 @@ const DEFAULT_PROMPTS = {
       default: false,
     }),
 };
-
-async function loadAnswersFlag(value) {
-  if (!value) return null;
-  let raw;
-  if (value.startsWith('@')) {
-    try {
-      raw = await readFile(value.slice(1), 'utf8');
-    } catch (err) {
-      throw new Error(
-        `Could not read --answers file ${value.slice(1)}: ${err.message}`,
-        { cause: err },
-      );
-    }
-  } else {
-    raw = value;
-  }
-  let parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (err) {
-    throw new Error(
-      `--answers must be a JSON array (or @path-to-json-file). ${err.message}`,
-      { cause: err },
-    );
-  }
-  if (!Array.isArray(parsed) || !parsed.every((a) => typeof a === 'string')) {
-    throw new Error('--answers must be a JSON array of strings.');
-  }
-  return parsed;
-}
 
 export default async function newCommand(args = [], deps = {}) {
   const cwd = deps.cwd ?? process.cwd();
