@@ -57,6 +57,16 @@ describe('draftwise init', () => {
 
       const gitignore = await readFile(join(drafts, '.gitignore'), 'utf8');
       expect(gitignore).toContain('.cache/');
+
+      const constitution = await readFile(
+        join(drafts, 'constitution.md'),
+        'utf8',
+      );
+      expect(constitution).toContain('# Draftwise constitution');
+      expect(constitution).toContain('## Voice');
+      expect(constitution).toContain('## Spec language');
+      expect(constitution).toContain('## Edge case discipline');
+      expect(constitution).toContain('## Project conventions');
     });
 
     it('runs end-to-end with no flags (no questions to ask)', async () => {
@@ -115,6 +125,14 @@ describe('draftwise init', () => {
       expect(config).toContain('state: greenfield');
       expect(config).not.toContain('ai:');
       expect(config).not.toContain('stack:');
+
+      const constitution = await readFile(
+        join(dir, '.draftwise', 'constitution.md'),
+        'utf8',
+      );
+      expect(constitution).toContain('# Draftwise constitution');
+      expect(constitution).toContain('## Voice');
+      expect(constitution).toContain('## Project conventions');
     });
 
     it('does NOT require source files (empty repo is fine)', async () => {

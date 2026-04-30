@@ -1,4 +1,8 @@
-export const AGENT_INSTRUCTION = `The scanner data above describes a real codebase. Generate an overview.md grounded only in what the scanner produced. Use these top-level sections, in order:
+export const AGENT_INSTRUCTION = `The scanner data above describes a real codebase.
+
+Before writing the overview, read .draftwise/constitution.md if it exists and apply its Voice and Spec language sections. After writing overview.md, also refine the Project conventions section of constitution.md with the naming patterns, directory layout, and architectural style you observe in the scanner data — replacing the placeholder text. Skip both steps silently if constitution.md is absent.
+
+Generate an overview.md grounded only in what the scanner produced. Use these top-level sections, in order:
 
 # <Product name>  (use the package name as a starting point)
 > One-sentence description of what this product appears to do, inferred from the codebase.

@@ -8,6 +8,7 @@ import { pathExists } from '../utils/fs.js';
 import { AGENT_HANDOFF_PREFIX } from '../utils/agent-handoff.js';
 import { detectProjectState as defaultDetectProjectState } from '../utils/project-state.js';
 import { buildAgentInstruction as buildGreenfieldAgentInstruction } from '../ai/prompts/greenfield.js';
+import { CONSTITUTION_TEMPLATE } from '../utils/constitution-template.js';
 
 export const HELP = `draftwise init — set up .draftwise/ for the current project
 
@@ -140,12 +141,18 @@ async function runBrownfield({ cwd, log, scan, draftwiseDir }) {
     'utf8',
   );
   await writeFile(join(draftwiseDir, '.gitignore'), DRAFTWISE_GITIGNORE, 'utf8');
+  await writeFile(
+    join(draftwiseDir, 'constitution.md'),
+    CONSTITUTION_TEMPLATE,
+    'utf8',
+  );
 
   log('Created .draftwise/ with:');
-  log('  • overview.md   (placeholder — `draftwise scan` will fill it in)');
-  log('  • specs/        (your specs will live here)');
-  log('  • config.yaml   (project state)');
-  log('  • .gitignore    (excludes .cache/ from version control)');
+  log('  • overview.md      (placeholder — `draftwise scan` will fill it in)');
+  log('  • constitution.md  (voice + spec-quality rules — edit to suit your project)');
+  log('  • specs/           (your specs will live here)');
+  log('  • config.yaml      (project state)');
+  log('  • .gitignore       (excludes .cache/ from version control)');
   log('');
   log(
     'Run draftwise commands inside your coding agent (Claude Code, Cursor, etc.).',
@@ -178,12 +185,18 @@ async function runGreenfield({ log, draftwiseDir, idea }) {
     'utf8',
   );
   await writeFile(join(draftwiseDir, '.gitignore'), DRAFTWISE_GITIGNORE, 'utf8');
+  await writeFile(
+    join(draftwiseDir, 'constitution.md'),
+    CONSTITUTION_TEMPLATE,
+    'utf8',
+  );
 
   log('Created .draftwise/ with:');
-  log('  • overview.md   (placeholder — your agent will rewrite from the conversation)');
-  log('  • specs/        (your specs will live here)');
-  log('  • config.yaml   (project state)');
-  log('  • .gitignore    (excludes .cache/ from version control)');
+  log('  • overview.md      (placeholder — your agent will rewrite from the conversation)');
+  log('  • constitution.md  (voice + spec-quality rules — edit to suit your project)');
+  log('  • specs/           (your specs will live here)');
+  log('  • config.yaml      (project state)');
+  log('  • .gitignore       (excludes .cache/ from version control)');
   log('');
   log('Run draftwise commands inside your coding agent (Claude Code, Cursor, etc.).');
 }

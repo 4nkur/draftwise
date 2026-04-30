@@ -13,6 +13,7 @@ PHASE 2 — Recommend stacks:
 
 PHASE 3 — Write the plan:
   - Save the chosen stack and the conversation as .draftwise/overview.md, with sections: Idea, Discovery (Q&A), Chosen stack (name, summary, rationale, pros, cons), Directory structure, Initial files, Setup commands, Next steps.
+  - Also refine .draftwise/constitution.md (which init wrote with default text). Replace the Project conventions section with the chosen stack's directory layout and naming conventions; leave the Voice, Spec language, and Edge case discipline sections intact unless the user asked you to change them.
   - Also save .draftwise/scaffold.json with the structured stack data so \`draftwise scaffold\` can use it later. Shape:
     {
       "stack": "<chosen stack name>",
