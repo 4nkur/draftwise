@@ -2,14 +2,15 @@
 
 <p align="center">
 <strong>From idea to shipped spec — grounded in real code.</strong><br/>
-Draftwise helps PMs and product builders go from a blank directory or an existing repo to a thought-through plan, then to specs that fit.
+Turn a blank directory or an existing repo into specs your engineers won't have to redo.
 </p>
 
 <p align="center">
-<a href="#the-problem">The Problem</a> ·
-<a href="#how-draftwise-helps">How It Helps</a> ·
-<a href="#quick-start">Quick Start</a> ·
-<a href="#commands">Commands</a>
+<a href="#the-problem">The problem</a> ·
+<a href="#how-draftwise-helps">How it helps</a> ·
+<a href="#quick-start">Quick start</a> ·
+<a href="#commands">Commands</a> ·
+<a href="#philosophy">Philosophy</a>
 </p>
 
 <p align="center">
@@ -21,124 +22,97 @@ Draftwise helps PMs and product builders go from a blank directory or an existin
 
 ## The problem
 
-Every product team hits the same wall: **the codebase knows things the team doesn't.**
+**The codebase knows things the team doesn't.** PMs writing a spec spend hours on detective work — clicking through the app, pinging engineers, reading PRs — just to figure out how a feature actually works today. Skip the detective work and the spec gets rewritten in code review.
 
-#### 📜 Old specs are stale
-PMs writing a new spec end up doing detective work — clicking through the app, pinging engineers, reading PRs — just to figure out how the feature actually works today. Hours of work before any writing starts.
+**New PMs fly blind for months.** Old specs don't match the code. Engineers are busy. Weeks pass before there's a working mental model — and every spec written in that time is shaky.
 
-#### 🔁 Skipping the detective work backfires
-Specs based on outdated assumptions trigger back-and-forth the moment dev picks them up. *"This isn't how it works anymore."* *"That endpoint was deprecated."* The spec gets rewritten during code review.
-
-#### 🧭 New PMs fly blind for months
-Joining a team means inheriting a product you didn't build. Old specs don't match the code. Engineers are busy. Weeks pass before you have a working mental model — and every spec written in that time is shaky.
-
-#### 🫥 Specs get written in a vacuum
-Without deep knowledge of the codebase, PMs reach for generic language. They miss components that already exist, propose duplicates of shipped features, or specify changes to systems they don't understand.
-
-#### 🔧 Engineers redo the work
-A generic spec arrives. Engineers redraft it in their head against the real code — figuring out which components exist, working out data model implications, catching missed edge cases. Half the time, what ships isn't what was specced.
-
-#### 🔄 Six months later, the cycle repeats
-Knowledge about how the product is actually built lives only in code and in people's heads. The next PM starts the same loop. Same stale docs, same detective work, same drift.
+**Engineers redo the work.** A generic spec arrives. Engineers redraft it in their head against the real code. Half of what ships isn't what was specced. Six months later, the next PM repeats the loop.
 
 ---
 
 ## How Draftwise helps
 
-Draftwise meets you where your project is — whether you're staring at a blank directory or trying to make sense of a repo someone else built.
+Draftwise meets you where the project is — blank directory or existing repo.
 
-#### 🌱 Starts you on the right stack (greenfield)
-`draftwise init` in a fresh directory walks you through clarifying questions, then proposes 2-3 stack options with rationale, pros, cons, a directory structure, and the exact setup commands to run. No more "should I use Next or Remix?" tab-shopping.
+#### 🌱 Starting a new project from scratch
+You have an idea but no code yet. `draftwise init` hands the idea to your coding agent, which walks you through clarifying questions and proposes 2-3 stack options (rationale, pros, cons, directory structure, setup commands). Pick one and start coding. Optional: `draftwise scaffold --yes` creates the initial files.
 
-#### 🗺️ Explains an existing product back to you (brownfield)
+#### 🗺️ Catching up on a product you didn't build
+New job, new team, new repo. `draftwise scan` reads the codebase and writes a structured overview — flows, API surface, data model, components, integrations. Your first week becomes productive instead of theoretical.
 
-#### 🗺️ Explains your product back to you
-`draftwise scan` gives you a structured overview of what's in your codebase: major flows, API surface, data model, components, how they connect. New PMs catch up in an afternoon, not three weeks.
+#### 🔎 Understanding the current state before drafting
+Before specifying a change, ask `draftwise explain <flow>`. The CLI walks the actual code — routes hit, services called, data written, edge cases handled. Avoid proposing things that already exist or changes that conflict with how the system actually behaves.
 
-#### 🔎 Traces the current behavior of any feature
-Ask Draftwise *"how does checkout work today?"* and it walks the actual code — routes hit, services called, data written, side effects triggered. No more pinging engineers to verify how something works.
-
-#### 🧩 Reads your repo before drafting anything
-Every spec Draftwise generates references real entities from your codebase — actual file paths, real endpoints, real schema names — not generic placeholders.
-
-#### 💬 Guides you through a structured brainstorm
-No blank template. Draftwise walks you through what matters — problem, users, acceptance criteria, scope, edge cases, metrics — while keeping codebase context in view. You answer in plain language. It does the structuring.
-
-#### ✂️ Separates product specs from technical specs
-Product spec: what & why, readable by anyone. Technical spec: how, grounded in your real code. Same feature, two lenses, two audiences.
-
-#### 📁 Saves everything in your repo
-Specs and codebase summaries live as markdown files in `.draftwise/`. Version-controlled, searchable, alongside the code. No Drive folders. No drift.
-
----
-
-## Four things you'll actually use this for
-
-**Starting a new project from scratch.** You have an idea but no code yet. `draftwise init` walks you through what you want to build, asks the questions a sharp engineer would ask, and proposes 2-3 stack options with rationale, pros, cons, directory structure, and setup commands. Pick one and start coding.
-
-**Catching up on a product you didn't build.** New job, new team, new repo. `draftwise scan` gives you a structured tour of the product as it actually exists — flows, surfaces, data, components. Your first week becomes productive instead of theoretical.
-
-**Understanding the current state before drafting.** Before you write a spec for a change, ask Draftwise how the existing flow works. Get the truth from the code, not from a six-month-old PRD. Avoid proposing things that already exist or changes that conflict with how the system actually behaves.
-
-**Drafting specs that engineers don't have to redo.** When you write a new feature spec, Draftwise grounds it in real components, real endpoints, real schemas. The handoff to engineering is faster because the spec already speaks the codebase's language.
+#### 🧩 Drafting specs engineers don't have to redo
+`draftwise new "<idea>"` walks the conversation through clarifying questions and accept/decline opportunities, then writes a product spec grounded in real files, endpoints, and schemas — not generic placeholders. `draftwise tech` and `draftwise tasks` follow with the engineering counterparts. New code paths get a `(new)` marker so reviewers can tell intent from existing state at a glance.
 
 ---
 
 ## Quick start
 
-Draftwise runs inside your AI coding agent (Claude Code, Cursor, Gemini CLI, Antigravity, Copilot, etc.). The CLI scans the codebase and prints an instruction; your agent does the spec drafting.
+Draftwise runs inside your AI coding agent (Claude Code, Cursor, Gemini CLI, Antigravity, Copilot, etc.). The CLI scans your repo and prints an instruction; the agent does the drafting.
 
 ```bash
 npm install -g draftwise
 
-cd your-project          # existing repo, or an empty directory for a new project
+cd your-project          # existing repo, or an empty directory
 draftwise init
 ```
 
-**Optional — slash commands inside your AI harness.** Two install paths, same skill, different slash-command shape:
+`draftwise init` checks the directory for source files and routes accordingly:
 
-- **Bare `/draftwise <verb>` (recommended — matches the CLI binary).** After `npm install -g draftwise`, run:
-  ```
-  draftwise skills install
-  ```
-  Auto-detects which harnesses you have on this machine (by checking for `~/.claude/`, `~/.cursor/`, `~/.gemini/`) and installs the standalone skill only to those — slash form `/draftwise init`, `/draftwise new "<idea>"`, etc. Pass `--provider=all` to install everywhere regardless of detection, `--provider=claude|cursor|gemini` to target one explicitly, or `--scope=project` to write at `<cwd>/.<provider>/skills/draftwise/` instead of the user-level dir. `draftwise skills help` shows what's installed where (and which harnesses auto-detect would target); `draftwise skills uninstall` removes it.
-- **`/draftwise:draftwise <verb>` via the Claude Code plugin marketplace.** If you prefer Claude Code's `/plugin` workflow:
-  ```
-  /plugin marketplace add 4nkur/draftwise
-  /plugin install draftwise
-  ```
-  Claude Code namespaces all plugin skills as `<plugin>:<skill>`, so the chat form is `/draftwise:draftwise <verb>` regardless of install scope. (Claude Code only — Cursor / Gemini users want the standalone path above.)
+- **New project (no code yet):** prints clarifying questions for your agent. The agent walks you through stack selection (2-3 options) and writes the chosen plan + setup commands to `.draftwise/overview.md`. Run `draftwise scaffold --yes` next to create the initial files.
+- **Existing codebase:** scans the repo, writes an `overview.md` placeholder, and tells you to run `draftwise scan` next.
 
-Both paths shell out to the same `draftwise` CLI — install Draftwise via npm first. The two paths are independent and may coexist.
-
-`draftwise init` checks the directory for source files and picks the right path:
-
-- **New project (no code yet):** describe the idea → answer 4-6 clarifying questions → pick from 2-3 stack options → get a plan with directory structure and setup commands. Optional: `draftwise scaffold` to create the user-written initial files automatically.
-- **Existing codebase:** scans the repo and writes an overview of flows, routes, components, and models.
-
-The detection is automatic; pass `--mode=greenfield` or `--mode=brownfield` to override (these stay as the canonical flag values). Either way, you end up in `.draftwise/` with `overview.md` and `config.yaml`. From there:
+Detection is automatic; pass `--mode=greenfield|brownfield` to override. Either way, `.draftwise/` ends up with `overview.md` and `config.yaml`. From there:
 
 ```bash
-draftwise scan                    # refresh the codebase overview (brownfield only)
-draftwise explain checkout        # walk a specific flow (brownfield only)
-draftwise new "your feature idea" # draft a new spec
+draftwise scan                    # refresh codebase overview (brownfield only)
+draftwise explain checkout        # trace a specific flow (brownfield only)
+draftwise new "your feature idea" # draft a product spec
+draftwise tech                    # technical spec from the product spec
+draftwise tasks                   # ordered work breakdown from the tech spec
 ```
+
+### Slash commands inside your AI harness
+
+```bash
+draftwise skills install                  # auto-detects ~/.claude, ~/.cursor, ~/.gemini
+draftwise skills install --provider=all   # write to every known dir
+draftwise skills help                     # see what's installed where
+```
+
+The slash form is bare `/draftwise init`, `/draftwise new "<idea>"`, etc. — matches the CLI binary.
+
+<details>
+<summary>Or via the Claude Code plugin marketplace</summary>
+
+```
+/plugin marketplace add 4nkur/draftwise
+/plugin install draftwise
+```
+
+Claude Code namespaces plugin skills as `<plugin>:<skill>`, so the slash form is `/draftwise:draftwise <verb>`. Both paths are independent and may coexist.
+</details>
 
 ---
 
 ## Commands
 
 | Command | What it does |
-|---------|-------------|
-| `draftwise init` | Set up `.draftwise/`. Asks whether the project is greenfield or brownfield and routes accordingly — either a stack-recommendation conversation or a codebase scan. |
-| `draftwise scaffold` | Create the user-written initial files from a greenfield plan. Reads `.draftwise/scaffold.json` (written by `init` in greenfield mode), confirms before writing, and skips existing files. |
-| `draftwise scan` | Refresh the structured codebase overview (brownfield). |
-| `draftwise explain <flow>` | Walk through how a specific flow works today, traced from the actual code (brownfield). |
-| `draftwise new "<idea>"` | Conversational drafting — generates a product spec grounded in the codebase or the greenfield plan. |
-| `draftwise tech [<feature>]` | Drafts a technical spec from the product spec, referencing real files and endpoints. |
-| `draftwise tasks [<feature>]` | Generates implementation tasks from the tech spec, ordered by dependency. |
+|---------|--------------|
+| `draftwise init` | Set up `.draftwise/`. Auto-detects greenfield vs brownfield (override with `--mode`). |
+| `draftwise scan` | Refresh the codebase overview (brownfield). |
+| `draftwise explain <flow>` | Trace a specific flow through the code (brownfield). |
+| `draftwise new "<idea>"` | Draft a product spec — clarifying questions plus grounded synthesis. |
+| `draftwise tech [<feature>]` | Technical spec from the product spec, grounded in real files. |
+| `draftwise tasks [<feature>]` | Implementation tasks from the tech spec, dependency-ordered. |
+| `draftwise scaffold --yes` | Create initial files from a greenfield plan. |
 | `draftwise list` | List all specs in `.draftwise/specs/`. |
-| `draftwise show <feature> [type]` | Show a specific spec (type: `product`, `tech`, or `tasks`; default: `product`). |
+| `draftwise show <feature> [type]` | Show a spec (`product`, `tech`, or `tasks`; default: `product`). |
+| `draftwise skills <install\|uninstall\|help>` | Manage standalone slash-command skills. |
+
+Run `draftwise <command> --help` for the per-command flag list.
 
 ---
 
@@ -146,53 +120,20 @@ draftwise new "your feature idea" # draft a new spec
 
 ```
 .draftwise/
-├── .gitignore                      # written by init; keeps the cache out of version control
-├── overview.md                     # codebase summary (brownfield) or greenfield plan
-├── scaffold.json                   # greenfield only: structured stack data for `draftwise scaffold`
+├── .gitignore                # written by init; keeps the cache out of version control
+├── overview.md               # codebase summary (brownfield) or greenfield plan
+├── scaffold.json             # greenfield only; structured stack data for `draftwise scaffold`
 ├── specs/
-│   └── add-collaborative-albums/
-│       ├── product-spec.md         # what & why
-│       ├── technical-spec.md       # how — grounded in your code (or "(new)" for greenfield)
-│       └── tasks.md                # ordered breakdown
+│   └── <feature-slug>/
+│       ├── product-spec.md   # what & why
+│       ├── technical-spec.md # how — grounded in real code (or "(new)" for greenfield)
+│       └── tasks.md          # ordered work breakdown
 └── config.yaml
 ```
 
-Markdown. Version-controlled. Travels with your repo. (Draftwise also writes a `.cache/` folder that's gitignored automatically — fingerprint-based scan cache that invalidates on any code change.)
+Markdown. Version-controlled. Travels with your repo. (Draftwise also writes a `.cache/` folder that's gitignored automatically — fingerprint-based scan cache, invalidates on any code change.)
 
 ---
-
-## What you get from each command
-
-**`draftwise scan`** — a structured codebase overview:
-- Major flows in the product (signup, checkout, sharing, etc.)
-- API surface (endpoints, methods, what they do)
-- Data model (key tables, key relationships)
-- Component map (what's in your UI, how it's organized)
-- Integrations and external dependencies
-
-**`draftwise explain <flow>`** — a traced walkthrough:
-- The entry points (routes, UI events, scheduled jobs)
-- The services and functions involved
-- The data read and written
-- Side effects (emails, webhooks, async jobs)
-- Edge cases the code actually handles
-
-**`draftwise new`** — a product spec with:
-- Problem with evidence
-- User stories & acceptance criteria
-- Flows, touchpoints, edge cases
-- Scope: covered, assumed, hypothesized, out of scope
-- Core metrics & counter metrics
-
-**`draftwise tech`** — a technical spec grounded in real code:
-- Data model changes (your actual schema)
-- API changes (your actual conventions)
-- Component changes (your actual files)
-- Migration notes & test plan
-
----
-
-## Spec templates
 
 <details>
 <summary><strong>Product spec sections</strong></summary>
@@ -230,25 +171,21 @@ Test plan                → unit, integration, E2E
 
 ## Agent compatibility
 
-Draftwise is designed to be host-agnostic — the CLI prints structured scanner data and an instruction string; the host's model handles the reasoning and writes the spec. In principle that works with any agentic IDE or CLI:
+Draftwise is host-agnostic — the CLI prints scanner data and an instruction; the host's model handles the reasoning and writes the spec. In principle that works with any agentic IDE: Claude Code, Cursor, Gemini CLI, Codex CLI, Antigravity, Copilot, Windsurf, Amp, Roo Code, Kilo Code, OpenCode, Qoder. In practice only the plain terminal has been smoke-tested — open an issue if you hit something.
 
-Claude Code · GitHub Copilot · Cursor · Gemini CLI · Codex CLI · Antigravity · Windsurf · Amp · Roo Code · Kilo Code · OpenCode · Qoder
-
-In practice it has only been smoke-tested in a plain terminal so far. If you run it inside one of these and something breaks, please open an issue.
-
-**Flags-driven, never blocks.** Every command takes its input via flags or positional args; missing required input errors with a usage hint instead of waiting on stdin. That's what makes the agent integration possible: a slash-command wrapper (or any host agent) collects answers in chat and re-invokes `draftwise <command>` with `--mode=...`, `--idea="..."`, `--yes`, etc. Run `draftwise <command> --help` for the per-command flag list. `draftwise init` greenfield without `--idea` is the one case that prints a structured handoff instead of erroring — copy it into your AI assistant if you're not already inside one.
+**Flags-driven, never blocks.** Every command takes its input via flags or positional args; missing required input errors with a usage hint instead of waiting on stdin. A slash-command wrapper (or any host agent) collects answers in chat and re-invokes `draftwise <command>` with the right flags. `draftwise init` greenfield without `--idea` prints a structured handoff for the agent — copy it into your AI assistant if you're not already inside one.
 
 ---
 
 ## Philosophy
 
 ```
-→ the codebase is the source of truth — not the docs (when there is one)
+→ the codebase is the source of truth — not the docs
 → for brand-new projects, the conversation is the source of truth — not boilerplate
 → understand what exists before deciding what to change
 → ask the right questions, don't hand over a blank template
 → propose options with rationale; let the human pick
-→ product specs are jargon-free, tech specs are codebase-grounded
+→ product specs are jargon-free; tech specs are codebase-grounded
 → specs live with the code, not in someone's Drive
 → AI is a thought partner first, document generator second
 → push back on weak ideas; don't validate them — better outputs come from real friction
@@ -258,28 +195,9 @@ In practice it has only been smoke-tested in a plain terminal so far. If you run
 
 ---
 
-## Roadmap
-
-v1 commands are all shipped on `npm` as of `0.0.1`. The next published release will be `0.1.0` after end-to-end smoke testing on a sample repo.
-
-- [x] `init` — `.draftwise/` setup, with greenfield (stack recommendation) and brownfield (codebase scan) routing
-- [x] `scan` — structured product overview (brownfield); friendly short-circuit in greenfield
-- [x] `explain` — traced walkthroughs of specific flows (brownfield); friendly short-circuit in greenfield
-- [x] `new` — conversational spec drafting, greenfield-aware (drops affected_flows / adjacent_opportunities when there's no code yet)
-- [x] `tech` — technical spec, greenfield-aware (every file marked `(new)`, follows the planned directory structure)
-- [x] `tasks` — dependency-ordered breakdown, greenfield-aware (first 1-3 tasks are project setup before feature work)
-- [x] `list` and `show` — spec browsing utilities
-- [x] optional file scaffolding from `init`'s greenfield plan via `draftwise scaffold`
-
-**Next:** scanner framework support beyond JS/TS and Python (Go, Rust, mobile codebases), and richer flow tracing for very large repos.
-
----
-
 ## Contributing
 
-Early days. Issues, ideas, and PRs welcome.
-
-If you've ever inherited a product you didn't build, or written a spec that didn't match the code — we'd love your perspective. Open a discussion.
+Early days. Issues, ideas, and PRs welcome. If you've ever inherited a product you didn't build, or written a spec that didn't match the code — open a discussion.
 
 ## License
 
