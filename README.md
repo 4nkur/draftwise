@@ -105,6 +105,7 @@ Claude Code namespaces plugin skills as `<plugin>:<skill>`, so the slash form is
 | `draftwise scan` | Refresh the codebase overview (brownfield). |
 | `draftwise explain <flow>` | Trace a specific flow through the code (brownfield). |
 | `draftwise new "<idea>"` | Draft a product spec — clarifying questions plus grounded synthesis. |
+| `draftwise clarify [<feature>]` | Audit a product spec for ambiguities, untested assumptions, and missing edge cases; rewrite in place. |
 | `draftwise tech [<feature>]` | Technical spec from the product spec, grounded in real files. |
 | `draftwise tasks [<feature>]` | Implementation tasks from the tech spec, dependency-ordered. |
 | `draftwise scaffold --yes` | Create initial files from a greenfield plan. |

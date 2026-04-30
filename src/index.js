@@ -9,6 +9,7 @@ const COMMANDS = {
   scan: () => import('./commands/scan.js'),
   explain: () => import('./commands/explain.js'),
   new: () => import('./commands/new.js'),
+  clarify: () => import('./commands/clarify.js'),
   tech: () => import('./commands/tech.js'),
   tasks: () => import('./commands/tasks.js'),
   list: () => import('./commands/list.js'),
@@ -38,6 +39,7 @@ Commands:
   scan                          Refresh the codebase overview
   explain <flow>                Trace how a specific flow works in the code
   new "<idea>"                  Conversational drafting → product-spec.md
+  clarify [<feature>]           Audit a product spec for ambiguities + missing edge cases
   tech [<feature>]              Draft technical-spec.md from approved product spec
   tasks [<feature>]             Generate ordered tasks.md from technical spec
   list                          List all specs in .draftwise/specs/
