@@ -12,6 +12,7 @@ const COMMANDS = {
   clarify: () => import('./commands/clarify.js'),
   tech: () => import('./commands/tech.js'),
   tasks: () => import('./commands/tasks.js'),
+  refine: () => import('./commands/refine.js'),
   list: () => import('./commands/list.js'),
   show: () => import('./commands/show.js'),
   scaffold: () => import('./commands/scaffold.js'),
@@ -42,6 +43,7 @@ Commands:
   clarify [<feature>]           Audit a product spec for ambiguities + missing edge cases
   tech [<feature>]              Draft technical-spec.md from approved product spec
   tasks [<feature>]             Generate ordered tasks.md from technical spec
+  refine [<feature>]            Refine an existing spec in place — preserves PM edits, re-grounds the rest
   list                          List all specs in .draftwise/specs/
   show <feature> [type]         Show a spec (type: product | tech | tasks; default: product)
   skills <install|uninstall|help>   Manage the standalone slash-command skill across harnesses
