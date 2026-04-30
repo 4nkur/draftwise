@@ -1,6 +1,6 @@
 {
   "name": "draftwise",
-  "version": "0.2.1",
+  "version": "0.2.5",
   "description": "Codebase-aware product specs. AI scans your repo, then drafts specs that fit it.",
   "main": "src/index.js",
   "scripts": {
