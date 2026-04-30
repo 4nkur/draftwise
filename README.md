@@ -139,6 +139,15 @@ Markdown. Version-controlled. Travels with your repo. (Draftwise also writes a `
 <details>
 <summary><strong>Product spec sections</strong></summary>
 
+Optional YAML frontmatter at the top of `product-spec.md` declares cross-spec relationships, surfaced in `draftwise list`'s `DEPENDS ON` column:
+
+```yaml
+---
+depends_on: [auth, billing]   # specs that must ship before this one
+related: [profile-page]       # same area; not a hard dependency
+---
+```
+
 ```
 Problem                  → what's broken, with evidence
 User stories             → who wants what and why
