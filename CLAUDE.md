@@ -122,6 +122,7 @@ draftwise scaffold                      → create initial files from the greenf
 draftwise scan                          → refresh the structured codebase overview (brownfield)
 draftwise explain <flow>                → trace how a specific flow works in the actual code (brownfield)
 draftwise new "<idea>"                  → conversational drafting → product-spec.md (host agent writes)
+draftwise clarify [<feature>]           → audit a product spec for ambiguities + missing edge cases; rewrite in place
 draftwise tech [<feature>]              → technical-spec.md from approved product spec (host agent writes)
 draftwise tasks [<feature>]             → ordered tasks.md from technical spec (host agent writes)
 draftwise list                          → list all specs in .draftwise/specs/
@@ -172,13 +173,15 @@ Every command is implemented end-to-end and exercised by a vitest suite. The ori
 
 4. **`new "<idea>"`** ✅ — brownfield: prints scanner data + the idea + a 3-phase instruction (plan / Q&A / synthesis) for the host agent to walk the conversation and write `product-spec.md`. Greenfield: skips the scanner and reads `overview.md` (the project plan from `init`); the instruction tells the agent to ask clarifying questions only (no affected_flows / adjacent_opportunities) and write a spec without "Affected flows" / "Adjacent changes" sections. (`src/commands/new.js`, prompt in `src/ai/prompts/new.js`)
 
-5. **`tech [<feature>]`** ✅ — reads `product-spec.md`, prints it plus scanner output (brownfield) or the project plan (greenfield) plus an instruction for the host agent to write `technical-spec.md`. Greenfield marks every file path `(new)` and uses the chosen stack's conventions. (`src/commands/tech.js`, prompt in `src/ai/prompts/tech.js`)
+5. **`clarify [<feature>]`** ✅ — reads `product-spec.md`, prints it plus an instruction telling the host agent to audit it across four categories (ambiguities, untested assumptions, internal contradictions, missing edge cases), walk the PM through each one, and rewrite the file in place — preserving the YAML frontmatter and any sections the PM didn't touch. Same auto-pick / multi-spec / unknown-slug ergonomics as `tech` and `tasks`. Designed to run *between* `new` and `tech` so the technical spec isn't built on a shaky foundation. (`src/commands/clarify.js`, prompt in `src/ai/prompts/clarify.js`)
 
-6. **`tasks [<feature>]`** ✅ — reads `technical-spec.md`, prints it plus scanner output (brownfield) or the project plan (greenfield) plus an instruction for the host agent to write ordered `tasks.md` (Goal / Files / Depends on / Parallel with / Acceptance). Greenfield front-loads 1-3 scaffolding tasks. (`src/commands/tasks.js`, prompt in `src/ai/prompts/tasks.js`)
+6. **`tech [<feature>]`** ✅ — reads `product-spec.md`, prints it plus scanner output (brownfield) or the project plan (greenfield) plus an instruction for the host agent to write `technical-spec.md`. Greenfield marks every file path `(new)` and uses the chosen stack's conventions. (`src/commands/tech.js`, prompt in `src/ai/prompts/tech.js`)
 
-7. **`list` and `show <feature> [type]`** ✅ — file-system utilities, no AI. (`src/commands/list.js`, `src/commands/show.js`)
+7. **`tasks [<feature>]`** ✅ — reads `technical-spec.md`, prints it plus scanner output (brownfield) or the project plan (greenfield) plus an instruction for the host agent to write ordered `tasks.md` (Goal / Files / Depends on / Parallel with / Acceptance). Greenfield front-loads 1-3 scaffolding tasks. (`src/commands/tasks.js`, prompt in `src/ai/prompts/tasks.js`)
 
-8. **`scaffold`** ✅ — greenfield-only file scaffolder. Reads `.draftwise/scaffold.json` (written by the host coding agent during init's greenfield handoff), confirms with the user — including a warning that scaffolders like `create-next-app` should run first — then creates each `initial_files` entry with placeholder content (skipping any that already exist). Prints the `setup_commands` as a reminder; doesn't run them. (`src/commands/scaffold.js`)
+8. **`list` and `show <feature> [type]`** ✅ — file-system utilities, no AI. (`src/commands/list.js`, `src/commands/show.js`)
+
+9. **`scaffold`** ✅ — greenfield-only file scaffolder. Reads `.draftwise/scaffold.json` (written by the host coding agent during init's greenfield handoff), confirms with the user — including a warning that scaffolders like `create-next-app` should run first — then creates each `initial_files` entry with placeholder content (skipping any that already exist). Prints the `setup_commands` as a reminder; doesn't run them. (`src/commands/scaffold.js`)
 
 ---
 
