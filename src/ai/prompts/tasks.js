@@ -2,6 +2,8 @@ export function buildAgentInstruction(slug, projectState = 'brownfield') {
   if (projectState === 'greenfield') {
     return `The technical spec above is approved. The project is GREENFIELD — there's no existing code yet. The chosen stack and directory plan are in overview.md (above).
 
+Before drafting, read .draftwise/constitution.md if it exists and apply its Voice and Spec language sections. Skip silently if the file is absent.
+
 Generate tasks.md and save it to .draftwise/specs/${slug}/tasks.md.
 
 Sections in order:
@@ -16,7 +18,11 @@ Hard rules:
 - The first 1-3 tasks must be foundational scaffolding (run setup commands, install deps, configure env). Don't skip them.
 - Each "Depends on" link must point at a task number you've actually defined.`;
   }
-  return `The technical spec above is approved. Use the scanner data as ground truth. Generate tasks.md following the section structure below, ordered so each task's dependencies appear before it. Save it to .draftwise/specs/${slug}/tasks.md.
+  return `The technical spec above is approved. Use the scanner data as ground truth.
+
+Before drafting, read .draftwise/constitution.md if it exists and apply its Voice and Spec language sections. Skip silently if the file is absent.
+
+Generate tasks.md following the section structure below, ordered so each task's dependencies appear before it. Save it to .draftwise/specs/${slug}/tasks.md.
 
 Sections in order:
 - Title + one-sentence framing

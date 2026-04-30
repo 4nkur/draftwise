@@ -1,5 +1,9 @@
 export function buildAgentInstruction(flow, slug) {
-  return `The scanner data above describes a real codebase. The user wants to understand how the "${flow}" flow works. Generate a markdown walkthrough following this section structure, grounded only in what the scanner produced:
+  return `The scanner data above describes a real codebase. The user wants to understand how the "${flow}" flow works.
+
+Before writing the walkthrough, read .draftwise/constitution.md if it exists and apply its Voice and Spec language sections. Skip silently if the file is absent.
+
+Generate a markdown walkthrough following this section structure, grounded only in what the scanner produced:
 
 # Flow: ${flow}
 > One-sentence summary of what this flow does, inferred from the code.

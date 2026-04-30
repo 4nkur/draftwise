@@ -121,6 +121,7 @@ Run `draftwise <command> --help` for the per-command flag list.
 ```
 .draftwise/
 ├── .gitignore                # written by init; keeps the cache out of version control
+├── constitution.md           # voice + spec-quality rules — edit to suit your project
 ├── overview.md               # codebase summary (brownfield) or greenfield plan
 ├── scaffold.json             # greenfield only; structured stack data for `draftwise scaffold`
 ├── specs/

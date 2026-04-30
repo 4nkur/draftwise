@@ -2,6 +2,8 @@ export function buildAgentInstruction(idea, projectState = 'brownfield') {
   if (projectState === 'greenfield') {
     return `The PM has proposed a feature for a GREENFIELD project: "${idea}".
 
+Before drafting, read .draftwise/constitution.md if it exists and apply its Voice and Spec language sections to the conversation and the final spec. Skip silently if the file is absent.
+
 The project plan (overview.md above) describes the chosen stack and directory structure. There is no existing code yet. Run a conversation with the PM in three phases:
 
 PHASE 1 — Plan the conversation:
@@ -20,6 +22,8 @@ PHASE 3 — Generate product-spec.md:
 Hard rule: ASK don't assume; ground every claim in the answers and the project plan, never invented detail.`;
   }
   return `The PM has proposed: "${idea}".
+
+Before drafting, read .draftwise/constitution.md if it exists and apply its Voice and Spec language sections to the conversation and the final spec. Skip silently if the file is absent.
 
 Use the scanner data above as ground truth for the existing codebase. Run a conversation with the PM in three phases:
 
