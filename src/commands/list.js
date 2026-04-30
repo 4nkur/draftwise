@@ -1,25 +1,21 @@
-import { readFile } from 'node:fs/promises';
 import { listSpecs as defaultListSpecs } from '../utils/specs.js';
 import { requireDraftwiseDir } from '../utils/draftwise-dir.js';
+import { readFrontmatter, asSlugList } from '../utils/frontmatter.js';
 
 export const HELP = `draftwise list — list all specs in .draftwise/specs/
 
 Usage:
   draftwise list
 
-Three columns: slug, status (which artifacts exist —
-product · tech · tasks), and the title from product-spec.md's H1.
+Four columns: slug, status (which artifacts exist —
+product · tech · tasks), depends_on (from the product-spec.md
+frontmatter), and the title from product-spec.md's H1.
 Empty spec dirs show as "(empty)".
 `;
 
-async function readTitle(file) {
-  try {
-    const content = await readFile(file, 'utf8');
-    const m = content.match(/^\s*#\s+(.+)$/m);
-    return m ? m[1].trim() : '';
-  } catch {
-    return '';
-  }
+function extractTitle(body) {
+  const m = body.match(/^\s*#\s+(.+)$/m);
+  return m ? m[1].trim() : '';
 }
 
 function buildStatus(spec) {
@@ -50,23 +46,35 @@ export default async function listCommand(_args = [], deps = {}) {
   }
 
   const rows = await Promise.all(
-    specs.map(async (s) => ({
-      slug: s.slug,
-      status: buildStatus(s),
-      title: s.hasProductSpec ? await readTitle(s.productSpec) : '',
-    })),
+    specs.map(async (s) => {
+      if (!s.hasProductSpec) {
+        return { slug: s.slug, status: buildStatus(s), dependsOn: '', title: '' };
+      }
+      const { data, body } = await readFrontmatter(s.productSpec);
+      return {
+        slug: s.slug,
+        status: buildStatus(s),
+        dependsOn: asSlugList(data.depends_on).join(', '),
+        title: extractTitle(body),
+      };
+    }),
   );
 
   const slugWidth = Math.max(4, ...rows.map((r) => r.slug.length));
   const statusWidth = Math.max(6, ...rows.map((r) => r.status.length));
+  const dependsWidth = Math.max(10, ...rows.map((r) => r.dependsOn.length));
 
   log(`${rows.length} spec${rows.length === 1 ? '' : 's'} in .draftwise/specs/`);
   log('');
-  log(`${pad('SLUG', slugWidth)}  ${pad('STATUS', statusWidth)}  TITLE`);
   log(
-    `${'-'.repeat(slugWidth)}  ${'-'.repeat(statusWidth)}  ${'-'.repeat(20)}`,
+    `${pad('SLUG', slugWidth)}  ${pad('STATUS', statusWidth)}  ${pad('DEPENDS ON', dependsWidth)}  TITLE`,
+  );
+  log(
+    `${'-'.repeat(slugWidth)}  ${'-'.repeat(statusWidth)}  ${'-'.repeat(dependsWidth)}  ${'-'.repeat(20)}`,
   );
   for (const r of rows) {
-    log(`${pad(r.slug, slugWidth)}  ${pad(r.status, statusWidth)}  ${r.title}`);
+    log(
+      `${pad(r.slug, slugWidth)}  ${pad(r.status, statusWidth)}  ${pad(r.dependsOn, dependsWidth)}  ${r.title}`,
+    );
   }
 }

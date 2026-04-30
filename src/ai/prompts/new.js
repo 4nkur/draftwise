@@ -15,11 +15,17 @@ PHASE 2 — Walk the PM through the questions:
   - Ask one clarifying question at a time. Wait for the answer.
 
 PHASE 3 — Generate product-spec.md:
+  - Open the file with a YAML frontmatter block — three dashes, the keys below, three dashes, blank line, then the H1. Both keys are required; use \`[]\` when the list is empty.
+    ---
+    depends_on: [<slug>, <slug>]   # specs that must ship before this one
+    related: [<slug>, <slug>]      # specs in the same area; not a hard dependency
+    ---
+  - List \`.draftwise/specs/\` first to see what slugs already exist; only reference real ones. Skip frontmatter entirely if there are no other specs yet (this is the first one).
   - Sections in order: Problem, Users, User stories, Acceptance criteria, Edge cases, Test cases, Scope (covered/assumed/hypothesized/out of scope), Core metrics, Counter metrics.
   - Skip "Affected flows" and "Adjacent changes" — they don't apply for greenfield.
   - Save to .draftwise/specs/<feature-slug>/product-spec.md.
 
-Hard rule: ASK don't assume; ground every claim in the answers and the project plan, never invented detail.`;
+Hard rule: ASK don't assume; ground every claim in the answers and the project plan, never invented detail; never invent slugs in \`depends_on\` / \`related\` — only list specs that exist on disk.`;
   }
   return `The PM has proposed: "${idea}".
 
@@ -37,10 +43,16 @@ PHASE 2 — Walk the PM through the questions and opportunities:
   - For each adjacent opportunity, present it and ask the PM to accept, decline, or defer.
 
 PHASE 3 — Generate product-spec.md:
+  - Open the file with a YAML frontmatter block — three dashes, the keys below, three dashes, blank line, then the H1. Both keys are required; use \`[]\` when the list is empty.
+    ---
+    depends_on: [<slug>, <slug>]   # specs that must ship before this one
+    related: [<slug>, <slug>]      # specs in the same area; not a hard dependency
+    ---
+  - List \`.draftwise/specs/\` first to see what slugs already exist; only reference real ones. Skip frontmatter entirely if there are no other specs yet (this is the first one).
   - Use the PM's idea, scanner output, answers, and accept/decline decisions.
   - Follow the section order: Problem, Users, User stories, Acceptance criteria, Affected flows, Adjacent changes, Edge cases, Test cases, Scope (covered/assumed/hypothesized/out of scope), Core metrics, Counter metrics.
   - Reference real files/routes/models — do not invent.
   - Save to .draftwise/specs/<feature-slug>/product-spec.md (create the directory if needed).
 
-Hard rules: ground every claim in the scanner; turn every gap into a question, not an assumption; keep the spec tight.`;
+Hard rules: ground every claim in the scanner; turn every gap into a question, not an assumption; keep the spec tight; never invent slugs in \`depends_on\` / \`related\` — only list specs that exist on disk.`;
 }

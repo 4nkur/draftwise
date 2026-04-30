@@ -61,4 +61,29 @@ describe('draftwise list', () => {
     await listCommand([], { cwd: dir, log: (m) => logs.push(m) });
     expect(logs.join('\n')).toContain('(empty)');
   });
+
+  it('renders DEPENDS ON from product-spec.md frontmatter', async () => {
+    await seedSpec(dir, 'auth', {
+      'product-spec.md': '# Auth\n\nBody.',
+    });
+    await seedSpec(dir, 'profile', {
+      'product-spec.md': `---\ndepends_on: [auth]\nrelated: []\n---\n\n# Profile page\n`,
+    });
+
+    await listCommand([], { cwd: dir, log: (m) => logs.push(m) });
+    const out = logs.join('\n');
+    expect(out).toContain('DEPENDS ON');
+    expect(out).toMatch(/profile\s+product\s+auth\s+Profile page/);
+    // The auth row has no depends_on, so its DEPENDS ON column is blank.
+    expect(out).toMatch(/auth\s+product\s{2,}Auth/);
+  });
+
+  it('handles malformed frontmatter without crashing', async () => {
+    await seedSpec(dir, 'broken', {
+      'product-spec.md': '---\nnot: valid: yaml: here\n---\n\n# Broken\n',
+    });
+
+    await listCommand([], { cwd: dir, log: (m) => logs.push(m) });
+    expect(logs.join('\n')).toContain('broken');
+  });
 });
